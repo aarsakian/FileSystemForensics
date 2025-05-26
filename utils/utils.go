@@ -235,6 +235,10 @@ func Unmarshal(data []byte, v interface{}) (int, error) {
 				field.Set(reflect.ValueOf(windowsTime))
 				idx += 8
 			}
+		case reflect.Pointer:
+			if name == "Key" {
+				idx += 17
+			}
 
 		case reflect.Uint8:
 			var temp uint8
