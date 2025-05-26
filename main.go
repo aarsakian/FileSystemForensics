@@ -6,6 +6,7 @@ import (
 	//"database/sql"
 
 	"flag"
+	"fmt"
 	"log"
 	"math"
 	"strings"
@@ -17,6 +18,7 @@ import (
 	UsnJrnl "github.com/aarsakian/FileSystemForensics/FS/NTFS/usnjrnl"
 	"github.com/aarsakian/FileSystemForensics/disk"
 	"github.com/aarsakian/FileSystemForensics/disk/volume"
+	lvmlib "github.com/aarsakian/FileSystemForensics/disk/volume"
 	"github.com/aarsakian/FileSystemForensics/exporter"
 	"github.com/aarsakian/FileSystemForensics/filtermanager"
 	"github.com/aarsakian/FileSystemForensics/filters"
@@ -61,6 +63,8 @@ func main() {
 
 	physicalDrive := flag.Int("physicaldrive", -1, "select disk drive number")
 	partitionNum := flag.Int("partition", -1, "select partition number")
+	physicalOffset := flag.Int("physicaloffset", -1, "offset to volume (sectors)")
+	logical := flag.String("volume", "", "select directly the volume requires offset in bytes, (ntfs, lvm2)")
 
 	buildtree := flag.Bool("tree", false, "reconstrut file system tree")
 
@@ -128,7 +132,6 @@ func main() {
 	if *exportFiles != "" {
 		fileNamesToExport = append(fileNamesToExport, utils.GetEntries(*exportFiles)...)
 		flm.Register(filters.FoldersFilter{Include: false})
-		flm.Register(filters.NameFilter{Filenames: fileNamesToExport})
 	}
 
 	if *fileExtensions != "" {
@@ -147,22 +150,25 @@ func main() {
 		flm.Register(filters.DeletedFilter{Include: *deleted})
 	}
 
-	if *evidencefile != "" || *physicalDrive != -1 || *vmdkfile != "" {
-		physicalDisk := new(disk.Disk)
-		physicalDisk.Initialize(*evidencefile, *physicalDrive, *vmdkfile)
+	if (*evidencefile != "" || *physicalDrive != -1 || *vmdkfile != "") && *logical == "" {
+		disk := new(disk.Disk)
+		disk.Initialize(*evidencefile, *physicalDrive, *vmdkfile)
 
-		recordsPerPartition := physicalDisk.Process(*partitionNum, entries, *fromMFTEntry, *toMFTEntry)
-		defer physicalDisk.Close()
+		recordsPerPartition, err := disk.Process(*partitionNum, entries, *fromMFTEntry, *toMFTEntry)
+		defer disk.Close()
+		if err != nil {
+			fmt.Println(err)
+		}
 		if *listPartitions {
-			physicalDisk.ListPartitions()
+			disk.ListPartitions()
 		}
 
 		if *volinfo {
-			physicalDisk.ShowVolumeInfo()
+			disk.ShowVolumeInfo()
 		}
 
 		if *collectUnallocated {
-			exp.ExportUnallocated(*physicalDisk)
+			exp.ExportUnallocated(*disk)
 		}
 
 		for partitionId, records := range recordsPerPartition {
@@ -170,14 +176,14 @@ func main() {
 			records = flm.ApplyFilters(records)
 
 			if location != "" {
-				exp.ExportRecords(records, *physicalDisk, partitionId)
+				exp.ExportRecords(records, *disk, partitionId)
 				if *hashFiles != "" {
 					exp.HashFiles(records)
 				}
 			}
 
 			if *usnjrnl {
-				usnjrnlRecords = UsnJrnl.Process(records, *physicalDisk, partitionId)
+				usnjrnlRecords = UsnJrnl.Process(records, *disk, partitionId)
 			}
 
 			if *buildtree {
@@ -188,6 +194,15 @@ func main() {
 			rp.Show(records, usnjrnlRecords, partitionId, recordsTree)
 
 		}
+
+	} else if (*evidencefile != "" || *physicalDrive != -1 || *vmdkfile != "") && *logical == "lvm2" {
+
+		disk := new(disk.Disk)
+		disk.Initialize(*evidencefile, *physicalDrive, *vmdkfile)
+
+		lvm2 := new(lvmlib.LVM2)
+		lvm2.ProcessHeader(disk.Handler, int64(*physicalOffset*512+512))
+		lvm2.Process(disk.Handler, int64(*physicalOffset*512+512), entries, *fromMFTEntry, *toMFTEntry)
 
 	} else if *inputfile != "Disk MFT" {
 
