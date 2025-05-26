@@ -3,6 +3,8 @@ package disk
 import (
 	"errors"
 	"fmt"
+	"path"
+	"strings"
 	"sync"
 
 	"github.com/aarsakian/FileSystemForensics/FS/NTFS/MFT"
@@ -26,8 +28,12 @@ type Disk struct {
 func (disk *Disk) Initialize(evidencefile string, physicaldrive int, vmdkfile string) {
 	var hD img.DiskReader
 	if evidencefile != "" {
-
-		hD = img.GetHandler(evidencefile, "ewf")
+		extension := path.Ext(evidencefile)
+		if strings.ToLower(extension) == ".e01" {
+			hD = img.GetHandler(evidencefile, "ewf")
+		} else {
+			hD = img.GetHandler(evidencefile, "raw")
+		}
 
 	} else if physicaldrive != -1 {
 
@@ -41,7 +47,7 @@ func (disk *Disk) Initialize(evidencefile string, physicaldrive int, vmdkfile st
 	disk.Handler = hD
 }
 
-func (disk *Disk) Process(partitionNum int, MFTentries []int, fromMFTEntry int, toMFTEntry int) map[int]MFT.Records {
+func (disk *Disk) Process(partitionNum int, MFTentries []int, fromMFTEntry int, toMFTEntry int) (map[int]MFT.Records, error) {
 
 	err := disk.DiscoverPartitions(partitionNum)
 	if errors.Is(err, ErrNTFSVol) {
@@ -55,7 +61,7 @@ func (disk *Disk) Process(partitionNum int, MFTentries []int, fromMFTEntry int, 
 
 	disk.DiscoverFileSystems(MFTentries, fromMFTEntry, toMFTEntry)
 
-	return disk.GetFileSystemMetadata(partitionNum)
+	return disk.GetFileSystemMetadata(partitionNum), err
 }
 
 func (disk Disk) Close() {
@@ -108,6 +114,9 @@ func (disk *Disk) populateMBR() error {
 
 	}
 	disk.MBR = &mbr
+	if utils.Hexify(mbr.Signature[:]) != "55AA" {
+		return errors.New("mbr not valid")
+	}
 	return nil
 }
 
