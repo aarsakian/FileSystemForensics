@@ -12,6 +12,25 @@ import (
 	"github.com/aarsakian/FileSystemForensics/utils"
 )
 
+type FsTreeMap map[uint64]FsTree
+
+// core structure for each root tree
+type FsTree struct {
+	ParentId      uint64
+	Name          string
+	LogicalOffset uint64
+	Nodes         GenericNodesPtr //low level slice of nodes
+	Uuid          string
+	FilesDirsMap  FilesDirsMap //map for files and folders per inodeid
+}
+
+type DirTree struct {
+	Id       uint64
+	Name     string
+	InodePtr *leafnode.InodeItem
+	Index    uint64
+}
+
 type Key struct {
 	ObjectID uint64
 	ItemType uint8
@@ -158,19 +177,22 @@ func (genericNode GenericNode) GetGuid() string {
 	return utils.StringifyGUID(genericNode.Header.ChunkTreeUUID[:])
 }
 
-func (genericNode *GenericNode) Parse(data []byte, physicalOffset uint64, noverify bool, carve bool) (int, error) {
+func (genericNode *GenericNode) Parse(data []byte, physicalOffset uint64, verify bool, carve bool) (int, error) {
 	offset := 0
 	genericNode.Header = new(Header)
 	offset, _ = utils.Unmarshal(data, genericNode.Header)
 	nodeCHCK := genericNode.ChsumToUint()
 
-	if !noverify && !genericNode.VerifyChkSum(data) {
+	if verify && !genericNode.VerifyChkSum(data) {
 
 		msg := fmt.Sprintf("Node verification failed %d at %d", nodeCHCK, physicalOffset)
 		logger.MFTExtractorlogger.Error(msg)
 		return -1, errors.New(msg)
-	} else {
+	} else if verify {
 		logger.MFTExtractorlogger.Info(fmt.Sprintf("Node verification sucess %d at %d level %d items %d",
+			nodeCHCK, physicalOffset, genericNode.Header.Level, genericNode.Header.NofItems))
+	} else {
+		logger.MFTExtractorlogger.Info(fmt.Sprintf("Node %d at %d level %d items %d",
 			nodeCHCK, physicalOffset, genericNode.Header.Level, genericNode.Header.NofItems))
 	}
 
