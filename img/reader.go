@@ -13,12 +13,12 @@ func GetHandler(pathToDisk string, mode string) DiskReader {
 	switch mode {
 	case "physicalDrive":
 		dr = &WindowsReader{a_file: pathToDisk}
-
 	case "linux":
 		//	dr = UnixReader{pathToDisk: pathToDisk}
 	case "ewf":
-		dr = &ImageReader{PathToEvidenceFiles: pathToDisk}
-
+		dr = &EWFReader{PathToEvidenceFiles: pathToDisk}
+	case "raw":
+		dr = &RawReader{PathToEvidenceFiles: pathToDisk}
 	case "vmdk":
 		dr = &VMDKReader{PathToEvidenceFiles: pathToDisk}
 	}
