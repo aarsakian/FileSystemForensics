@@ -63,16 +63,16 @@ func (exp Exporter) SetFilesToLogicalSize(records []MFT.Record) {
 
 func (exp Exporter) ExportRecords(records []MFT.Record, physicalDisk disk.Disk, partitionNum int) {
 	if exp.Location == "" {
-		msg := fmt.Sprintf("No export location was set")
+		msg := "No export location was set"
 		logger.MFTExtractorlogger.Warning(msg)
-		fmt.Printf(msg + "\n")
+		fmt.Printf("%s \n", msg)
 		return
 	}
 
 	if len(records) == 0 {
 		msg := fmt.Sprintf("filenames not found in Partition %d", partitionNum+1)
 		logger.MFTExtractorlogger.Warning(msg)
-		fmt.Printf(msg + "\n")
+		fmt.Printf("%s \n", msg)
 		return
 	}
 
