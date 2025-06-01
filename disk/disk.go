@@ -114,7 +114,7 @@ func (disk *Disk) populateMBR() error {
 
 	}
 	disk.MBR = &mbr
-	if utils.Hexify(mbr.Signature[:]) != "55AA" {
+	if utils.Hexify(mbr.Signature[:]) != "55aa" {
 		return errors.New("mbr not valid")
 	}
 	return nil
@@ -209,7 +209,7 @@ func (disk Disk) GetFileSystemMetadata(partitionNum int) map[int]MFT.Records {
 		if vol == nil {
 			continue
 		}
-		//	recordsPerPartition[idx] = fs.GetMetadata()
+		recordsPerPartition[idx] = vol.GetFS()
 
 	}
 	return recordsPerPartition
