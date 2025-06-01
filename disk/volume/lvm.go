@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 
 	"github.com/aarsakian/FileSystemForensics/FS/BTRFS"
+	"github.com/aarsakian/FileSystemForensics/FS/NTFS/MFT"
 	"github.com/aarsakian/FileSystemForensics/img"
 	"github.com/aarsakian/FileSystemForensics/utils"
 )
@@ -71,6 +72,11 @@ func (lvm2 *LVM2) Process(hD img.DiskReader, physicalOffsetB int64, SelectedEntr
 	btrfs.Process(hD, physicalOffsetB+lvm2.Header.PhysicalVolHeader.DataAreaDescriptors[0].OffsetB+128*512,
 		SelectedEntries, fromEntry, toEntry)
 
+}
+
+// this will change
+func (lvm2 LVM2) GetFS() []MFT.Record {
+	return []MFT.Record{}
 }
 
 func (lvm2 *LVM2) Parse(data []byte) {
