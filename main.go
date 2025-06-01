@@ -131,7 +131,7 @@ func main() {
 
 	if *exportFiles != "" {
 		fileNamesToExport = append(fileNamesToExport, utils.GetEntries(*exportFiles)...)
-		flm.Register(filters.FoldersFilter{Include: false})
+		flm.Register(filters.NameFilter{Filenames: fileNamesToExport})
 	}
 
 	if *fileExtensions != "" {
