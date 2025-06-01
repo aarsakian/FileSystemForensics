@@ -18,7 +18,7 @@ type MBR struct {
 	BootCode           [446]byte //0-445
 	Partitions         []Partition
 	ExtendedPartitions []ExtendedPartition
-	Signature          [2]byte //510-511
+	Signature          []byte //510-511
 }
 
 type ExtendedPartition struct {
@@ -112,6 +112,7 @@ func (mbr *MBR) Parse(buffer []byte) {
 
 	utils.Unmarshal(buffer, mbr)
 	mbr.Partitions = LocatePartitions(buffer[446:510])
+	mbr.Signature = buffer[510:]
 
 }
 
