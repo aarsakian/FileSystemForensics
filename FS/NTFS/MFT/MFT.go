@@ -104,10 +104,17 @@ func (record *Record) ProcessNoNResidentAttributes(hD img.DiskReader, partitionO
 
 	diskSizeB := hD.GetDiskSize()
 
-	for _, attribute := range record.FilterOutNonResidentAttributes("DATA") { //all non resident attrs except DATA
-		atrrecordNoNResident := attribute.GetHeader().ATRrecordNoNResident
-		if atrrecordNoNResident.RunList == nil {
-			logger.MFTExtractorlogger.Warning(fmt.Sprintf("attribute %s has no runlists.", attribute.GetHeader().GetType()))
+	for idx := range record.Attributes { //all non resident attrs except DATA
+		if record.Attributes[idx].FindType() == "DATA" {
+			continue
+		}
+		attrHeader := record.Attributes[idx].GetHeader()
+		atrrecordNoNResident := attrHeader.ATRrecordNoNResident
+		if atrrecordNoNResident == nil {
+			logger.MFTExtractorlogger.Warning(fmt.Sprintf("attribute %s has no non-resident record.", attrHeader.GetType()))
+			continue
+		} else if atrrecordNoNResident.RunList == nil {
+			logger.MFTExtractorlogger.Warning(fmt.Sprintf("attribute %s has no runlists.", attrHeader.GetType()))
 			continue
 		}
 		runlist := *atrrecordNoNResident.RunList
@@ -115,7 +122,7 @@ func (record *Record) ProcessNoNResidentAttributes(hD img.DiskReader, partitionO
 		length := int(atrrecordNoNResident.RunListTotalLenCl) * clusterSizeB
 		if length == 0 { // no runlists found
 
-			logger.MFTExtractorlogger.Warning(fmt.Sprintf("attribute %s  No runlists found.", attribute.GetHeader().GetType()))
+			logger.MFTExtractorlogger.Warning(fmt.Sprintf("attribute %s  No runlists found.", attrHeader.GetType()))
 			continue
 		}
 		var buf bytes.Buffer
@@ -150,7 +157,7 @@ func (record *Record) ProcessNoNResidentAttributes(hD img.DiskReader, partitionO
 			logger.MFTExtractorlogger.Warning(msg)
 			continue
 		}
-		attribute.Parse(buf.Bytes()[:actualLen])
+		record.Attributes[idx].Parse(buf.Bytes()[:actualLen])
 
 	}
 
@@ -206,7 +213,8 @@ func (record Record) LocateData(hD img.DiskReader, partitionOffset int64, sector
 
 	var buf bytes.Buffer
 
-	buf.Grow(int(record.GetLogicalFileSize()))
+	lSize := int(record.GetLogicalFileSize())
+	buf.Grow(lSize)
 
 	if record.HasResidentDataAttr() {
 		buf.Write(record.GetResidentData())
@@ -245,8 +253,8 @@ func (record Record) LocateData(hD img.DiskReader, partitionOffset int64, sector
 		}
 
 	}
-
-	results <- utils.AskedFile{Fname: record.GetFname(), Content: buf.Bytes(), Id: int(record.Entry)}
+	//truncate buf grows over len?
+	results <- utils.AskedFile{Fname: record.GetFname(), Content: buf.Bytes()[:lSize], Id: int(record.Entry)}
 }
 
 func (records Records) FilterDeleted(includeDeleted bool) []Record {
