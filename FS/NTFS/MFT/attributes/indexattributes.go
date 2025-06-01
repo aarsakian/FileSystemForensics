@@ -40,16 +40,19 @@ type NodeHeader struct {
 }
 
 type IndexAllocation struct {
-	Signature        string //0-4
-	FixupArrayOffset int16  //4-6
-	NumFixupEntries  int16  //6-8
-	LSN              int64  //8-16
-	VCN              int64  //16-24 where the record fits in the tree
+	Signature        [4]byte //0-4
+	FixupArrayOffset int16   //4-6
+	NumFixupEntries  int16   //6-8
+	LSN              int64   //8-16
+	VCN              int64   //16-24 where the record fits in the tree
 	Nodeheader       *NodeHeader
 	Header           *AttributeHeader
 	IndexEntries     IndexEntries
 }
 
+func (idxAllocation IndexAllocation) GetSignature() string {
+	return string(idxAllocation.Signature[:])
+}
 func (idxEntry IndexEntry) ShowInfo() {
 	if idxEntry.Fnattr != nil {
 		fmt.Printf("type %s file ref %d idx name %s flags %d allocated size %d real size %d \n", idxEntry.Fnattr.GetType(), idxEntry.ParRef,
@@ -163,7 +166,7 @@ func (idxEntry *IndexEntry) Parse(data []byte) {
 
 func (idxAllocation *IndexAllocation) Parse(data []byte) {
 	utils.Unmarshal(data[:24], idxAllocation)
-	if idxAllocation.Signature == "INDX" {
+	if idxAllocation.GetSignature() == "INDX" {
 		var nodeheader *NodeHeader = new(NodeHeader)
 		utils.Unmarshal(data[24:24+16], nodeheader)
 		idxAllocation.Nodeheader = nodeheader
