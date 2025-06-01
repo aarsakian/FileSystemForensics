@@ -79,7 +79,7 @@ func (vbr *VBR) Parse(data []byte) {
 	utils.Unmarshal(data, vbr)
 }
 
-func (ntfs NTFS) GetFSMetadata() []MFT.Record {
+func (ntfs NTFS) GetFS() []MFT.Record {
 	return ntfs.MFT.Records
 }
 
