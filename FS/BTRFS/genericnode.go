@@ -177,23 +177,22 @@ func (genericNode GenericNode) GetGuid() string {
 	return utils.StringifyGUID(genericNode.Header.ChunkTreeUUID[:])
 }
 
-func (genericNode *GenericNode) Parse(data []byte, physicalOffset uint64, verify bool, carve bool) (int, error) {
+func (genericNode *GenericNode) Parse(data []byte, physicalOffset int64, verify bool, carve bool) (int, error) {
 	offset := 0
 	genericNode.Header = new(Header)
 	offset, _ = utils.Unmarshal(data, genericNode.Header)
-	nodeCHCK := genericNode.ChsumToUint()
 
 	if verify && !genericNode.VerifyChkSum(data) {
 
-		msg := fmt.Sprintf("Node verification failed %d at %d", nodeCHCK, physicalOffset)
+		msg := fmt.Sprintf("Node verification failed at %d", physicalOffset)
 		logger.MFTExtractorlogger.Error(msg)
 		return -1, errors.New(msg)
 	} else if verify {
-		logger.MFTExtractorlogger.Info(fmt.Sprintf("Node verification sucess %d at %d level %d items %d",
-			nodeCHCK, physicalOffset, genericNode.Header.Level, genericNode.Header.NofItems))
+		logger.MFTExtractorlogger.Info(fmt.Sprintf("Node verification sucess at %d level %d items %d",
+			physicalOffset, genericNode.Header.Level, genericNode.Header.NofItems))
 	} else {
-		logger.MFTExtractorlogger.Info(fmt.Sprintf("Node %d at %d level %d items %d",
-			nodeCHCK, physicalOffset, genericNode.Header.Level, genericNode.Header.NofItems))
+		logger.MFTExtractorlogger.Info(fmt.Sprintf("Node at %d level %d items %d",
+			physicalOffset, genericNode.Header.Level, genericNode.Header.NofItems))
 	}
 
 	if genericNode.Header.Level == 0 { //leaf Node
@@ -201,13 +200,13 @@ func (genericNode *GenericNode) Parse(data []byte, physicalOffset uint64, verify
 		leafNode.Items = make([]leafnode.Item, genericNode.Header.NofItems)
 		leafNode.DataItems = make([]leafnode.DataItem, genericNode.Header.NofItems)
 
-		offset += leafNode.Parse(data[offset:], physicalOffset+uint64(offset))
+		offset += leafNode.Parse(data[offset:], physicalOffset+int64(offset))
 		genericNode.LeafNode = leafNode
 
 	} else {
 		internalNode := new(internalnode.InternalNode)
 		internalNode.Items = make([]internalnode.BlockPointer, genericNode.Header.NofItems)
-		offset += internalNode.Parse(data[offset:], physicalOffset)
+		offset += internalNode.Parse(data[offset:], physicalOffset+int64(offset))
 		genericNode.InternalNode = internalNode
 	}
 
