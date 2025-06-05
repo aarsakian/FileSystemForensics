@@ -9,7 +9,8 @@ import (
 	"github.com/aarsakian/FileSystemForensics/utils"
 )
 
-var PartitionTypes = map[uint8]string{0x07: "HPFS/NTFS/exFAT",
+var PartitionTypes = map[uint8]string{
+	0x07: "HPFS/NTFS/exFAT",
 	0x0c: "W95 FAT32 (LBA)",
 	0x0f: "Extended",
 	0x27: "Hidden NTFS Win"}
@@ -82,6 +83,9 @@ func LocatePartitions(data []byte) []Partition {
 	for pos < len(data) {
 		var partition *Partition = new(Partition) //explicit is better
 		utils.Unmarshal(data[pos:pos+16], partition)
+		if partition.Type == 0x00 {
+			break
+		}
 		partitions = append(partitions, *partition)
 		pos += 16
 	}
@@ -147,13 +151,14 @@ func (extPartition ExtendedPartition) GetVolume() volume.Volume {
 }
 
 func (partition Partition) GetInfo() string {
-	return fmt.Sprintf(" %s at %d", partition.GetPartitionType(), partition.GetOffset())
+	return fmt.Sprintf(" %s at %d size %d sectors", partition.GetPartitionType(), partition.GetOffset(), partition.Size)
 
 }
 
 func (extPartition ExtendedPartition) GetInfo() string {
 
-	return fmt.Sprintf("extended  %s at %d", extPartition.Partition.GetPartitionType(), extPartition.Partition.GetOffset())
+	return fmt.Sprintf("\textended partition  %s at %d size %d sectors",
+		extPartition.Partition.GetPartitionType(), extPartition.Partition.GetOffset(), extPartition.Partition.Size)
 }
 
 func (extpartition ExtendedPartition) GetVolInfo() string {
