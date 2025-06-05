@@ -14,10 +14,8 @@ import (
 
 	EWFLogger "github.com/aarsakian/EWF_Reader/logger"
 
-	"github.com/aarsakian/FileSystemForensics/FS/NTFS/MFT"
 	UsnJrnl "github.com/aarsakian/FileSystemForensics/FS/NTFS/usnjrnl"
 	"github.com/aarsakian/FileSystemForensics/disk"
-	"github.com/aarsakian/FileSystemForensics/disk/volume"
 	lvmlib "github.com/aarsakian/FileSystemForensics/disk/volume"
 	"github.com/aarsakian/FileSystemForensics/exporter"
 	"github.com/aarsakian/FileSystemForensics/filtermanager"
@@ -41,7 +39,7 @@ func main() {
 
 	//	save2DB := flag.Bool("db", false, "bool if set an sqlite file will be created, each table will corresponed to an MFT attribute")
 	var location string
-	inputfile := flag.String("MFT", "", "absolute path to the MFT file")
+	//inputfile := flag.String("MFT", "", "absolute path to the MFT file")
 	evidencefile := flag.String("evidence", "", "path to image file (EWF formats are supported)")
 	vmdkfile := flag.String("vmdk", "", "path to vmdk file (Sparse formats are supported)")
 
@@ -88,7 +86,7 @@ func main() {
 
 	flag.Parse() //ready to parse
 
-	var records MFT.Records
+	//var records MFT.Records
 	var usnjrnlRecords UsnJrnl.Records
 	var fileNamesToExport []string
 
@@ -155,10 +153,17 @@ func main() {
 		disk.Initialize(*evidencefile, *physicalDrive, *vmdkfile)
 
 		recordsPerPartition, err := disk.Process(*partitionNum, entries, *fromMFTEntry, *toMFTEntry)
+
 		defer disk.Close()
 		if err != nil {
 			fmt.Println(err)
+			return
 		}
+
+		if *usnjrnl {
+			disk.ProcessJrnl(recordsPerPartition, *partitionNum)
+		}
+
 		if *listPartitions {
 			disk.ListPartitions()
 		}
@@ -182,10 +187,6 @@ func main() {
 				}
 			}
 
-			if *usnjrnl {
-				usnjrnlRecords = UsnJrnl.Process(records, *disk, partitionId)
-			}
-
 			if *buildtree {
 				recordsTree.Build(records)
 
@@ -204,7 +205,8 @@ func main() {
 		lvm2.ProcessHeader(disk.Handler, int64(*physicalOffset*512+512))
 		lvm2.Process(disk.Handler, int64(*physicalOffset*512+512), entries, *fromMFTEntry, *toMFTEntry)
 
-	} else if *inputfile != "Disk MFT" {
+	}
+	/* else if *inputfile != "Disk MFT" {
 
 		data, fsize, err := utils.ReadFile(*inputfile)
 		if err != nil {
@@ -225,5 +227,5 @@ func main() {
 		rp.Show(records, usnjrnlRecords, 0, recordsTree)
 
 	}
-
+	*/
 } //ends for
