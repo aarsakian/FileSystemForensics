@@ -3,7 +3,7 @@ package reporter
 import (
 	"fmt"
 
-	"github.com/aarsakian/FileSystemForensics/FS/NTFS/MFT"
+	metadata "github.com/aarsakian/FileSystemForensics/FS"
 	UsnJrnl "github.com/aarsakian/FileSystemForensics/FS/NTFS/usnjrnl"
 	"github.com/aarsakian/FileSystemForensics/tree"
 )
@@ -24,7 +24,7 @@ type Reporter struct {
 	ShowTree       bool
 }
 
-func (rp Reporter) Show(records []MFT.Record, usnjrnlRecords UsnJrnl.Records, partitionId int, tree tree.Tree) {
+func (rp Reporter) Show(records []metadata.Record, usnjrnlRecords UsnJrnl.Records, partitionId int, tree tree.Tree) {
 	for _, record := range records {
 		askedToShow := false
 
