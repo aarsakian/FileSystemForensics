@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/aarsakian/FileSystemForensics/FS/NTFS/MFT"
+	metadata "github.com/aarsakian/FileSystemForensics/FS"
 	"github.com/aarsakian/FileSystemForensics/disk"
 	"github.com/aarsakian/FileSystemForensics/logger"
 	"github.com/aarsakian/FileSystemForensics/utils"
@@ -44,11 +44,11 @@ func (exp Exporter) ExportUnallocated(physicalDisk disk.Disk) {
 	}
 }
 
-func (exp Exporter) SetFilesToLogicalSize(records []MFT.Record) {
+func (exp Exporter) SetFilesToLogicalSize(records []metadata.Record) {
 	var fname string
 	for _, record := range records {
 		if exp.Strategy == "Id" {
-			fname = fmt.Sprintf("[%d]%s", record.Entry, record.GetFname())
+			fname = fmt.Sprintf("[%d]%s", record.GetID(), record.GetFname())
 		} else {
 			fname = record.GetFname()
 		}
@@ -61,7 +61,7 @@ func (exp Exporter) SetFilesToLogicalSize(records []MFT.Record) {
 	}
 }
 
-func (exp Exporter) ExportRecords(records []MFT.Record, physicalDisk disk.Disk, partitionNum int) {
+func (exp Exporter) ExportRecords(records []metadata.Record, physicalDisk disk.Disk, partitionNum int) {
 	if exp.Location == "" {
 		msg := "No export location was set"
 		logger.MFTExtractorlogger.Warning(msg)
@@ -88,7 +88,7 @@ func (exp Exporter) ExportRecords(records []MFT.Record, physicalDisk disk.Disk, 
 	wg.Wait()
 }
 
-func (exp Exporter) HashFiles(records []MFT.Record) {
+func (exp Exporter) HashFiles(records []metadata.Record) {
 
 	if exp.Hash != "MD5" && exp.Hash != "SHA1" {
 		fmt.Printf("Only Supported Hashes are MD5 or SHA1 and not %s!\n", exp.Hash)
