@@ -598,7 +598,7 @@ func (item Item) Len() int {
 	return utils.GetStructSize(item, size)
 }
 
-func (leaf *LeafNode) Parse(data []byte, physicalOffset uint64) int {
+func (leaf *LeafNode) Parse(data []byte, physicalOffset int64) int {
 	offset := 0
 
 	for idx := range leaf.Items {
@@ -643,7 +643,7 @@ func (leaf *LeafNode) Parse(data []byte, physicalOffset uint64) int {
 		} else if item.IsXAttr() {
 			leaf.DataItems[idx] = &DirItem{}
 		} else {
-			logger.MFTExtractorlogger.Warning(fmt.Sprintf("Leaf at %d pos %d inodeid %d  %s  item type? %x", physicalOffset+uint64(item.DataOffset),
+			logger.MFTExtractorlogger.Warning(fmt.Sprintf("Leaf at %d pos %d inodeid %d  %s  item type? %x", physicalOffset+int64(item.DataOffset),
 				idx,
 				item.Key.ObjectID,
 				item.GetType(), item.Key.ItemType))
@@ -652,7 +652,7 @@ func (leaf *LeafNode) Parse(data []byte, physicalOffset uint64) int {
 
 		leaf.DataItems[idx].Parse(data[item.DataOffset : item.DataOffset+item.DataLen])
 
-		logger.MFTExtractorlogger.Info(fmt.Sprintf("Leaf at %d pos %d inodeId %d %s %s", physicalOffset+uint64(item.DataOffset),
+		logger.MFTExtractorlogger.Info(fmt.Sprintf("Leaf at %d pos %d inodeId %d %s %s", physicalOffset+int64(item.DataOffset),
 			idx,
 			item.Key.ObjectID,
 			item.GetType(),
