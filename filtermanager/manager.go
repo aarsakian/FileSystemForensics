@@ -1,7 +1,7 @@
 package filtermanager
 
 import (
-	"github.com/aarsakian/FileSystemForensics/FS/NTFS/MFT"
+	metadata "github.com/aarsakian/FileSystemForensics/FS"
 	"github.com/aarsakian/FileSystemForensics/filters"
 )
 
@@ -13,7 +13,7 @@ func (filterManager *FilterManager) Register(filter filters.Filter) {
 	filterManager.filters = append(filterManager.filters, filter)
 }
 
-func (filterManager FilterManager) ApplyFilters(records MFT.Records) MFT.Records {
+func (filterManager FilterManager) ApplyFilters(records []metadata.Record) []metadata.Record {
 	for _, filter := range filterManager.filters {
 		records = filter.Execute(records)
 	}
