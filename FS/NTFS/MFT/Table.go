@@ -20,7 +20,7 @@ func (e *ParentReallocatedError) Error() string {
 
 // $MFT table points either to its file path or the buffer containing $MFT
 type MFTTable struct {
-	Records Records
+	Records []Record
 	Size    int
 }
 
