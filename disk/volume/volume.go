@@ -1,7 +1,7 @@
 package volume
 
 import (
-	"github.com/aarsakian/FileSystemForensics/FS/NTFS/MFT"
+	metadata "github.com/aarsakian/FileSystemForensics/FS"
 	"github.com/aarsakian/FileSystemForensics/img"
 )
 
@@ -10,7 +10,7 @@ type Volume interface {
 	GetSectorsPerCluster() int
 	GetBytesPerSector() uint64
 	GetInfo() string
-	GetFS() []MFT.Record
+	GetFS() []metadata.Record
 	CollectUnallocated(img.DiskReader, int64, chan<- []byte)
 	GetSignature() string
 }
