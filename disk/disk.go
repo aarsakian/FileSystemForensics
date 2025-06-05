@@ -7,7 +7,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/aarsakian/FileSystemForensics/FS/NTFS/MFT"
+	metadata "github.com/aarsakian/FileSystemForensics/FS"
+	UsnJrnl "github.com/aarsakian/FileSystemForensics/FS/NTFS/usnjrnl"
 	gptLib "github.com/aarsakian/FileSystemForensics/disk/partition/GPT"
 	mbrLib "github.com/aarsakian/FileSystemForensics/disk/partition/MBR"
 	"github.com/aarsakian/FileSystemForensics/disk/volume"
@@ -17,6 +18,14 @@ import (
 )
 
 var ErrNTFSVol = errors.New("NTFS volume discovered instead of MBR")
+
+type Partition interface {
+	GetOffset() uint64
+	LocateVolume(img.DiskReader)
+	GetVolume() volume.Volume
+	GetInfo() string
+	GetVolInfo() string
+}
 
 type Disk struct {
 	MBR        *mbrLib.MBR
@@ -47,7 +56,7 @@ func (disk *Disk) Initialize(evidencefile string, physicaldrive int, vmdkfile st
 	disk.Handler = hD
 }
 
-func (disk *Disk) Process(partitionNum int, MFTentries []int, fromMFTEntry int, toMFTEntry int) (map[int]MFT.Records, error) {
+func (disk *Disk) Process(partitionNum int, MFTentries []int, fromMFTEntry int, toMFTEntry int) (map[int][]metadata.Record, error) {
 
 	err := disk.DiscoverPartitions(partitionNum)
 	if errors.Is(err, ErrNTFSVol) {
@@ -60,8 +69,34 @@ func (disk *Disk) Process(partitionNum int, MFTentries []int, fromMFTEntry int, 
 	disk.ProcessPartitions(partitionNum)
 
 	disk.DiscoverFileSystems(MFTentries, fromMFTEntry, toMFTEntry)
-
 	return disk.GetFileSystemMetadata(partitionNum), err
+}
+
+func (disk Disk) ProcessJrnl(recordsPerPartition map[int][]metadata.Record, partitionNum int) []UsnJrnl.Record {
+	var usnrecords []UsnJrnl.Record
+
+	for partitionID, records := range recordsPerPartition {
+		if partitionNum != -1 && partitionID != partitionNum {
+			continue
+		}
+		for _, record := range records {
+			recordsCH := make(chan UsnJrnl.Record)
+			wg := new(sync.WaitGroup)
+			wg.Add(2)
+			dataClusters := make(chan []byte, record.GetLogicalFileSize())
+
+			go disk.AsyncWorker(wg, record, dataClusters, partitionNum)
+			go UsnJrnl.AsyncProcess(wg, dataClusters, recordsCH)
+			for record := range recordsCH {
+				usnrecords = append(usnrecords, record)
+			}
+
+			wg.Wait()
+		}
+	}
+
+	return usnrecords
+
 }
 
 func (disk Disk) Close() {
@@ -70,14 +105,6 @@ func (disk Disk) Close() {
 
 func (disk Disk) hasProtectiveMBR() bool {
 	return disk.MBR.IsProtective()
-}
-
-type Partition interface {
-	GetOffset() uint64
-	LocateVolume(img.DiskReader)
-	GetVolume() volume.Volume
-	GetInfo() string
-	GetVolInfo() string
 }
 
 func (disk *Disk) DiscoverFileSystems(MFTentries []int, fromMFTEntry int, toMFTEntry int) {
@@ -183,6 +210,7 @@ func (disk *Disk) ProcessPartitions(partitionNum int) {
 		}
 
 		disk.Partitions[idx].LocateVolume(disk.Handler)
+
 		parttionOffset := disk.Partitions[idx].GetOffset()
 		vol := disk.Partitions[idx].GetVolume()
 		if vol == nil {
@@ -198,9 +226,9 @@ func (disk *Disk) ProcessPartitions(partitionNum int) {
 
 }
 
-func (disk Disk) GetFileSystemMetadata(partitionNum int) map[int]MFT.Records {
+func (disk Disk) GetFileSystemMetadata(partitionNum int) map[int][]metadata.Record {
 
-	recordsPerPartition := map[int]MFT.Records{}
+	recordsPerPartition := map[int][]metadata.Record{}
 	for idx, partition := range disk.Partitions {
 		if partitionNum != -1 && idx+1 != partitionNum {
 			continue
@@ -215,7 +243,7 @@ func (disk Disk) GetFileSystemMetadata(partitionNum int) map[int]MFT.Records {
 	return recordsPerPartition
 }
 
-func (disk Disk) AsyncWorker(wg *sync.WaitGroup, record MFT.Record, dataClusters chan<- []byte, partitionNum int) {
+func (disk Disk) AsyncWorker(wg *sync.WaitGroup, record metadata.Record, dataClusters chan<- []byte, partitionNum int) {
 	defer wg.Done()
 	partition := disk.Partitions[partitionNum]
 
@@ -225,18 +253,18 @@ func (disk Disk) AsyncWorker(wg *sync.WaitGroup, record MFT.Record, dataClusters
 	partitionOffsetB := int64(partition.GetOffset()) * int64(bytesPerSector)
 
 	if record.IsFolder() {
-		msg := fmt.Sprintf("Record %s Id %d is folder! No data to export.", record.GetFname(), record.Entry)
+		msg := fmt.Sprintf("Record %s Id %d is folder! No data to export.", record.GetFname(), record.GetID())
 		logger.MFTExtractorlogger.Warning(msg)
 		close(dataClusters)
 		return
 	}
-	fmt.Printf("pulling data file %s Id %d\n", record.GetFname(), record.Entry)
-
-	if len(record.LinkedRecords) == 0 {
+	fmt.Printf("pulling data file %s Id %d\n", record.GetFname(), record.GetID())
+	linkedRecords := record.GetLinkedRecords()
+	if len(linkedRecords) == 0 {
 		record.LocateDataAsync(disk.Handler, partitionOffsetB, sectorsPerCluster, bytesPerSector, dataClusters)
 	} else { // attribute runlist
 
-		for _, linkedRecord := range record.LinkedRecords {
+		for _, linkedRecord := range linkedRecords {
 			linkedRecord.LocateDataAsync(disk.Handler, partitionOffsetB, sectorsPerCluster, bytesPerSector, dataClusters)
 
 		}
@@ -246,7 +274,7 @@ func (disk Disk) AsyncWorker(wg *sync.WaitGroup, record MFT.Record, dataClusters
 	close(dataClusters)
 
 }
-func (disk Disk) Worker(wg *sync.WaitGroup, records MFT.Records, results chan<- utils.AskedFile, partitionNum int) {
+func (disk Disk) Worker(wg *sync.WaitGroup, records []metadata.Record, results chan<- utils.AskedFile, partitionNum int) {
 	defer wg.Done()
 	partition := disk.Partitions[partitionNum]
 
@@ -258,17 +286,17 @@ func (disk Disk) Worker(wg *sync.WaitGroup, records MFT.Records, results chan<- 
 	for _, record := range records {
 
 		if record.IsFolder() {
-			msg := fmt.Sprintf("Record %s Id %d is folder! No data to export.", record.GetFname(), record.Entry)
+			msg := fmt.Sprintf("Record %s Id %d is folder! No data to export.", record.GetFname(), record.GetID())
 			logger.MFTExtractorlogger.Warning(msg)
 			continue
 		}
-		fmt.Printf("pulling data file %s Id %d\n", record.GetFname(), record.Entry)
-
-		if len(record.LinkedRecords) == 0 {
+		fmt.Printf("pulling data file %s Id %d\n", record.GetFname(), record.GetID())
+		linkedRecords := record.GetLinkedRecords()
+		if len(linkedRecords) == 0 {
 			record.LocateData(disk.Handler, partitionOffsetB, sectorsPerCluster, bytesPerSector, results)
 		} else { // attribute runlist
 
-			for _, linkedRecord := range record.LinkedRecords {
+			for _, linkedRecord := range linkedRecords {
 				linkedRecord.LocateData(disk.Handler, partitionOffsetB, sectorsPerCluster, bytesPerSector, results)
 
 			}
