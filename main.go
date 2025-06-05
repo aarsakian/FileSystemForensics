@@ -92,10 +92,6 @@ func main() {
 
 	entries := utils.GetEntriesInt(*MFTSelectedEntries)
 
-	if *usnjrnl {
-		fileNamesToExport = append(fileNamesToExport, "$UsnJrnl")
-	}
-
 	recordsTree := tree.Tree{}
 
 	rp := reporter.Reporter{
@@ -160,10 +156,6 @@ func main() {
 			return
 		}
 
-		if *usnjrnl {
-			disk.ProcessJrnl(recordsPerPartition, *partitionNum)
-		}
-
 		if *listPartitions {
 			disk.ListPartitions()
 		}
@@ -179,6 +171,10 @@ func main() {
 		for partitionId, records := range recordsPerPartition {
 
 			records = flm.ApplyFilters(records)
+
+			if *usnjrnl {
+				disk.ProcessJrnl(recordsPerPartition, *partitionNum)
+			}
 
 			if location != "" {
 				exp.ExportRecords(records, *disk, partitionId)

@@ -79,7 +79,9 @@ func (disk Disk) ProcessJrnl(recordsPerPartition map[int][]metadata.Record, part
 		if partitionNum != -1 && partitionID != partitionNum {
 			continue
 		}
-		for _, record := range records {
+
+		for _, record := range metadata.FilterByName(records, "$UsnJrnl") {
+
 			recordsCH := make(chan UsnJrnl.Record)
 			wg := new(sync.WaitGroup)
 			wg.Add(2)
