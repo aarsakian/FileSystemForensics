@@ -27,7 +27,7 @@ func (blockPointer BlockPointer) GetSize() int {
 	return utils.GetStructSize(blockPointer, size)
 }
 
-func (internalNode *InternalNode) Parse(data []byte, physicalOffset uint64) int {
+func (internalNode *InternalNode) Parse(data []byte, physicalOffset int64) int {
 	startOffset := 0
 
 	for idx := range internalNode.Items {
