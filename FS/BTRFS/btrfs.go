@@ -97,7 +97,7 @@ func (btrfs *BTRFS) Process(hD img.DiskReader, partitionOffsetB int64, selectedE
 	fmt.Printf(msg+"\n", partitionOffsetB)
 	logger.MFTExtractorlogger.Info(fmt.Sprintf(msg, partitionOffsetB))
 
-	data := hD.ReadFile(partitionOffsetB, SUPERBLOCKSIZE)
+	data := hD.ReadFile(partitionOffsetB+OFFSET_TO_SUPERBLOCK, SUPERBLOCKSIZE)
 	btrfs.ParseSuperblock(data)
 	if !btrfs.VerifySuperBlock(data) {
 		msg := "superblock chcksum failed!"
@@ -108,7 +108,9 @@ func (btrfs *BTRFS) Process(hD img.DiskReader, partitionOffsetB int64, selectedE
 	btrfs.UpdateChunkMaps(btrfs.ParseSystemChunks())
 
 	verify := true
-	node, err := btrfs.ParseTreeNode(hD, int(btrfs.Superblock.LogicalAddressRootChunkTree), int(btrfs.Superblock.NodeSize), verify)
+	node, err := btrfs.ParseTreeNode(hD, int(btrfs.Superblock.LogicalAddressRootChunkTree),
+		partitionOffsetB,
+		int(btrfs.Superblock.NodeSize), verify)
 	if err != nil {
 
 		logger.MFTExtractorlogger.Error(err)
@@ -119,7 +121,8 @@ func (btrfs *BTRFS) Process(hD img.DiskReader, partitionOffsetB int64, selectedE
 
 	/* parse root of root trees*/
 
-	genericNodes, err := btrfs.ParseTreeNode(hD, int(btrfs.Superblock.LogicalAddressRootTree), int(btrfs.Superblock.NodeSize), verify)
+	genericNodes, err := btrfs.ParseTreeNode(hD, int(btrfs.Superblock.LogicalAddressRootTree), partitionOffsetB,
+		int(btrfs.Superblock.NodeSize), verify)
 	if err != nil {
 
 		logger.MFTExtractorlogger.Error(err)
@@ -129,11 +132,12 @@ func (btrfs *BTRFS) Process(hD img.DiskReader, partitionOffsetB int64, selectedE
 	subvolumename := ""
 	fsTreeMap, _ := btrfs.DiscoverTrees(genericNodes, subvolumename)
 	carve := false
-	btrfs.DescendTreeCh(hD, fsTreeMap, int(btrfs.Superblock.NodeSize), verify, carve)
+	btrfs.DescendTreeCh(hD, fsTreeMap, partitionOffsetB, int(btrfs.Superblock.NodeSize), verify, carve)
 
 }
 
-func (btrfs BTRFS) DescendTreeCh(hD img.DiskReader, fsTreeMap FsTreeMap, nodeSize int, noverify bool, carve bool) {
+func (btrfs BTRFS) DescendTreeCh(hD img.DiskReader, fsTreeMap FsTreeMap, partitionOffsetB int64,
+	nodeSize int, noverify bool, carve bool) {
 	wg := new(sync.WaitGroup)
 
 	for inodeId, fsTree := range fsTreeMap {
@@ -141,7 +145,7 @@ func (btrfs BTRFS) DescendTreeCh(hD img.DiskReader, fsTreeMap FsTreeMap, nodeSiz
 		logger.MFTExtractorlogger.Info(fmt.Sprintf("Parsing tree %d", inodeId))
 
 		wg.Add(2)
-		go btrfs.ParseTreeNodeCh(hD, wg, int(fsTree.LogicalOffset), nodeSize, nodesLeaf, noverify, carve)
+		go btrfs.ParseTreeNodeCh(hD, wg, int(fsTree.LogicalOffset), partitionOffsetB, nodeSize, nodesLeaf, noverify, carve)
 
 		go fsTreeMap.Update(wg, nodesLeaf, inodeId)
 
@@ -231,14 +235,15 @@ func (fsTreeMap FsTreeMap) Update(wgs *sync.WaitGroup, nodesLeaf chan *GenericNo
 }
 
 // returns leaf nodes
-func (btrfs BTRFS) ParseTreeNodeCh(hD img.DiskReader, wg *sync.WaitGroup, logicalOffset int, size int, leafNodes chan<- *GenericNode,
+func (btrfs BTRFS) ParseTreeNodeCh(hD img.DiskReader, wg *sync.WaitGroup, logicalOffset int,
+	partitionOffsetB int64, size int, leafNodes chan<- *GenericNode,
 	noverify bool, carve bool) {
 	defer wg.Done()
 	defer close(leafNodes)
 
 	var internalNodes Stack
 
-	node, err := btrfs.CreateNode(hD, logicalOffset, size, noverify, carve)
+	node, err := btrfs.CreateNode(hD, logicalOffset, partitionOffsetB, size, noverify, carve)
 
 	if err != nil {
 		logger.MFTExtractorlogger.Error(err)
@@ -259,13 +264,13 @@ func (btrfs BTRFS) ParseTreeNodeCh(hD img.DiskReader, wg *sync.WaitGroup, logica
 		parentCHK := node.ChsumToUint()
 
 		for _, item := range node.InternalNode.Items {
-			node, err := btrfs.CreateNode(hD, int(item.LogicalAddressRefHeader), size, noverify, carve)
+			node, err := btrfs.CreateNode(hD, int(item.LogicalAddressRefHeader), partitionOffsetB, size, noverify, carve)
 			if err != nil {
 				continue
 			}
 
-			logger.MFTExtractorlogger.Info(fmt.Sprintf("Node GUID %s CHK %d from internal item id %d %d",
-				node.GetGuid(), node.ChsumToUint(), item.Key.ObjectID, parentCHK))
+			logger.MFTExtractorlogger.Info(fmt.Sprintf("Node GUID %s  from internal item id %d %d",
+				node.GetGuid(), item.Key.ObjectID, parentCHK))
 
 			if node.InternalNode != nil {
 				internalNodes.Push(node)
@@ -350,7 +355,8 @@ func (btrfs BTRFS) DiscoverTrees(nodes GenericNodesPtr, nametree string) (FsTree
 }
 
 // producer of nodes
-func (btrfs BTRFS) CreateNode(hD img.DiskReader, logicalOffset int, size int, verify bool, carve bool) (*GenericNode, error) {
+func (btrfs BTRFS) CreateNode(hD img.DiskReader, logicalOffset int, partitionOffsetB int64,
+	size int, verify bool, carve bool) (*GenericNode, error) {
 
 	physicalOffset, blockSize, err := btrfs.LocatePhysicalOffsetSize(uint64(logicalOffset))
 	if err != nil {
@@ -359,10 +365,10 @@ func (btrfs BTRFS) CreateNode(hD img.DiskReader, logicalOffset int, size int, ve
 	if int(blockSize) < size {
 		size = int(blockSize)
 	}
-	data := hD.ReadFile(int64(physicalOffset), size)
+	data := hD.ReadFile(int64(physicalOffset)+partitionOffsetB, size)
 
 	node := new(GenericNode)
-	_, err = node.Parse(data, physicalOffset, verify, carve)
+	_, err = node.Parse(data, int64(physicalOffset)+partitionOffsetB, verify, carve)
 	if err != nil {
 		return nil, err
 	}
@@ -384,14 +390,15 @@ func (btrfs BTRFS) LocatePhysicalOffsetSize(logicalOffset uint64) (uint64, uint6
 }
 
 // returns leaf nodes
-func (btrfs BTRFS) ParseTreeNode(hD img.DiskReader, logicalOffset int, size int, verify bool) (GenericNodesPtr, error) {
+func (btrfs BTRFS) ParseTreeNode(hD img.DiskReader, logicalOffset int, partitionOffsetB int64,
+	size int, verify bool) (GenericNodesPtr, error) {
 	logger.MFTExtractorlogger.Info(fmt.Sprintf("Parsing tree at %d", logicalOffset))
 
 	var internalNodes Stack
 	var leafNodes GenericNodesPtr
 	carve := false
 
-	node, err := btrfs.CreateNode(hD, logicalOffset, size, verify, carve)
+	node, err := btrfs.CreateNode(hD, logicalOffset, partitionOffsetB, size, verify, carve)
 
 	if err != nil {
 		return nil, err
@@ -408,7 +415,7 @@ func (btrfs BTRFS) ParseTreeNode(hD img.DiskReader, logicalOffset int, size int,
 
 		for _, item := range node.InternalNode.Items {
 
-			node, err := btrfs.CreateNode(hD, int(item.LogicalAddressRefHeader), size, verify, carve)
+			node, err := btrfs.CreateNode(hD, int(item.LogicalAddressRefHeader), partitionOffsetB, size, verify, carve)
 			if err != nil {
 				continue
 			}
