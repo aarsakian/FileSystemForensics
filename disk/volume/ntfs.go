@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 
+	metadata "github.com/aarsakian/FileSystemForensics/FS"
 	"github.com/aarsakian/FileSystemForensics/FS/NTFS/MFT"
 	MFTAttributes "github.com/aarsakian/FileSystemForensics/FS/NTFS/MFT/attributes"
 	"github.com/aarsakian/FileSystemForensics/img"
@@ -79,8 +80,13 @@ func (vbr *VBR) Parse(data []byte) {
 	utils.Unmarshal(data, vbr)
 }
 
-func (ntfs NTFS) GetFS() []MFT.Record {
-	return ntfs.MFT.Records
+func (ntfs NTFS) GetFS() []metadata.Record {
+	//explicit conversion
+	var records []metadata.Record
+	for _, record := range ntfs.MFT.Records {
+		records = append(records, record)
+	}
+	return records
 }
 
 func (ntfs NTFS) GetInfo() string {
