@@ -8,8 +8,6 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/aarsakian/FileSystemForensics/FS/NTFS/MFT"
-	"github.com/aarsakian/FileSystemForensics/disk"
 	"github.com/aarsakian/FileSystemForensics/logger"
 	"github.com/aarsakian/FileSystemForensics/utils"
 )
@@ -82,27 +80,6 @@ type Record struct {
 	FnameOffset uint16 //format of name 58-60
 	Fname       string //special string type without nulls
 
-}
-
-func Process(mftrecords MFT.Records, disk disk.Disk, partitionId int) Records {
-
-	var records Records
-	for _, record := range mftrecords {
-		recordsCH := make(chan Record)
-		wg := new(sync.WaitGroup)
-		wg.Add(2)
-		dataClusters := make(chan []byte, record.GetLogicalFileSize())
-
-		go disk.AsyncWorker(wg, record, dataClusters, partitionId)
-		go AsyncProcess(wg, dataClusters, recordsCH)
-		for record := range recordsCH {
-			records = append(records, record)
-		}
-
-		wg.Wait()
-	}
-
-	return records
 }
 
 func AsyncProcess(wg *sync.WaitGroup, dataClusters <-chan []byte, recordsCH chan<- Record) {
