@@ -257,17 +257,6 @@ func (record Record) LocateData(hD img.DiskReader, partitionOffset int64, sector
 	results <- utils.AskedFile{Fname: record.GetFname(), Content: buf.Bytes()[:lSize], Id: int(record.Entry)}
 }
 
-func (records Records) FilterDeleted(includeDeleted bool) []Record {
-	return utils.Filter(records, func(record Record) bool {
-		if includeDeleted {
-			return record.IsDeleted()
-		} else {
-			return !record.IsDeleted()
-		}
-
-	})
-}
-
 func (record Record) FindNonResidentAttributes() []Attribute {
 	return utils.Filter(record.Attributes, func(attribute Attribute) bool {
 		return attribute.IsNoNResident()
@@ -277,18 +266,6 @@ func (record Record) FindNonResidentAttributes() []Attribute {
 func (record Record) FilterOutNonResidentAttributes(attrName string) []Attribute {
 	return utils.Filter(record.Attributes, func(attribute Attribute) bool {
 		return attribute.IsNoNResident() && attribute.FindType() != attrName
-	})
-}
-
-func (records Records) FilterOutFiles() Records {
-	return utils.Filter(records, func(record Record) bool {
-		return record.IsFolder()
-	})
-}
-
-func (records Records) FilterOutFolders() Records {
-	return utils.Filter(records, func(record Record) bool {
-		return !record.IsFolder()
 	})
 }
 
@@ -326,8 +303,20 @@ func (record Record) HasNonResidentAttr() bool {
 	return false
 }
 
+func (record Record) GetLinkedRecords() []*Record {
+	return record.LinkedRecords
+}
+
 func (record Record) getType() string {
 	return MFTflags[record.Flags]
+}
+
+func (record Record) GetID() int {
+	return int(record.Entry)
+}
+
+func (record Record) GetSequence() int {
+	return int(record.Seq)
 }
 
 func (record Record) IsDeleted() bool {
@@ -836,55 +825,8 @@ func (record Record) ShowFileName(fileNameSyntax string) {
 	}
 }
 
-func (records Records) FilterByExtension(extension string) []Record {
-
-	return utils.Filter(records, func(record Record) bool {
-		return record.HasFilenameExtension(extension)
-	})
-
-}
-
-func (records Records) FilterByExtensions(extensions []string) []Record {
-	var filteredRecords []Record
-	for _, extension := range extensions {
-		filteredRecords = append(filteredRecords, records.FilterByExtension(extension)...)
-	}
-	return filteredRecords
-}
-
-func (records Records) FilterByNames(filenames []string) []Record {
-
-	return utils.Filter(records, func(record Record) bool {
-		return record.HasFilenames(filenames)
-	})
-
-}
-
-func (records Records) FilterByPath(filespath string) []Record {
-	return utils.Filter(records, func(record Record) bool {
-		return record.HasPath(filespath)
-	})
-}
-
-func (records Records) FilterByName(filename string) []Record {
-	return utils.Filter(records, func(record Record) bool {
-		return record.HasFilename(filename)
-	})
-
-}
-
-func (records Records) FilterOrphans() []Record {
-	return utils.Filter(records, func(record Record) bool {
-		return record.IsDeleted() && record.Parent == nil
-	})
-}
-
-func (records Records) FilterByPrefixSuffix(prefix string, suffix string) []Record {
-
-	return utils.Filter(records, func(record Record) bool {
-		return record.HasPrefix(prefix) && record.HasSuffix(suffix)
-	})
-
+func (record Record) HasParent() bool {
+	return record.Parent != nil
 }
 
 func (records Records) GetParent(record Record) (Record, error) {
