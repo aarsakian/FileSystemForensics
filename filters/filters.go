@@ -1,42 +1,44 @@
 package filters
 
-import "github.com/aarsakian/FileSystemForensics/FS/NTFS/MFT"
+import (
+	metadata "github.com/aarsakian/FileSystemForensics/FS"
+)
 
 type Filter interface {
-	Execute(records MFT.Records) MFT.Records
+	Execute(records []metadata.Record) []metadata.Record
 }
 
 type NameFilter struct {
 	Filenames []string
 }
 
-func (nameFilter NameFilter) Execute(records MFT.Records) MFT.Records {
-	return records.FilterByNames(nameFilter.Filenames)
+func (nameFilter NameFilter) Execute(records []metadata.Record) []metadata.Record {
+	return metadata.FilterByNames(records, nameFilter.Filenames)
 }
 
 type PathFilter struct {
 	NamePath string
 }
 
-func (pathFilter PathFilter) Execute(records MFT.Records) MFT.Records {
-	return records.FilterByPath(pathFilter.NamePath)
+func (pathFilter PathFilter) Execute(records []metadata.Record) []metadata.Record {
+	return metadata.FilterByPath(records, pathFilter.NamePath)
 }
 
 type ExtensionsFilter struct {
 	Extensions []string
 }
 
-func (extensionsFilter ExtensionsFilter) Execute(records MFT.Records) MFT.Records {
-	return records.FilterByExtensions(extensionsFilter.Extensions)
+func (extensionsFilter ExtensionsFilter) Execute(records []metadata.Record) []metadata.Record {
+	return metadata.FilterByExtensions(records, extensionsFilter.Extensions)
 }
 
 type OrphansFilter struct {
 	Include bool
 }
 
-func (orphansFilter OrphansFilter) Execute(records MFT.Records) MFT.Records {
+func (orphansFilter OrphansFilter) Execute(records []metadata.Record) []metadata.Record {
 	if orphansFilter.Include {
-		return records.FilterOrphans()
+		return metadata.FilterOrphans(records)
 	}
 	return records
 }
@@ -45,9 +47,9 @@ type DeletedFilter struct {
 	Include bool
 }
 
-func (deletedFilter DeletedFilter) Execute(records MFT.Records) MFT.Records {
+func (deletedFilter DeletedFilter) Execute(records []metadata.Record) []metadata.Record {
 	if deletedFilter.Include {
-		return records.FilterDeleted(deletedFilter.Include)
+		return metadata.FilterDeleted(records, deletedFilter.Include)
 	}
 	return records
 }
@@ -56,9 +58,9 @@ type FoldersFilter struct {
 	Include bool
 }
 
-func (foldersFilter FoldersFilter) Execute(records MFT.Records) MFT.Records {
+func (foldersFilter FoldersFilter) Execute(records []metadata.Record) []metadata.Record {
 	if !foldersFilter.Include {
-		return records.FilterOutFolders()
+		return metadata.FilterOutFolders(records)
 	}
 	return records
 }
@@ -68,9 +70,9 @@ type PrefixesSuffixesFilter struct {
 	Suffixes []string
 }
 
-func (prefSufFilter PrefixesSuffixesFilter) Execute(records MFT.Records) MFT.Records {
+func (prefSufFilter PrefixesSuffixesFilter) Execute(records []metadata.Record) []metadata.Record {
 	for idx, prefix := range prefSufFilter.Prefixes {
-		records = records.FilterByPrefixSuffix(prefix, prefSufFilter.Suffixes[idx])
+		records = metadata.FilterByPrefixSuffix(records, prefix, prefSufFilter.Suffixes[idx])
 	}
 
 	return records
