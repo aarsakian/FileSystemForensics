@@ -102,7 +102,8 @@ func AsyncProcess(wg *sync.WaitGroup, dataClusters <-chan []byte, recordsCH chan
 			}
 			offset += parsedLen
 
-			if record.EntryRef == 0 {
+			if record.Length == 0 {
+				offset += 1
 				continue
 			}
 
@@ -121,12 +122,17 @@ func (record *Record) Parse(data []byte) (int, error) {
 
 	utils.Unmarshal(data, record)
 
-	readTo := 60 + 2*int(record.FnameLen)
-	if readTo > len(data) {
-		return readTo, errors.New("exceeded available data")
+	readTo := int(record.FnameOffset + record.FnameLen)
+	if record.Length == 0 {
+		logger.MFTExtractorlogger.Warning("USN jrnl record length is zero")
+		return int(record.Length), nil
+	} else if readTo > int(record.Length) {
+
+		return int(record.Length), errors.New("exceeded available record length")
 	}
-	record.Fname = utils.DecodeUTF16(data[60:readTo])
-	return readTo, nil
+
+	record.Fname = utils.DecodeUTF16(data[record.FnameOffset:readTo])
+	return int(record.Length), nil
 }
 
 func (record Record) GetSourceInfo() string {
