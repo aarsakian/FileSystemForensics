@@ -92,10 +92,6 @@ func main() {
 
 	entries := utils.GetEntriesInt(*MFTSelectedEntries)
 
-	if *usnjrnl {
-		fileNamesToExport = append(fileNamesToExport, "$UsnJrnl")
-	}
-
 	recordsTree := tree.Tree{}
 
 	rp := reporter.Reporter{
@@ -161,7 +157,7 @@ func main() {
 		}
 
 		if *usnjrnl {
-			disk.ProcessJrnl(recordsPerPartition, *partitionNum)
+			usnjrnlRecords = disk.ProcessJrnl(recordsPerPartition, *partitionNum)
 		}
 
 		if *listPartitions {
