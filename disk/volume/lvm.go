@@ -12,6 +12,7 @@ import (
 type LVM2 struct {
 	Header            *PhysicalVolLabel
 	ConfigurationInfo string
+	btrfs             *BTRFS.BTRFS
 }
 
 type PhysicalVolLabel struct {
@@ -71,14 +72,19 @@ func (lvm2 *LVM2) Process(hD img.DiskReader, physicalOffsetB int64, SelectedEntr
 	btrfs := new(BTRFS.BTRFS)
 	btrfs.Process(hD, physicalOffsetB+lvm2.Header.PhysicalVolHeader.DataAreaDescriptors[0].OffsetB,
 		SelectedEntries, fromEntry, toEntry)
-
+	lvm2.btrfs = btrfs
 }
 
 // this will change
 func (lvm2 LVM2) GetFS() []metadata.Record {
-	return []metadata.Record{}
+	var records []metadata.Record
+	/*	for _, tree := range lvm2.btrfs.FsTreeMap {
+		for _, record := range tree.FilesDirsMap {
+			records = append(records, record)
+		}
+	}*/
+	return records
 }
-
 func (lvm2 *LVM2) Parse(data []byte) {
 	header := new(PhysicalVolLabel)
 	header.Parse(data[512:])
