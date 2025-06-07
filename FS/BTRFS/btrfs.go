@@ -26,6 +26,7 @@ type BTRFS struct {
 	Superblock   *Superblock
 	Trees        []Tree
 	ChunkTreeMap ChunkTreeMap
+	FsTreeMap    FsTreeMap
 }
 
 type Stack struct {
@@ -130,28 +131,29 @@ func (btrfs *BTRFS) Process(hD img.DiskReader, partitionOffsetB int64, selectedE
 	}
 
 	subvolumename := ""
-	fsTreeMap, _ := btrfs.DiscoverTrees(genericNodes, subvolumename)
+	btrfs.DiscoverTrees(genericNodes, subvolumename)
 	carve := false
-	btrfs.DescendTreeCh(hD, fsTreeMap, partitionOffsetB, int(btrfs.Superblock.NodeSize), verify, carve)
+	btrfs.DescendTreeCh(hD, partitionOffsetB, int(btrfs.Superblock.NodeSize), verify, carve)
 
 }
 
-func (btrfs BTRFS) DescendTreeCh(hD img.DiskReader, fsTreeMap FsTreeMap, partitionOffsetB int64,
+func (btrfs *BTRFS) DescendTreeCh(hD img.DiskReader, partitionOffsetB int64,
 	nodeSize int, noverify bool, carve bool) {
 	wg := new(sync.WaitGroup)
 
-	for inodeId, fsTree := range fsTreeMap {
+	for inodeId, fsTree := range btrfs.FsTreeMap {
 		nodesLeaf := make(chan *GenericNode, CHANNELSIZE)
 		logger.MFTExtractorlogger.Info(fmt.Sprintf("Parsing tree %d", inodeId))
 
 		wg.Add(2)
 		go btrfs.ParseTreeNodeCh(hD, wg, int(fsTree.LogicalOffset), partitionOffsetB, nodeSize, nodesLeaf, noverify, carve)
 
-		go fsTreeMap.Update(wg, nodesLeaf, inodeId)
+		go btrfs.FsTreeMap.Update(wg, nodesLeaf, inodeId)
 
 	}
 
 	wg.Wait()
+
 }
 
 func (fsTreeMap FsTreeMap) Update(wgs *sync.WaitGroup, nodesLeaf chan *GenericNode, inodeid uint64) {
@@ -285,7 +287,7 @@ func (btrfs BTRFS) ParseTreeNodeCh(hD img.DiskReader, wg *sync.WaitGroup, logica
 
 }
 
-func (btrfs BTRFS) DiscoverTrees(nodes GenericNodesPtr, nametree string) (FsTreeMap, DirTree) {
+func (btrfs *BTRFS) DiscoverTrees(nodes GenericNodesPtr, nametree string) {
 	logger.MFTExtractorlogger.Info("Parsing root of root trees")
 
 	var dir DirTree
@@ -351,7 +353,7 @@ func (btrfs BTRFS) DiscoverTrees(nodes GenericNodesPtr, nametree string) (FsTree
 		}
 
 	}
-	return fsTrees, dir
+	btrfs.FsTreeMap = fsTrees
 }
 
 // producer of nodes
