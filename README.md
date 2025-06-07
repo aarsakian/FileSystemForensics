@@ -21,108 +21,110 @@ e.g. *-evidence path_to_evidence -partition 1*.
 
 ##### Usage information  type: FileSystemForensics.exe -h #####
 
-  -MFT string
-        absolute path to the MFT file
-        
   -attributes string
         show file system attributes (write any for all attributes)
-        
+
   -deleted
         show deleted records
-        
+
   -entries string
-        select file system records by entering its id, use comma as a seperator
-        
+        select file system records by entering its id, use comma as a seperator.
+
   -evidence string
-        path to image file (EWF formats are supported)
-        
+        path to image file (EWF/Raw formats are supported)
+
   -extensions string
         search file system records by extensions use comma as a seperator
-        
+
   -filenames string
-        files to export use comma as a seperator
-        
+        files to export use comma as a seperator.
+
   -filesize
         show file size
-        
+
   -fromEntry int
         select file system record id to start processing (default -1)
-        
+
   -hash string
         hash exported files, enter md5 or sha1
         
   -index
         show index structures
-        
+
   -listpartitions
         list partitions
-        
+
   -location string
         the path to export files
-        
+
   -log
         enable logging
-        
+
   -orphans
         show information only for orphan records
-        
+
   -parent
         show information about parent record
-        
+
   -partition int
         select partition number (default -1)
-        
+
   -path string
         base path of files to exported must be absolute e.g. C:\MYFILES\ABC translates to MYFILES\ABC
-        
+
   -physicaldrive int
         select disk drive number (default -1)
-        
+
+  -physicaloffset int
+        offset to volume (sectors) (default -1)
+
   -resident
         check whether entry is resident
-        
+
   -runlist
         show runlist of file system records
-        
+
   -showfilename string
         show the name of the filename attribute of MFT records: enter (Any, Win32, Dos)
-        
+
   -showfull
         show full information about record
-        
+
   -showpath
-        show the full path of the selected files
-        
+        show the full path of the selected files.
+
   -showtree
         show file system tree
-        
+
   -showusn
         show information about NTFS usnjrnl records
-        
+
   -strategy string
         what strategy will be used for files sharing the same name, default is ovewrite, or use Id (default "overwrite")
-        
+
   -timestamps
         show all file system timestamps
-        
+
   -toEntry int
         select file system record id to end processing (default 4294967295)
-        
+
   -tree
         reconstrut file system tree
-        
+
   -unallocated
         collect unallocated area of a volume
-        
+
   -usnjrnl
-        show usnjrnl information about changes to files and folders
-        
+        show usnjrnl information about changes to files and folders.
+
   -vcns
         show the vcns of non resident file system attributes
-        
+
   -vmdk string
         path to vmdk file (Sparse formats are supported)
-        
-  -volinfo
-        show volume informatio
 
+  -volinfo
+        show volume information
+        
+  -volume string
+        select directly the volume requires offset in bytes, (ntfs, lvm2)

@@ -40,7 +40,7 @@ func main() {
 	//	save2DB := flag.Bool("db", false, "bool if set an sqlite file will be created, each table will corresponed to an MFT attribute")
 	var location string
 	//inputfile := flag.String("MFT", "", "absolute path to the MFT file")
-	evidencefile := flag.String("evidence", "", "path to image file (EWF formats are supported)")
+	evidencefile := flag.String("evidence", "", "path to image file (EWF/Raw formats are supported)")
 	vmdkfile := flag.String("vmdk", "", "path to vmdk file (Sparse formats are supported)")
 
 	flag.StringVar(&location, "location", "", "the path to export files")
@@ -175,6 +175,10 @@ func main() {
 		for partitionId, records := range recordsPerPartition {
 
 			records = flm.ApplyFilters(records)
+
+			if *usnjrnl {
+				disk.ProcessJrnl(recordsPerPartition, *partitionNum)
+			}
 
 			if location != "" {
 				exp.ExportRecords(records, *disk, partitionId)
