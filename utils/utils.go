@@ -263,7 +263,7 @@ func Unmarshal(data []byte, v interface{}) (int, error) {
 		case reflect.Uint64:
 			var temp uint64
 
-			if name == "ParRef" {
+			if name == "ParRef" || name == "EntryRef" {
 				buf := make([]byte, 8)
 				copy(buf, data[idx:idx+6])
 				binary.Read(bytes.NewBuffer(buf), binary.LittleEndian, &temp)
