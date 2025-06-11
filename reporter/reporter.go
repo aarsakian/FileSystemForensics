@@ -21,6 +21,7 @@ type Reporter struct {
 	ShowParent     bool
 	ShowPath       bool
 	ShowUSNJRNL    bool
+	ShowReparse    bool
 	ShowTree       bool
 }
 
@@ -29,7 +30,7 @@ func (rp Reporter) Show(records []metadata.Record, usnjrnlRecords UsnJrnl.Record
 		askedToShow := false
 
 		if rp.ShowFileName != "" || rp.ShowFull {
-			record.ShowFileName(rp.ShowFileName)
+			record.ShowAttributes("FileName")
 			askedToShow = true
 		}
 
@@ -75,6 +76,10 @@ func (rp Reporter) Show(records []metadata.Record, usnjrnlRecords UsnJrnl.Record
 
 		if rp.ShowPath || rp.ShowFull {
 			record.ShowPath(partitionId)
+		}
+
+		if rp.ShowReparse {
+			record.ShowAttributes("Reparse Point")
 		}
 
 		if askedToShow {

@@ -56,7 +56,7 @@ func main() {
 	showFileSize := flag.Bool("filesize", false, "show file size")
 	showVCNs := flag.Bool("vcns", false, "show the vcns of non resident file system attributes")
 	showAttributes := flag.String("attributes", "", "show file system attributes (write any for all attributes)")
-	showTimestamps := flag.Bool("timestamps", false, "show all file system timestamps")
+	showTimestamps := flag.Bool("showtimestamps", false, "show all file system timestamps")
 	showIndex := flag.Bool("index", false, "show index structures")
 
 	physicalDrive := flag.Int("physicaldrive", -1, "select disk drive number")
@@ -70,6 +70,7 @@ func main() {
 	showParent := flag.Bool("parent", false, "show information about parent record")
 	showUsnjrnl := flag.Bool("showusn", false, "show information about NTFS usnjrnl records")
 	showFull := flag.Bool("showfull", false, "show full information about record")
+	showreparse := flag.Bool("showreparse", false, "show information about reparse points")
 
 	orphans := flag.Bool("orphans", false, "show information only for orphan records")
 	deleted := flag.Bool("deleted", false, "show deleted records")
@@ -107,6 +108,7 @@ func main() {
 		ShowParent:     *showParent,
 		ShowPath:       *showPath,
 		ShowUSNJRNL:    *showUsnjrnl,
+		ShowReparse:    *showreparse,
 		ShowTree:       *showtree,
 	}
 
