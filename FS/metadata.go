@@ -27,7 +27,6 @@ type Record interface {
 	GetLogicalFileSize() int64
 	GetSequence() int
 	FindAttribute(string) MFT.Attribute
-	ShowFileName(string)
 	ShowAttributes(string)
 	ShowTimestamps()
 	ShowIsResident()
