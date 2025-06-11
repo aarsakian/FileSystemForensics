@@ -452,17 +452,17 @@ func (record Record) ShowTimestamps() {
 }
 
 func (record Record) ShowIndexTimestamps(attrName string) {
-	attr := record.FindAttribute(attrName).(IndexAttributes)
+	attr := record.FindAttribute(attrName)
 
 	if attr != nil {
 
-		for _, entry := range attr.GetEntries() {
+		for _, entry := range attr.(IndexAttributes).GetEntries() {
 			if entry.Fnattr == nil || entry.ParRef != uint64(record.Entry) {
 				continue
 			}
 
 			atime, ctime, mtime, mftime := entry.Fnattr.GetTimestamps()
-			fmt.Printf("FN a %s c %s m %s mftm %s ", atime, ctime, mtime, mftime)
+			fmt.Printf("%s a %s c %s m %s mftm %s ", attrName, atime, ctime, mtime, mftime)
 		}
 
 	}
