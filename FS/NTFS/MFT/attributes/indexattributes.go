@@ -4,8 +4,14 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/aarsakian/FileSystemForensics/logger"
 	"github.com/aarsakian/FileSystemForensics/utils"
 )
+
+var IndexEntryFlags = map[string]string{
+	"00000001": "Child Node exists",
+	"00000002": "Last Entry in list",
+}
 
 var IndexFlags = map[uint32]string{0x000001: "Has VCN", 0x000002: "Last"}
 
@@ -33,10 +39,10 @@ type IndexRoot struct {
 }
 
 type NodeHeader struct {
-	OffsetEntryList          uint32 // 16-20 offset to start of the index entry
-	OffsetEndUsedEntryList   uint32 //20-24 where EntryList ends
-	OffsetEndEntryListBuffer uint32 //24-28
-	Flags                    uint32 //0x01 no children
+	OffsetEntryList          uint32 // 0-4 offset to start of the index entry
+	OffsetEndUsedEntryList   uint32 //4-8 where EntryList ends
+	OffsetEndEntryListBuffer uint32 //8-12
+	Flags                    uint32 //12-16 0x01 no children
 }
 
 type IndexAllocation struct {
@@ -48,6 +54,14 @@ type IndexAllocation struct {
 	Nodeheader       *NodeHeader
 	Header           *AttributeHeader
 	IndexEntries     IndexEntries
+}
+
+func (idxAlloaction IndexAllocation) GetEntries() IndexEntries {
+	return idxAlloaction.IndexEntries
+}
+
+func (idxRoot IndexRoot) GetEntries() IndexEntries {
+	return idxRoot.IndexEntries
 }
 
 func (idxAllocation IndexAllocation) GetSignature() string {
@@ -157,7 +171,12 @@ func (idxEntry *IndexEntry) Parse(data []byte) {
 		var fnattrIDXEntry FNAttribute
 		utils.Unmarshal(data[16:16+uint32(idxEntry.ContentLen)],
 			&fnattrIDXEntry)
-
+		if 16+66+2*uint32(fnattrIDXEntry.Nlen) > uint32(len(data)) {
+			msg := fmt.Sprintf("data buffer exceed by %d in parsing index root entry",
+				16+66+2*uint32(fnattrIDXEntry.Nlen)-uint32(len(data)))
+			logger.MFTExtractorlogger.Warning(msg)
+			return
+		}
 		fnattrIDXEntry.Fname = utils.DecodeUTF16(data[16+66 : 16+66+2*uint32(fnattrIDXEntry.Nlen)])
 		idxEntry.Fnattr = &fnattrIDXEntry
 
@@ -171,8 +190,15 @@ func (idxAllocation *IndexAllocation) Parse(data []byte) {
 		utils.Unmarshal(data[24:24+16], nodeheader)
 		idxAllocation.Nodeheader = nodeheader
 
-		idxEntryOffset := nodeheader.OffsetEntryList + 24       // relative to the start of node header
+		idxEntryOffset := nodeheader.OffsetEntryList + 24 // relative to the start of node header
+
 		if nodeheader.OffsetEndUsedEntryList > idxEntryOffset { // only when available exceeds start offset parse
+			if nodeheader.OffsetEndUsedEntryList > uint32(len(data)) {
+				msg := fmt.Sprintf("data buffer exceed by %d in parsing index allocation entry",
+					nodeheader.OffsetEndUsedEntryList-uint32(len(data)))
+				logger.MFTExtractorlogger.Warning(msg)
+				return
+			}
 			idxAllocation.IndexEntries = Parse(data[idxEntryOffset:nodeheader.OffsetEndUsedEntryList])
 		}
 
