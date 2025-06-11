@@ -52,7 +52,7 @@ func main() {
 	fromMFTEntry := flag.Int("fromEntry", -1, "select file system record id to start processing")
 	toMFTEntry := flag.Int("toEntry", math.MaxUint32, "select file system record id to end processing")
 
-	showRunList := flag.Bool("runlist", false, "show runlist of file system records")
+	showRunList := flag.Bool("showrunlist", false, "show runlist of file system records")
 	showFileSize := flag.Bool("filesize", false, "show file size")
 	showVCNs := flag.Bool("vcns", false, "show the vcns of non resident file system attributes")
 	showAttributes := flag.String("attributes", "", "show file system attributes (write any for all attributes)")
