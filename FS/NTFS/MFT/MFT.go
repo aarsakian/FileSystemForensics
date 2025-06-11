@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -345,17 +346,17 @@ func (record Record) GetRunLists() []MFTAttributes.RunList {
 }
 
 func (record Record) GetFullPath() string {
-	fullpathArr := []string{}
-
+	var fullpath strings.Builder
 	parent := record.Parent
 	for parent != nil && parent.Entry != 5 { //$MFT Root entry
 		//prepends
-		fullpathArr = append([]string{parent.GetFname()}, fullpathArr...)
+		fullpath.WriteRune(os.PathSeparator)
+		fullpath.WriteString(parent.GetFname())
 		parent = parent.Parent
 	}
 	//reverse
 
-	return filepath.Join(fullpathArr...)
+	return filepath.Join(fullpath.String())
 }
 
 func (record Record) ShowVCNs() {
@@ -380,7 +381,7 @@ func (record Record) ShowParentRecordInfo() {
 
 func (record Record) ShowPath(partitionId int) {
 	fullpath := record.GetFullPath()
-	fmt.Printf("\\Partition%d\\%s\\%s ", partitionId, fullpath, record.GetFname())
+	fmt.Printf("Partition%d%s\\%s\n", partitionId, fullpath, record.GetFname())
 }
 
 func (record Record) ShowIndex() {
