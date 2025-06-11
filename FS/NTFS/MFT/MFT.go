@@ -106,26 +106,29 @@ func (record *Record) ProcessNoNResidentAttributes(hD img.DiskReader, partitionO
 		}
 		attrHeader := record.Attributes[idx].GetHeader()
 		atrrecordNoNResident := attrHeader.ATRrecordNoNResident
+
+		attrType := attrHeader.GetType()
+
 		if atrrecordNoNResident == nil {
-			logger.MFTExtractorlogger.Warning(fmt.Sprintf("attribute %s has no non-resident record.", attrHeader.GetType()))
+			logger.MFTExtractorlogger.Warning(fmt.Sprintf("attribute %s has no non-resident record.", attrType))
 			continue
 		} else if atrrecordNoNResident.RunList == nil {
-			logger.MFTExtractorlogger.Warning(fmt.Sprintf("attribute %s has no runlists.", attrHeader.GetType()))
+			logger.MFTExtractorlogger.Warning(fmt.Sprintf("attribute %s has no runlists.", attrType))
 			continue
 		}
-		runlist := *atrrecordNoNResident.RunList
+		runlist := atrrecordNoNResident.RunList
 
 		length := int(atrrecordNoNResident.RunListTotalLenCl) * clusterSizeB
 		if length == 0 { // no runlists found
 
-			logger.MFTExtractorlogger.Warning(fmt.Sprintf("attribute %s  No runlists found.", attrHeader.GetType()))
+			logger.MFTExtractorlogger.Warning(fmt.Sprintf("attribute %s  No runlists found.", attrType))
 			continue
 		}
 		var buf bytes.Buffer
 		buf.Grow(length)
 
 		offset := int64(0)
-		for (MFTAttributes.RunList{}) != runlist {
+		for runlist != nil {
 			offset += int64(runlist.Offset)
 
 			clusters := int(runlist.Length)
@@ -137,14 +140,13 @@ func (record *Record) ProcessNoNResidentAttributes(hD img.DiskReader, partitionO
 				logger.MFTExtractorlogger.Warning(msg)
 				break
 			}
-			data := hD.ReadFile(partitionOffsetB+offset*int64(clusterSizeB), clusters*clusterSizeB)
-			buf.Write(data)
+			buf.Write(hD.ReadFile(partitionOffsetB+offset*int64(clusterSizeB), clusters*clusterSizeB))
 
 			if runlist.Next == nil {
 				break
 			}
 
-			runlist = *runlist.Next
+			runlist = runlist.Next
 		}
 		actualLen := int(atrrecordNoNResident.ActualLength)
 		if actualLen > length {
@@ -784,8 +786,13 @@ func (record Record) ShowFileSize() {
 }
 
 func (record Record) GetPhysicalSize() int64 {
-	fnattr := record.FindAttribute("FileName").(*MFTAttributes.FNAttribute)
-	return int64(fnattr.AllocFsize)
+	attr := record.FindAttribute("FileName")
+	if attr != nil {
+		return int64(attr.(*MFTAttributes.FNAttribute).AllocFsize)
+	} else {
+		return 0
+	}
+
 }
 
 func (record Record) GetLogicalFileSize() int64 {
