@@ -28,7 +28,9 @@ type Reporter struct {
 func (rp Reporter) Show(records []metadata.Record, usnjrnlRecords UsnJrnl.Records, partitionId int, tree tree.Tree) {
 	for _, record := range records {
 		askedToShow := false
-
+		if record.GetID() == 0 {
+			continue
+		}
 		if rp.ShowFileName != "" || rp.ShowFull {
 			record.ShowAttributes("FileName")
 			askedToShow = true
