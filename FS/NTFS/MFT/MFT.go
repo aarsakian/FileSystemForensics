@@ -18,11 +18,6 @@ import (
 
 var RecordSize = 1024
 
-var IndexEntryFlags = map[string]string{
-	"00000001": "Child Node exists",
-	"00000002": "Last Entry in list",
-}
-
 var SIFlags = map[uint32]string{
 	1: "Read Only", 2: "Hidden", 4: "System", 32: "Archive", 64: "Device", 128: "Normal",
 	256: "Temporary", 512: "Sparse", 1024: "Reparse Point", 2048: "Compressed",
@@ -86,6 +81,7 @@ type Record struct {
 }
 type IndexAttributes interface {
 	GetIndexEntriesSortedByMFTEntry() MFTAttributes.IndexEntries
+	GetEntries() MFTAttributes.IndexEntries
 }
 
 func (mfttable *MFTTable) DetermineClusterOffsetLength() {
@@ -415,7 +411,7 @@ func (record Record) getVCNs() (uint64, uint64) {
 }
 
 func (record Record) ShowAttributes(attrType string) {
-	fmt.Printf("%d %d %s \n", record.Entry, record.Seq, record.getType())
+	fmt.Printf("ID %d  ", record.Entry)
 	var attributes []Attribute
 	if attrType == "any" {
 		attributes = record.Attributes
@@ -444,6 +440,31 @@ func (record Record) ShowTimestamps() {
 		siattr := attr.(*MFTAttributes.SIAttribute)
 		atime, ctime, mtime, mftime := siattr.GetTimestamps()
 		fmt.Printf("SI a %s c %s m %s mftm %s ", atime, ctime, mtime, mftime)
+	}
+	//get parent
+	if !record.IsFolder() && record.Parent != nil {
+
+		record.Parent.ShowIndexTimestamps("Index Root")
+		record.Parent.ShowIndexTimestamps("Index Allocation")
+
+	}
+
+}
+
+func (record Record) ShowIndexTimestamps(attrName string) {
+	attr := record.FindAttribute(attrName).(IndexAttributes)
+
+	if attr != nil {
+
+		for _, entry := range attr.GetEntries() {
+			if entry.Fnattr == nil || entry.ParRef != uint64(record.Entry) {
+				continue
+			}
+
+			atime, ctime, mtime, mftime := entry.Fnattr.GetTimestamps()
+			fmt.Printf("FN a %s c %s m %s mftm %s ", atime, ctime, mtime, mftime)
+		}
+
 	}
 }
 
