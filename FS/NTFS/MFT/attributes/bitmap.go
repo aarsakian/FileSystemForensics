@@ -27,26 +27,6 @@ func (bitmap BitMap) IsNoNResident() bool {
 	return bitmap.Header.IsNoNResident()
 }
 
-func (bitmap BitMap) GetUnallocatedClusters() []int {
-	var unallocatedClusters []int
-	pos := 1
-	for _, byteval := range bitmap.AllocationStatus {
-		bitmask := uint8(0x01)
-		shifter := 0
-		for bitmask < 128 {
-
-			bitmask = 1 << shifter
-			if byteval&bitmask == 0x00 {
-				unallocatedClusters = append(unallocatedClusters, pos)
-			}
-			pos++
-			shifter++
-		}
-
-	}
-	return unallocatedClusters
-}
-
 func (bitmap BitMap) ShowInfo() {
 	fmt.Printf("type %s \n", bitmap.FindType())
 	pos := 1
