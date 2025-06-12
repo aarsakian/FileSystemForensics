@@ -44,9 +44,9 @@ func main() {
 	vmdkfile := flag.String("vmdk", "", "path to vmdk file (Sparse formats are supported)")
 
 	flag.StringVar(&location, "location", "", "the path to export files")
-	MFTSelectedEntries := flag.String("entries", "", "select file system records by entering its id, use comma as a seperator.")
+	MFTSelectedEntries := flag.String("entries", "", "select file system records by entering its id, use comma as a seperator")
 	showFileName := flag.String("showfilename", "", "show the name of the filename attribute of MFT records: enter (Any, Win32, Dos)")
-	exportFiles := flag.String("filenames", "", "files to export use comma as a seperator.")
+	exportFiles := flag.String("filenames", "", "files to export use comma as a seperator")
 	exportFilesPath := flag.String("path", "", "base path of files to exported must be absolute e.g. C:\\MYFILES\\ABC translates to MYFILES\\ABC")
 	isResident := flag.Bool("resident", false, "check whether entry is resident")
 	fromMFTEntry := flag.Int("fromentry", -1, "select file system record id to start processing")
@@ -82,9 +82,9 @@ func main() {
 	hashFiles := flag.String("hash", "", "hash exported files, enter md5 or sha1")
 	volinfo := flag.Bool("volinfo", false, "show volume information")
 	logactive := flag.Bool("log", false, "enable logging")
-	showPath := flag.Bool("showpath", false, "show the full path of the selected files.")
+	showPath := flag.Bool("showpath", false, "show the full path of the selected files")
 	strategy := flag.String("strategy", "overwrite", "what strategy will be used for files sharing the same name, default is ovewrite, or use Id")
-	usnjrnl := flag.Bool("usnjrnl", false, "show usnjrnl information about changes to files and folders.")
+	usnjrnl := flag.Bool("usnjrnl", false, "show usnjrnl information about changes to files and folders")
 
 	flag.Parse() //ready to parse
 
