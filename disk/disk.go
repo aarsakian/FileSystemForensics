@@ -357,10 +357,36 @@ func (disk Disk) CollectedUnallocated(blocks chan<- []byte) {
 		if vol == nil {
 			continue
 		}
+
 		bytesPerSector := int(vol.GetBytesPerSector())
 		partitionOffsetB := int64(partition.GetOffset()) * int64(bytesPerSector)
 
-		vol.CollectUnallocated(disk.Handler, partitionOffsetB, blocks)
+		unallocatedClusters := vol.GetUnallocatedClusters()
+		blockSize := 1 // nof consecutive clusters
+		prevClusterOffset := unallocatedClusters[0]
+
+		ntfs := vol.(*volume.NTFS)
+
+		for idx, unallocatedCluster := range unallocatedClusters {
+			if idx == 0 {
+				continue
+			}
+			if unallocatedCluster-prevClusterOffset <= 1 {
+				blockSize += 1
+			} else {
+
+				firstBlockCluster := unallocatedClusters[idx-blockSize]
+				offset := partitionOffsetB + int64(firstBlockCluster)*int64(ntfs.VBR.SectorsPerCluster)*int64(ntfs.VBR.BytesPerSector)
+
+				blocks <- disk.Handler.ReadFile(offset, blockSize*int(ntfs.VBR.SectorsPerCluster)*int(ntfs.VBR.BytesPerSector))
+				blockSize = 1
+
+			}
+			prevClusterOffset = unallocatedCluster
+
+		}
+		close(blocks)
+
 	}
 
 }
