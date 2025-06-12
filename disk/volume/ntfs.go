@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"fmt"
 	"math"
+	"time"
 
 	metadata "github.com/aarsakian/FileSystemForensics/FS"
 	"github.com/aarsakian/FileSystemForensics/FS/NTFS/MFT"
-	MFTAttributes "github.com/aarsakian/FileSystemForensics/FS/NTFS/MFT/attributes"
 	"github.com/aarsakian/FileSystemForensics/img"
 	"github.com/aarsakian/FileSystemForensics/logger"
 	"github.com/aarsakian/FileSystemForensics/utils"
@@ -54,23 +54,43 @@ func (ntfs *NTFS) Process(hD img.DiskReader, partitionOffsetB int64, MFTSelected
 	// fill buffer before parsing the record
 
 	MFTAreaBuf := ntfs.CollectMFTArea(hD, partitionOffsetB)
+	start := time.Now()
 	ntfs.ProcessMFT(MFTAreaBuf, MFTSelectedEntries, fromMFTEntry, toMFTEntry)
+	fmt.Println("completed at ", time.Since(start))
+
+	start = time.Now()
+	fmt.Printf("Processing NoN resident attributes of %d records.\n", len(ntfs.MFT.Records))
 	ntfs.MFT.ProcessNonResidentRecords(hD, partitionOffsetB, int(ntfs.VBR.SectorsPerCluster)*int(ntfs.VBR.BytesPerSector))
+	fmt.Println("completed at ", time.Since(start))
+
 	if len(MFTSelectedEntries) == 0 && fromMFTEntry == -1 && toMFTEntry == math.MaxUint32 { // additional processing only when user has not selected entries
+
+		start = time.Now()
+
 		msg := "Linking $MFT record non resident $MFT entries"
 		fmt.Printf("%s\n", msg)
 		logger.MFTExtractorlogger.Info(msg)
 		ntfs.MFT.CreateLinkedRecords()
+
+		fmt.Println("completed at ", time.Since(start))
+
+		start = time.Now()
 
 		msg = "Locating parent $MFT records from Filename attributes"
 		fmt.Printf("%s\n", msg)
 		logger.MFTExtractorlogger.Info(msg)
 		ntfs.MFT.FindParentRecords()
 
+		fmt.Println("completed at ", time.Since(start))
+
+		start = time.Now()
+
 		msg = "Calculating files sizes from $I30"
 		fmt.Printf("%s\n", msg)
 		logger.MFTExtractorlogger.Info(msg)
 		ntfs.MFT.CalculateFileSizes()
+
+		fmt.Println("completed at ", time.Since(start))
 
 	}
 
@@ -94,36 +114,9 @@ func (ntfs NTFS) GetInfo() string {
 		ntfs.VBR.SectorsPerCluster)
 }
 
-func (ntfs NTFS) CollectUnallocated(hD img.DiskReader, partitionOffsetB int64, blocks chan<- []byte) {
-
-	record := ntfs.MFT.Records[0]
-	bitmap := record.FindAttribute("BitMap").(*MFTAttributes.BitMap)
-	unallocatedClusters := bitmap.GetUnallocatedClusters()
-	var buf bytes.Buffer
-
-	blockSize := 1 // nof consecutive clusters
-	prevClusterOffset := unallocatedClusters[0]
-
-	for idx, unallocatedCluster := range unallocatedClusters {
-		if idx == 0 {
-			continue
-		}
-		if unallocatedCluster-prevClusterOffset <= 1 {
-			blockSize += 1
-		} else {
-			buf.Grow(blockSize * int(ntfs.VBR.BytesPerSector))
-			firstBlockCluster := unallocatedClusters[idx-blockSize]
-			offset := partitionOffsetB + int64(firstBlockCluster)*int64(ntfs.VBR.SectorsPerCluster*uint8(ntfs.VBR.BytesPerSector))
-			buf.Write(hD.ReadFile(offset, int(uint16(blockSize)*(uint16(ntfs.VBR.SectorsPerCluster)*ntfs.VBR.BytesPerSector))))
-			blockSize = 1
-			blocks <- buf.Bytes()
-
-		}
-		prevClusterOffset = unallocatedCluster
-
-	}
-	close(blocks)
-
+func (ntfs NTFS) GetUnallocatedClusters() []int {
+	bitmapRecord := ntfs.MFT.Records[6]
+	return bitmapRecord.GetUnallocatedClusters()
 }
 
 func (ntfs *NTFS) ProcessMFT(data []byte, MFTSelectedEntries []int,
@@ -189,7 +182,7 @@ func (ntfs NTFS) CollectMFTArea(hD img.DiskReader, partitionOffsetB int64) []byt
 	runlist := ntfs.MFT.Records[0].GetRunList("DATA") // first record $MFT
 	offset := 0
 
-	for (MFTAttributes.RunList{}) != runlist {
+	for runlist != nil {
 		offset += int(runlist.Offset)
 
 		clusters := int(runlist.Length)
@@ -201,7 +194,7 @@ func (ntfs NTFS) CollectMFTArea(hD img.DiskReader, partitionOffsetB int64) []byt
 			break
 		}
 
-		runlist = *runlist.Next
+		runlist = runlist.Next
 	}
 	return buf.Bytes()
 }
