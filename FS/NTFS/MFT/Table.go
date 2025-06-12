@@ -52,11 +52,12 @@ func (mfttable *MFTTable) ProcessRecords(data []byte) {
 }
 
 func (mfttable *MFTTable) ProcessNonResidentRecords(hD img.DiskReader, partitionOffsetB int64, clusterSizeB int) {
-	fmt.Printf("Processing NoN resident attributes of %d records.\n", len(mfttable.Records))
+
 	for idx := range mfttable.Records {
 		mfttable.Records[idx].ProcessNoNResidentAttributes(hD, partitionOffsetB, clusterSizeB)
 		logger.MFTExtractorlogger.Info(fmt.Sprintf("Processed non resident attribute record %d at pos %d", mfttable.Records[idx].Entry, idx))
 	}
+
 }
 
 func (mfttable *MFTTable) CreateLinkedRecords() {
