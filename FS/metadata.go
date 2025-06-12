@@ -22,7 +22,7 @@ type Record interface {
 	GetFname() string
 	GetID() int
 	LocateData(img.DiskReader, int64, int, int, chan<- utils.AskedFile)
-	LocateDataAsync(img.DiskReader, int64, int, int, chan<- []byte)
+	LocateDataAsync(img.DiskReader, int64, int, chan<- []byte)
 	GetLinkedRecords() []*MFT.Record
 	GetLogicalFileSize() int64
 	GetSequence() int
