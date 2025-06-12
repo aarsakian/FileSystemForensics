@@ -49,8 +49,8 @@ func main() {
 	exportFiles := flag.String("filenames", "", "files to export use comma as a seperator.")
 	exportFilesPath := flag.String("path", "", "base path of files to exported must be absolute e.g. C:\\MYFILES\\ABC translates to MYFILES\\ABC")
 	isResident := flag.Bool("resident", false, "check whether entry is resident")
-	fromMFTEntry := flag.Int("fromEntry", -1, "select file system record id to start processing")
-	toMFTEntry := flag.Int("toEntry", math.MaxUint32, "select file system record id to end processing")
+	fromMFTEntry := flag.Int("fromentry", -1, "select file system record id to start processing")
+	toMFTEntry := flag.Int("toentry", math.MaxUint32, "select file system record id to end processing")
 
 	showRunList := flag.Bool("showrunlist", false, "show runlist of file system records")
 	showFileSize := flag.Bool("filesize", false, "show file size")
