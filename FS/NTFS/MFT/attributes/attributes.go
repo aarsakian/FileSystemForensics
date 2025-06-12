@@ -1,8 +1,12 @@
 package attributes
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
 
+	"github.com/aarsakian/FileSystemForensics/img"
+	"github.com/aarsakian/FileSystemForensics/logger"
 	"github.com/aarsakian/FileSystemForensics/utils"
 )
 
@@ -60,6 +64,34 @@ type RunList struct {
 
 func (atrRecordResident *ATRrecordResident) Parse(data []byte) {
 	utils.Unmarshal(data[:8], atrRecordResident)
+}
+
+func (atrRecordNoNResident ATRrecordNoNResident) GetContent(hD img.DiskReader, partitionOffsetB int64, clusterSizeB int, buf *bytes.Buffer) error {
+
+	if atrRecordNoNResident.RunList == nil {
+		msg := "non resident attribute has no runlists"
+		logger.MFTExtractorlogger.Warning(msg)
+		return errors.New(msg)
+	}
+
+	runlist := atrRecordNoNResident.RunList
+
+	offset := int64(0)
+	for runlist != nil {
+		offset += int64(runlist.Offset)
+
+		clusters := int(runlist.Length)
+
+		buf.Write(hD.ReadFile(partitionOffsetB+offset*int64(clusterSizeB), clusters*clusterSizeB))
+
+		if runlist.Next == nil {
+			break
+		}
+
+		runlist = runlist.Next
+	}
+
+	return nil
 }
 
 func (attrHeader AttributeHeader) GetType() string {
