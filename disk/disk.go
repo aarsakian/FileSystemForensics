@@ -261,11 +261,11 @@ func (disk Disk) AsyncWorker(wg *sync.WaitGroup, record metadata.Record, dataClu
 	fmt.Printf("pulling data file %s Id %d\n", record.GetFname(), record.GetID())
 	linkedRecords := record.GetLinkedRecords()
 	if len(linkedRecords) == 0 {
-		record.LocateDataAsync(disk.Handler, partitionOffsetB, sectorsPerCluster, bytesPerSector, dataClusters)
+		record.LocateDataAsync(disk.Handler, partitionOffsetB, sectorsPerCluster*bytesPerSector, dataClusters)
 	} else { // attribute runlist
 
 		for _, linkedRecord := range linkedRecords {
-			linkedRecord.LocateDataAsync(disk.Handler, partitionOffsetB, sectorsPerCluster, bytesPerSector, dataClusters)
+			linkedRecord.LocateDataAsync(disk.Handler, partitionOffsetB, sectorsPerCluster*bytesPerSector, dataClusters)
 
 		}
 	}
@@ -337,6 +337,19 @@ func (disk Disk) ListPartitions() {
 
 }
 
+func (disk Disk) ListUnallocated() {
+	for _, partition := range disk.Partitions {
+		vol := partition.GetVolume()
+		if vol == nil {
+			continue
+		}
+		unallocatedClusters := vol.GetUnallocatedClusters()
+		for _, unallocatedCluster := range unallocatedClusters {
+			fmt.Printf("%d \t", unallocatedCluster)
+		}
+	}
+}
+
 func (disk Disk) CollectedUnallocated(blocks chan<- []byte) {
 	for _, partition := range disk.Partitions {
 
@@ -349,4 +362,5 @@ func (disk Disk) CollectedUnallocated(blocks chan<- []byte) {
 
 		vol.CollectUnallocated(disk.Handler, partitionOffsetB, blocks)
 	}
+
 }
