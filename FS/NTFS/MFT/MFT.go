@@ -71,7 +71,6 @@ type Record struct {
 	Entry                uint32  //44-48                  ??
 	FixUp                *FixUp
 	Attributes           []Attribute
-	Bitmap               bool
 	LinkedRecordsInfo    []LinkedRecordInfo //holds attrs list entries
 	LinkedRecords        []*Record          // when attribute is too long to fit in one MFT record
 	OriginLinkedRecord   *Record            // points to the original record that contaisn the attr list
@@ -98,107 +97,123 @@ func (record Record) IsFolder() bool {
 }
 
 func (record *Record) ProcessNoNResidentAttributes(hD img.DiskReader, partitionOffsetB int64, clusterSizeB int) {
-
-	diskSizeB := hD.GetDiskSize()
-
-	for idx := range record.Attributes { //all non resident attrs except DATA
-		if record.Attributes[idx].FindType() == "DATA" {
+	var buf bytes.Buffer
+	//allocate a large enough buffer
+	buf.Grow(clusterSizeB * 100)
+	for idx := range record.Attributes {
+		//all non resident attrs except DATA
+		//process bitmap
+		if !record.Attributes[idx].IsNoNResident() || record.Attributes[idx].FindType() == "DATA" && record.Entry != 6 {
 			continue
 		}
+
 		attrHeader := record.Attributes[idx].GetHeader()
-		atrrecordNoNResident := attrHeader.ATRrecordNoNResident
-
-		attrType := attrHeader.GetType()
-
-		if atrrecordNoNResident == nil {
-			logger.MFTExtractorlogger.Warning(fmt.Sprintf("attribute %s has no non-resident record.", attrType))
-			continue
-		} else if atrrecordNoNResident.RunList == nil {
-			logger.MFTExtractorlogger.Warning(fmt.Sprintf("attribute %s has no runlists.", attrType))
+		if attrHeader.ATRrecordNoNResident == nil {
 			continue
 		}
-		runlist := atrrecordNoNResident.RunList
 
-		length := int(atrrecordNoNResident.RunListTotalLenCl) * clusterSizeB
+		length := int(attrHeader.ATRrecordNoNResident.RunListTotalLenCl) * clusterSizeB
 		if length == 0 { // no runlists found
-
-			logger.MFTExtractorlogger.Warning(fmt.Sprintf("attribute %s  No runlists found.", attrType))
+			msg := "non resident attribute has zero length runlist"
+			logger.MFTExtractorlogger.Warning(msg)
 			continue
 		}
-		var buf bytes.Buffer
-		buf.Grow(length)
+		err := attrHeader.ATRrecordNoNResident.GetContent(hD, partitionOffsetB, clusterSizeB, &buf)
 
-		offset := int64(0)
-		for runlist != nil {
-			offset += int64(runlist.Offset)
-
-			clusters := int(runlist.Length)
-
-			//inefficient since allocates memory for each round
-			if offset*int64(clusterSizeB) >= diskSizeB-partitionOffsetB {
-				msg := fmt.Sprintf("attribute runlist offset exceeds partition size %d.",
-					offset)
-				logger.MFTExtractorlogger.Warning(msg)
-				break
-			}
-			buf.Write(hD.ReadFile(partitionOffsetB+offset*int64(clusterSizeB), clusters*clusterSizeB))
-
-			if runlist.Next == nil {
-				break
-			}
-
-			runlist = runlist.Next
+		if err != nil {
+			continue
 		}
-		actualLen := int(atrrecordNoNResident.ActualLength)
+
+		actualLen := int(attrHeader.ATRrecordNoNResident.ActualLength)
 		if actualLen > length {
 			msg := fmt.Sprintf("attribute  actual length exceeds the runlist length actual %d runlist %d.",
 				actualLen, length)
 			logger.MFTExtractorlogger.Warning(msg)
-			continue
+
+		} else {
+			record.Attributes[idx].Parse(buf.Bytes()[:actualLen])
 		}
-		record.Attributes[idx].Parse(buf.Bytes()[:actualLen])
+
+		buf.Reset()
 
 	}
 
 }
 
-func (record Record) LocateDataAsync(hD img.DiskReader, partitionOffset int64, sectorsPerCluster int, bytesPerSector int, dataFragments chan<- []byte) {
+func (record Record) GetUnallocatedClusters() []int {
+	var unallocatedClusters []int
+	pos := 0
+	bitmap := record.FindAttribute("DATA").(*MFTAttributes.DATA).Content
+	for _, byteval := range bitmap {
+		bitmask := uint8(0x01)
+		shifter := 0
+		for bitmask < 128 {
+
+			bitmask = 1 << shifter
+			if byteval&bitmask == 0x00 {
+				unallocatedClusters = append(unallocatedClusters, pos)
+			}
+			pos++
+			shifter++
+		}
+
+	}
+	return unallocatedClusters
+}
+
+/*func (bitmap BitMap) ShowInfo() {
+	fmt.Printf("type %s \n", bitmap.FindType())
+	pos := 1
+	for _, byteval := range bitmap.AllocationStatus {
+		bitmask := uint8(0x01)
+		shifter := 0
+		for bitmask < 128 {
+
+			bitmask = 1 << shifter
+			fmt.Printf("cluster/entry  %d status %d \t", pos, byteval&bitmask)
+			pos++
+			shifter++
+		}
+
+	}
+}*/
+
+func (record Record) LocateDataAsync(hD img.DiskReader, partitionOffset int64, clusterSizeB int, dataFragments chan<- []byte) {
 	writeOffset := 0
 	p := message.NewPrinter(language.Greek)
 	if record.HasResidentDataAttr() {
 		dataFragments <- record.GetResidentData()
 
 	} else {
-		var runlist MFTAttributes.RunList
 
-		runlist = record.GetRunList("DATA")
+		runlist := record.GetRunList("DATA")
 
 		offset := partitionOffset // partition in bytes
 
 		diskSize := hD.GetDiskSize()
 
-		for (MFTAttributes.RunList{}) != runlist {
+		for runlist != nil {
 
-			offset += runlist.Offset * int64(sectorsPerCluster*bytesPerSector)
+			offset += runlist.Offset * int64(clusterSizeB)
 			if offset > diskSize {
 				msg := fmt.Sprintf("skipped offset %d exceeds disk size! exiting", offset)
 				logger.MFTExtractorlogger.Warning(msg)
 				break
 			}
-			res := p.Sprintf("%d", (offset-partitionOffset)/int64(sectorsPerCluster*bytesPerSector))
+			res := p.Sprintf("%d", (offset-partitionOffset)/int64(clusterSizeB))
 
 			msg := fmt.Sprintf("offset %s cl len %d cl.", res, runlist.Length)
 			logger.MFTExtractorlogger.Info(msg)
 			if runlist.Offset != 0 && runlist.Length > 0 {
-				dataFragments <- hD.ReadFile(offset, int(runlist.Length)*sectorsPerCluster*bytesPerSector)
+				dataFragments <- hD.ReadFile(offset, int(runlist.Length)*clusterSizeB)
 			}
 
 			if runlist.Next == nil {
 				break
 			}
 
-			runlist = *runlist.Next
-			writeOffset += int(runlist.Length) * sectorsPerCluster * bytesPerSector
+			runlist = runlist.Next
+			writeOffset += int(runlist.Length) * clusterSizeB
 		}
 
 	}
@@ -219,15 +234,14 @@ func (record Record) LocateData(hD img.DiskReader, partitionOffset int64, sector
 		buf.Write(record.GetResidentData())
 
 	} else {
-		var runlist MFTAttributes.RunList
 
-		runlist = record.GetRunList("DATA")
+		runlist := record.GetRunList("DATA")
 
 		offset := partitionOffset // partition in bytes
 
 		diskSize := hD.GetDiskSize()
 
-		for (MFTAttributes.RunList{}) != runlist {
+		for runlist != nil {
 			offset += runlist.Offset * int64(sectorsPerCluster*bytesPerSector)
 			if offset > diskSize {
 				msg := fmt.Sprintf("skipped offset %d exceeds disk size! exiting", offset)
@@ -247,7 +261,7 @@ func (record Record) LocateData(hD img.DiskReader, partitionOffset int64, sector
 				break
 			}
 
-			runlist = *runlist.Next
+			runlist = runlist.Next
 			writeOffset += int(runlist.Length) * sectorsPerCluster * bytesPerSector
 		}
 
@@ -322,13 +336,13 @@ func (record Record) IsDeleted() bool {
 	return record.getType() == "File Unallocated" || record.getType() == "Folder Unallocated"
 }
 
-func (record Record) GetRunList(attrType string) MFTAttributes.RunList {
+func (record Record) GetRunList(attrType string) *MFTAttributes.RunList {
 	if len(record.LinkedRecords) == 0 {
 		attr := record.FindAttribute(attrType)
-		return *attr.GetHeader().ATRrecordNoNResident.RunList
+		return attr.GetHeader().ATRrecordNoNResident.RunList
 	} else {
 		attr := record.LinkedRecords[0].FindAttribute(attrType)
-		return *attr.GetHeader().ATRrecordNoNResident.RunList
+		return attr.GetHeader().ATRrecordNoNResident.RunList
 	}
 
 }
@@ -681,7 +695,6 @@ func (record *Record) Process(bs []byte) error {
 				}
 
 			} else if attrHeader.IsBitmap() { //BITMAP
-				record.Bitmap = true
 				attr = &MFTAttributes.BitMap{}
 				attr.Parse(bs[attrStartOffset:attrEndOffset])
 
@@ -750,8 +763,6 @@ func (record *Record) Process(bs []byte) error {
 				idxAllocation.SetHeader(&attrHeader)
 				attributes = append(attributes, idxAllocation)
 			} else if attrHeader.IsBitmap() { //BITMAP
-				record.Bitmap = true
-
 				var bitmap *MFTAttributes.BitMap = new(MFTAttributes.BitMap)
 				bitmap.SetHeader(&attrHeader)
 				attributes = append(attributes, bitmap)
