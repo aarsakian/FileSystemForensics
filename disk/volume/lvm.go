@@ -150,10 +150,6 @@ func (lvm2 LVM2) GetSignature() string {
 	return string(lvm2.Header.PhysicalVolLabelHeader.Signature[:])
 }
 
-func (lvm2 LVM2) CollectUnallocated(hD img.DiskReader, partitionOffsetB int64, blocks chan<- []byte) {
-
-}
-
 func (lvm2 LVM2) GetUnallocatedClusters() []int {
 	return []int{}
 }

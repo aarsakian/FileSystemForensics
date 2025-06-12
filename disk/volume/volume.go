@@ -11,6 +11,6 @@ type Volume interface {
 	GetBytesPerSector() uint64
 	GetInfo() string
 	GetFS() []metadata.Record
-	CollectUnallocated(img.DiskReader, int64, chan<- []byte)
+	GetUnallocatedClusters() []int
 	GetSignature() string
 }
