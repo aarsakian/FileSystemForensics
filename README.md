@@ -28,7 +28,7 @@ e.g. *-evidence path_to_evidence -partition 1*.
         show deleted records
 
   -entries string
-        select file system records by entering its id, use comma as a seperator.
+        select file system records by entering its id, use comma as a seperator
 
   -evidence string
         path to image file (EWF/Raw formats are supported)
@@ -37,7 +37,7 @@ e.g. *-evidence path_to_evidence -partition 1*.
         search file system records by extensions use comma as a seperator
 
   -filenames string
-        files to export use comma as a seperator.
+        files to export use comma as a seperator
 
   -filesize
         show file size
@@ -47,12 +47,15 @@ e.g. *-evidence path_to_evidence -partition 1*.
 
   -hash string
         hash exported files, enter md5 or sha1
-        
+
   -index
         show index structures
 
   -listpartitions
         list partitions
+
+  -listunallocated
+        list unallocated clusters
 
   -location string
         the path to export files
@@ -81,9 +84,6 @@ e.g. *-evidence path_to_evidence -partition 1*.
   -resident
         check whether entry is resident
 
-  -runlist
-        show runlist of file system records
-
   -showfilename string
         show the name of the filename attribute of MFT records: enter (Any, Win32, Dos)
 
@@ -91,7 +91,16 @@ e.g. *-evidence path_to_evidence -partition 1*.
         show full information about record
 
   -showpath
-        show the full path of the selected files.
+        show the full path of the selected files
+
+  -showreparse
+        show information about reparse points
+
+  -showrunlist
+        show runlist of file system records
+
+  -showtimestamps
+        show all file system timestamps
 
   -showtree
         show file system tree
@@ -101,9 +110,6 @@ e.g. *-evidence path_to_evidence -partition 1*.
 
   -strategy string
         what strategy will be used for files sharing the same name, default is ovewrite, or use Id (default "overwrite")
-
-  -timestamps
-        show all file system timestamps
 
   -toEntry int
         select file system record id to end processing (default 4294967295)
@@ -115,7 +121,7 @@ e.g. *-evidence path_to_evidence -partition 1*.
         collect unallocated area of a volume
 
   -usnjrnl
-        show usnjrnl information about changes to files and folders.
+        show usnjrnl information about changes to files and folders
 
   -vcns
         show the vcns of non resident file system attributes
@@ -125,6 +131,7 @@ e.g. *-evidence path_to_evidence -partition 1*.
 
   -volinfo
         show volume information
-        
+
   -volume string
         select directly the volume requires offset in bytes, (ntfs, lvm2)
+        
