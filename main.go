@@ -76,6 +76,7 @@ func main() {
 	deleted := flag.Bool("deleted", false, "show deleted records")
 
 	listPartitions := flag.Bool("listpartitions", false, "list partitions")
+	listUnallocated := flag.Bool("listunallocated", false, "list unallocated clusters")
 	fileExtensions := flag.String("extensions", "", "search file system records by extensions use comma as a seperator")
 	collectUnallocated := flag.Bool("unallocated", false, "collect unallocated area of a volume")
 	hashFiles := flag.String("hash", "", "hash exported files, enter md5 or sha1")
@@ -168,6 +169,10 @@ func main() {
 
 		if *volinfo {
 			disk.ShowVolumeInfo()
+		}
+
+		if *listUnallocated {
+			disk.ListUnallocated()
 		}
 
 		if *collectUnallocated {
