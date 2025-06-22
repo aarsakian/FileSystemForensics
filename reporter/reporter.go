@@ -31,6 +31,8 @@ func (rp Reporter) Show(records []metadata.Record, usnjrnlRecords UsnJrnl.Record
 		if record.GetID() == 0 {
 			continue
 		}
+		record.ShowInfo()
+
 		if rp.ShowFileName != "" || rp.ShowFull {
 			record.ShowAttributes("FileName")
 			askedToShow = true
