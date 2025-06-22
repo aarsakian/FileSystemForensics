@@ -34,6 +34,7 @@ type Record interface {
 	ShowFileSize()
 	ShowVCNs()
 	ShowIndex()
+	ShowInfo()
 	ShowParentRecordInfo()
 	ShowPath(int)
 }
