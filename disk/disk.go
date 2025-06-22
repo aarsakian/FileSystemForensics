@@ -62,11 +62,11 @@ func (disk *Disk) Process(partitionNum int, MFTentries []int, fromMFTEntry int, 
 	if errors.Is(err, ErrNTFSVol) {
 		msg := "No MBR discovered, instead NTFS volume found at 1st sector"
 		fmt.Printf("%s\n", msg)
-		logger.MFTExtractorlogger.Warning(msg)
+		logger.FSLogger.Warning(msg)
 
 		disk.CreatePseudoMBR("NTFS")
 	}
-	disk.ProcessPartitions(partitionNum)
+	disk.ProcessPartitions()
 
 	disk.DiscoverFileSystems(MFTentries, fromMFTEntry, toMFTEntry)
 	return disk.GetFileSystemMetadata(partitionNum), err
@@ -202,12 +202,9 @@ func (disk *Disk) DiscoverPartitions(partitionNum int) error {
 	return nil
 }
 
-func (disk *Disk) ProcessPartitions(partitionNum int) {
+func (disk *Disk) ProcessPartitions() {
 
 	for idx := range disk.Partitions {
-		if partitionNum != -1 && idx+1 != partitionNum {
-			continue
-		}
 
 		disk.Partitions[idx].LocateVolume(disk.Handler)
 
@@ -215,12 +212,12 @@ func (disk *Disk) ProcessPartitions(partitionNum int) {
 		vol := disk.Partitions[idx].GetVolume()
 		if vol == nil {
 			msg := "No Known Volume at partition %d (Currently supported NTFS)."
-			logger.MFTExtractorlogger.Error(fmt.Sprintf(msg, idx))
+			logger.FSLogger.Error(fmt.Sprintf(msg, idx))
 			continue //fs not found
 		}
 		msg := "Partition %d  %s at %d sector"
 		fmt.Printf(msg+"\n", idx+1, vol.GetSignature(), parttionOffset)
-		logger.MFTExtractorlogger.Info(fmt.Sprintf(msg, idx+1, vol.GetSignature(), parttionOffset))
+		logger.FSLogger.Info(fmt.Sprintf(msg, idx+1, vol.GetSignature(), parttionOffset))
 
 	}
 
@@ -254,7 +251,7 @@ func (disk Disk) AsyncWorker(wg *sync.WaitGroup, record metadata.Record, dataClu
 
 	if record.IsFolder() {
 		msg := fmt.Sprintf("Record %s Id %d is folder! No data to export.", record.GetFname(), record.GetID())
-		logger.MFTExtractorlogger.Warning(msg)
+		logger.FSLogger.Warning(msg)
 		close(dataClusters)
 		return
 	}
@@ -287,7 +284,7 @@ func (disk Disk) Worker(wg *sync.WaitGroup, records []metadata.Record, results c
 
 		if record.IsFolder() {
 			msg := fmt.Sprintf("Record %s Id %d is folder! No data to export.", record.GetFname(), record.GetID())
-			logger.MFTExtractorlogger.Warning(msg)
+			logger.FSLogger.Warning(msg)
 			continue
 		}
 		fmt.Printf("pulling data file %s Id %d\n", record.GetFname(), record.GetID())
