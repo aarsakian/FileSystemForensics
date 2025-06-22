@@ -54,7 +54,7 @@ func (reparse Reparse) GetHeader() AttributeHeader {
 func (reparse *Reparse) Parse(data []byte) {
 	readOffset, _ := utils.Unmarshal(data, reparse)
 	if len(data) < readOffset {
-		logger.MFTExtractorlogger.Warning(fmt.Sprintf("Reparse data not enough %d", len(data)))
+		logger.FSLogger.Warning(fmt.Sprintf("Reparse data not enough %d", len(data)))
 		return
 	}
 	if reparse.GetFlagInfo() == "Symbolink" {
