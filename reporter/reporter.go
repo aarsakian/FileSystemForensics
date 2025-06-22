@@ -29,7 +29,14 @@ func (rp Reporter) Show(records []metadata.Record, usnjrnlRecords UsnJrnl.Record
 		if record.GetID() == 0 {
 			continue
 		}
-		record.ShowInfo()
+
+		if rp.ShowFileName != "" || rp.ShowAttributes != "" ||
+			rp.ShowTimestamps || rp.IsResident || rp.ShowRunList ||
+			rp.ShowFileSize || rp.ShowVCNs || rp.ShowIndex || rp.ShowParent ||
+			rp.ShowPath || rp.ShowReparse || rp.ShowFull {
+			record.ShowInfo()
+
+		}
 
 		if rp.ShowFileName != "" || rp.ShowFull {
 			record.ShowAttributes("FileName")
@@ -80,7 +87,7 @@ func (rp Reporter) Show(records []metadata.Record, usnjrnlRecords UsnJrnl.Record
 			record.ShowPath(partitionId)
 		}
 
-		if rp.ShowReparse {
+		if rp.ShowReparse || rp.ShowFull {
 			record.ShowAttributes("Reparse Point")
 		}
 	}
