@@ -12,7 +12,7 @@ type Logger struct {
 	active  bool
 }
 
-var MFTExtractorlogger Logger
+var FSLogger Logger
 
 func InitializeLogger(active bool, logfilename string) {
 	if active {
@@ -22,12 +22,12 @@ func InitializeLogger(active bool, logfilename string) {
 			log.Fatal(err)
 		}
 
-		info := log.New(file, "MFTExtractor|INFO: ", log.Ldate|log.Ltime)
-		warning := log.New(file, "MFTExtractor|WARNING: ", log.Ldate|log.Ltime)
-		error_ := log.New(file, "MFTExtractor|ERROR: ", log.Ldate|log.Ltime)
-		MFTExtractorlogger = Logger{info: info, warning: warning, error_: error_, active: active}
+		info := log.New(file, "FSForensics|INFO: ", log.Ldate|log.Ltime)
+		warning := log.New(file, "FSForensics|WARNING: ", log.Ldate|log.Ltime)
+		error_ := log.New(file, "FSForensics|ERROR: ", log.Ldate|log.Ltime)
+		FSLogger = Logger{info: info, warning: warning, error_: error_, active: active}
 	} else {
-		MFTExtractorlogger = Logger{active: active}
+		FSLogger = Logger{active: active}
 	}
 
 }
