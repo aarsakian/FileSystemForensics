@@ -1,8 +1,10 @@
 package MFT
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"sync"
 
 	MFTAttributes "github.com/aarsakian/FileSystemForensics/FS/NTFS/MFT/attributes"
 	"github.com/aarsakian/FileSystemForensics/img"
@@ -29,7 +31,7 @@ func (mfttable *MFTTable) ProcessRecords(data []byte) {
 	mfttable.Records = make([]Record, len(data)/RecordSize)
 	msg := fmt.Sprintf("Processing %d $MFT entries", len(mfttable.Records))
 	fmt.Printf(" %s \n", msg)
-	logger.MFTExtractorlogger.Info(msg)
+	logger.FSLogger.Info(msg)
 
 	var record Record
 	for i := 0; i < len(data); i += RecordSize {
@@ -39,13 +41,13 @@ func (mfttable *MFTTable) ProcessRecords(data []byte) {
 
 		err := record.Process(data[i : i+RecordSize])
 		if err != nil {
-			logger.MFTExtractorlogger.Error(err)
+			logger.FSLogger.Error(err)
 			continue
 		}
 
 		mfttable.Records[record.Entry] = record
 
-		logger.MFTExtractorlogger.Info(fmt.Sprintf("Processed record %d at pos %d", record.Entry, i/RecordSize))
+		logger.FSLogger.Info(fmt.Sprintf("Processed record %d at pos %d", record.Entry, i/RecordSize))
 
 	}
 
@@ -53,11 +55,34 @@ func (mfttable *MFTTable) ProcessRecords(data []byte) {
 
 func (mfttable *MFTTable) ProcessNonResidentRecords(hD img.DiskReader, partitionOffsetB int64, clusterSizeB int) {
 
+	const numWorker = 8
+
+	records := make(chan Record, len(mfttable.Records))
+
+	var wg sync.WaitGroup
+	for w := 1; w <= numWorker; w++ {
+		wg.Add(1)
+		go ProcessNoNResidentAttributesWorker(records, hD, partitionOffsetB, clusterSizeB, &wg)
+	}
 	for idx := range mfttable.Records {
-		mfttable.Records[idx].ProcessNoNResidentAttributes(hD, partitionOffsetB, clusterSizeB)
-		logger.MFTExtractorlogger.Info(fmt.Sprintf("Processed non resident attribute record %d at pos %d", mfttable.Records[idx].Entry, idx))
+		records <- mfttable.Records[idx]
 	}
 
+	close(records)
+	wg.Wait()
+
+}
+
+func (mfttable *MFTTable) ProcessNonResidentRecordsSync(hD img.DiskReader, partitionOffsetB int64, clusterSizeB int) int {
+	totalReadBytes := 0
+	var buf bytes.Buffer
+	//allocate a large enough buffer
+	buf.Grow(clusterSizeB)
+
+	for idx := range mfttable.Records {
+		totalReadBytes += mfttable.Records[idx].ProcessNoNResidentAttributes(hD, partitionOffsetB, clusterSizeB, &buf)
+	}
+	return totalReadBytes
 }
 
 func (mfttable *MFTTable) CreateLinkedRecords() {
@@ -75,7 +100,7 @@ func (mfttable *MFTTable) CreateLinkedRecords() {
 			if err != nil {
 				continue
 			}
-			logger.MFTExtractorlogger.Info(fmt.Sprintf("updated linked record %d", linkedRecord.Entry))
+			logger.FSLogger.Info(fmt.Sprintf("updated linked record %d", linkedRecord.Entry))
 
 			linkedRecord.OriginLinkedRecord = &mfttable.Records[idx]
 			mfttable.Records[idx].LinkedRecords = append(mfttable.Records[idx].LinkedRecords, linkedRecord)
@@ -89,7 +114,7 @@ func (mfttable *MFTTable) FindParentRecords() {
 	for idx := range mfttable.Records {
 		attr := mfttable.Records[idx].FindAttribute("FileName")
 		if attr == nil {
-			//logger.MFTExtractorlogger.Warning(fmt.Sprintf("No FileName attribute found at record %d ", mfttable.Records[idx].Entry))
+			//logger.FSLogger.Warning(fmt.Sprintf("No FileName attribute found at record %d ", mfttable.Records[idx].Entry))
 			continue
 
 		}
@@ -100,7 +125,7 @@ func (mfttable *MFTTable) FindParentRecords() {
 			continue
 		}
 
-		logger.MFTExtractorlogger.Info(fmt.Sprintf("update record %d with parent %d", mfttable.Records[idx].Entry, parentRecord.Entry))
+		logger.FSLogger.Info(fmt.Sprintf("update record %d with parent %d", mfttable.Records[idx].Entry, parentRecord.Entry))
 		mfttable.Records[idx].Parent = parentRecord
 
 	}
@@ -113,7 +138,7 @@ func (mfttable MFTTable) GetRecord(referencedEntry uint32, referencedSeq uint16)
 			if mfttable.Records[referencedEntry].Seq-referencedSeq > 1 { //allow for deleted records
 				msg := fmt.Sprintf("entry %d has been reallocated with seq %d ref seq %d", mfttable.Records[referencedEntry].Entry,
 					mfttable.Records[referencedEntry].Seq, referencedSeq)
-				logger.MFTExtractorlogger.Warning(msg)
+				logger.FSLogger.Warning(msg)
 				return nil, fmt.Errorf("%s", ParentReallocatedError{msg})
 			} else {
 				return &mfttable.Records[referencedEntry], nil
@@ -128,7 +153,7 @@ func (mfttable MFTTable) GetRecord(referencedEntry uint32, referencedSeq uint16)
 		}
 	}
 	msg := fmt.Sprintf("cannot find entry record for ref %d", referencedEntry)
-	logger.MFTExtractorlogger.Warning(msg)
+	logger.FSLogger.Warning(msg)
 	return nil, errors.New(msg)
 }
 
@@ -172,7 +197,7 @@ func (mfttable *MFTTable) SetI30Size(recordId int, attrType string) {
 			continue
 		}
 
-		logger.MFTExtractorlogger.Info(fmt.Sprintf("updated I30 size of ref Entry %d", referencedEntry.Entry))
+		logger.FSLogger.Info(fmt.Sprintf("updated I30 size of ref Entry %d", referencedEntry.Entry))
 
 		if idxEntry.Fnattr.RealFsize > idxEntry.Fnattr.AllocFsize {
 
