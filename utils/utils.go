@@ -245,6 +245,11 @@ func Unmarshal(data []byte, v interface{}) (int, error) {
 			binary.Read(bytes.NewBuffer(data[idx:idx+1]), binary.LittleEndian, &temp)
 			field.SetUint(uint64(temp))
 			idx += 1
+		case reflect.Int16:
+			var temp int16
+			binary.Read(bytes.NewBuffer(data[idx:idx+2]), binary.LittleEndian, &temp)
+			field.SetInt(int64(temp))
+			idx += 2
 		case reflect.Uint16:
 			var temp uint16
 			binary.Read(bytes.NewBuffer(data[idx:idx+2]), binary.LittleEndian, &temp)
@@ -329,7 +334,7 @@ func WriteFile(filename string, content []byte) {
 
 		msg := fmt.Sprintf("wrote file %s  %d bytes",
 			filename, bytesWritten)
-		logger.MFTExtractorlogger.Info(msg)
+		logger.FSLogger.Info(msg)
 		fmt.Printf(msg + "\n")
 		file.Close()
 	}
