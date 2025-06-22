@@ -49,7 +49,7 @@ type ATRrecordNoNResident struct {
 	RunOff            uint16   //32-34     offset to the start of the attribute
 	Compusize         uint16   //34-36
 	F1                uint32   //36-40
-	Length            uint64   //40-48
+	AllocatedLength   uint64   //40-48
 	ActualLength      uint64   //48-56
 	InitLength        uint64   //56-64
 	RunList           *RunList //holds a linked list of runs
@@ -70,7 +70,7 @@ func (atrRecordNoNResident ATRrecordNoNResident) GetContent(hD img.DiskReader, p
 
 	if atrRecordNoNResident.RunList == nil {
 		msg := "non resident attribute has no runlists"
-		logger.MFTExtractorlogger.Warning(msg)
+		logger.FSLogger.Warning(msg)
 		return errors.New(msg)
 	}
 
@@ -78,11 +78,10 @@ func (atrRecordNoNResident ATRrecordNoNResident) GetContent(hD img.DiskReader, p
 
 	offset := int64(0)
 	for runlist != nil {
+
 		offset += int64(runlist.Offset)
 
-		clusters := int(runlist.Length)
-
-		buf.Write(hD.ReadFile(partitionOffsetB+offset*int64(clusterSizeB), clusters*clusterSizeB))
+		buf.Write(hD.ReadFile(partitionOffsetB+offset*int64(clusterSizeB), int(runlist.Length)*clusterSizeB))
 
 		if runlist.Next == nil {
 			break
