@@ -90,14 +90,14 @@ func AsyncProcess(wg *sync.WaitGroup, dataClusters <-chan []byte, recordsCH chan
 		for offset < len(dataCluster) {
 
 			msg := fmt.Sprintf("USN record at rel %d", offset)
-			logger.MFTExtractorlogger.Info(msg)
+			logger.FSLogger.Info(msg)
 			record := new(Record)
 			parsedLen, err := record.Parse(dataCluster[offset:])
 
 			if err != nil {
 				msg := fmt.Sprintf("Parsing usnjrnl exceed available buffer by %d at offset %d",
 					parsedLen-len(dataCluster[offset:]), offset)
-				logger.MFTExtractorlogger.Warning(msg)
+				logger.FSLogger.Warning(msg)
 				break
 			}
 			offset += parsedLen
@@ -124,7 +124,7 @@ func (record *Record) Parse(data []byte) (int, error) {
 
 	readTo := int(record.FnameOffset + record.FnameLen)
 	if record.Length == 0 {
-		logger.MFTExtractorlogger.Warning("USN jrnl record length is zero")
+		logger.FSLogger.Warning("USN jrnl record length is zero")
 		return int(record.Length), nil
 	} else if readTo > int(record.Length) {
 
