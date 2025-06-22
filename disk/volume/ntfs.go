@@ -43,7 +43,7 @@ func (ntfs *NTFS) Process(hD img.DiskReader, partitionOffsetB int64, MFTSelected
 
 	msg := "Reading first record entry to determine the size of $MFT Table at offset %d"
 	fmt.Printf(msg+"\n", physicalOffset)
-	logger.MFTExtractorlogger.Info(fmt.Sprintf(msg, physicalOffset))
+	logger.FSLogger.Info(fmt.Sprintf(msg, physicalOffset))
 
 	data := hD.ReadFile(physicalOffset, length)
 
@@ -59,38 +59,39 @@ func (ntfs *NTFS) Process(hD img.DiskReader, partitionOffsetB int64, MFTSelected
 	fmt.Println("completed at ", time.Since(start))
 
 	start = time.Now()
+	msg = "Linking $MFT record non resident $MFT entries"
+	fmt.Printf("%s\n", msg)
+	logger.FSLogger.Info(msg)
+
+	ntfs.MFT.CreateLinkedRecords()
+	fmt.Printf("completed at %f secs \n", time.Since(start).Seconds())
+
+	start = time.Now()
 	fmt.Printf("Processing NoN resident attributes of %d records.\n", len(ntfs.MFT.Records))
-	ntfs.MFT.ProcessNonResidentRecords(hD, partitionOffsetB, int(ntfs.VBR.SectorsPerCluster)*int(ntfs.VBR.BytesPerSector))
-	fmt.Println("completed at ", time.Since(start))
+	ntfs.MFT.ProcessNonResidentRecordsSync(hD, partitionOffsetB, int(ntfs.VBR.SectorsPerCluster)*int(ntfs.VBR.BytesPerSector))
+	elapsed := time.Since(start)
+
+	fmt.Printf("completed at %fsecs \n", elapsed.Seconds())
 
 	if len(MFTSelectedEntries) == 0 && fromMFTEntry == -1 && toMFTEntry == math.MaxUint32 { // additional processing only when user has not selected entries
 
 		start = time.Now()
 
-		msg := "Linking $MFT record non resident $MFT entries"
-		fmt.Printf("%s\n", msg)
-		logger.MFTExtractorlogger.Info(msg)
-		ntfs.MFT.CreateLinkedRecords()
-
-		fmt.Println("completed at ", time.Since(start))
-
-		start = time.Now()
-
 		msg = "Locating parent $MFT records from Filename attributes"
 		fmt.Printf("%s\n", msg)
-		logger.MFTExtractorlogger.Info(msg)
+		logger.FSLogger.Info(msg)
 		ntfs.MFT.FindParentRecords()
 
-		fmt.Println("completed at ", time.Since(start))
+		fmt.Printf("completed at  %f secs \n", time.Since(start).Seconds())
 
 		start = time.Now()
 
 		msg = "Calculating files sizes from $I30"
 		fmt.Printf("%s\n", msg)
-		logger.MFTExtractorlogger.Info(msg)
+		logger.FSLogger.Info(msg)
 		ntfs.MFT.CalculateFileSizes()
 
-		fmt.Println("completed at ", time.Since(start))
+		fmt.Println("completed at ", time.Since(start).Seconds())
 
 	}
 
