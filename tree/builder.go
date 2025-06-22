@@ -28,7 +28,7 @@ type Tree struct {
 func (t *Tree) Build(records []metadata.Record) {
 	msg := fmt.Sprintf("Building tree from %d MFT records ", len(records))
 	fmt.Printf(msg + "\n")
-	logger.MFTExtractorlogger.Info(msg)
+	logger.FSLogger.Info(msg)
 
 	for idx := range records {
 		if records[idx].GetID() < 5 { //$MFT entry number 5
@@ -43,7 +43,7 @@ func (t *Tree) Build(records []metadata.Record) {
 func (t *Tree) AddRecord(record *metadata.Record) {
 
 	if t.root == nil {
-		logger.MFTExtractorlogger.Info("initialized root")
+		logger.FSLogger.Info("initialized root")
 
 		t.root = &Node{record, nil, nil, 0, 0}
 	} else {
@@ -61,7 +61,7 @@ func (node *Node) insert(record *metadata.Record) {
 
 	attr := (*record).FindAttribute("FileName")
 	if attr != nil {
-		logger.MFTExtractorlogger.Info(fmt.Sprintf("checking %s %d min %d max %d",
+		logger.FSLogger.Info(fmt.Sprintf("checking %s %d min %d max %d",
 			(*node.record).GetFname(), (*node.record).GetID(), node.MinChildEntry, node.MaxChildEntry))
 
 		fnattr := attr.(*MFTAttributes.FNAttribute)
@@ -72,13 +72,13 @@ func (node *Node) insert(record *metadata.Record) {
 
 			childNode.parent = node
 
-			logger.MFTExtractorlogger.Info(fmt.Sprintf("added %s Id %d  to %s Id %d", (*childNode.record).GetFname(),
+			logger.FSLogger.Info(fmt.Sprintf("added %s Id %d  to %s Id %d", (*childNode.record).GetFname(),
 				(*childNode.record).GetID(), (*childNode.parent.record).GetFname(), (*childNode.parent.record).GetID()))
 
 		} else {
 
 			for idx := range node.children { //test its children
-				/*	logger.MFTExtractorlogger.Info(fmt.Sprintf("children %s %d min %d max %d", node.children[idx].record.GetFname(), node.children[idx].(*record).GetID(),
+				/*	logger.FSLogger.Info(fmt.Sprintf("children %s %d min %d max %d", node.children[idx].record.GetFname(), node.children[idx].(*record).GetID(),
 					node.children[idx].MinChildEntry, node.children[idx].MaxChildEntry))*/
 				if !node.children[idx].contains(int(fnattr.ParRef)) {
 
@@ -104,7 +104,7 @@ func (node Node) contains(entry int) bool {
 
 func (node *Node) updateEntryRange(entry int) {
 	for node != nil {
-		//logger.MFTExtractorlogger.Info(fmt.Sprintf("updating %d for %d", (*node.record).GetID(), entry))
+		//logger.FSLogger.Info(fmt.Sprintf("updating %d for %d", (*node.record).GetID(), entry))
 		if node.MinChildEntry > entry {
 			node.MinChildEntry = entry
 
@@ -155,6 +155,6 @@ func (node Node) showChildrenInfo() {
 
 	}
 
-	logger.MFTExtractorlogger.Info(msgB.String())
+	logger.FSLogger.Info(msgB.String())
 
 }
