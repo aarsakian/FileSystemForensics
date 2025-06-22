@@ -31,10 +31,10 @@ func (imgreader RawReader) ReadFile(physicalOffset int64, length int) []byte {
 	data := make([]byte, length)
 	_, err := imgreader.fd.ReadAt(data, int64(physicalOffset))
 	msg := fmt.Sprintf("raw read: offset %d len %d", physicalOffset, length)
-	logger.MFTExtractorlogger.Info(msg)
+	logger.FSLogger.Info(msg)
 	if err != nil {
 		msg := fmt.Sprintf("error %s reading  file ", err)
-		logger.MFTExtractorlogger.Error(msg)
+		logger.FSLogger.Error(msg)
 		fmt.Printf("%s\n", msg)
 		return nil
 	}
