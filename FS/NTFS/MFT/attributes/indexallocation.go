@@ -20,7 +20,10 @@ type NodeHeader struct {
 	Flags                    uint32 //12-16 0x01 no children
 }
 
-type IndexRecords []IndexAllocation
+type IndexAllocationRecords struct {
+	Header  *AttributeHeader
+	Records []IndexAllocation
+}
 
 type IndexAllocation struct {
 	Signature        [4]byte //0-4
@@ -29,7 +32,6 @@ type IndexAllocation struct {
 	LSN              int64   //8-16
 	VCN              int64   //16-24 where the record fits in the tree
 	Nodeheader       *NodeHeader
-	Header           *AttributeHeader
 	IndexEntries     IndexEntries
 	FixUp            *FixUp
 }
@@ -42,42 +44,46 @@ func (idxAllocation IndexAllocation) GetSignature() string {
 	return string(idxAllocation.Signature[:])
 }
 
-func (idxAllocation *IndexAllocation) SetHeader(header *AttributeHeader) {
+func (idxAllocation *IndexAllocationRecords) SetHeader(header *AttributeHeader) {
 	idxAllocation.Header = header
 }
 
-func (idxAllocation IndexAllocation) GetHeader() AttributeHeader {
-	return *idxAllocation.Header
+func (idxAllocationRecs IndexAllocationRecords) GetHeader() AttributeHeader {
+	return *idxAllocationRecs.Header
 }
 
-func (idxAllocation IndexAllocation) FindType() string {
-	return idxAllocation.Header.GetType()
+func (idxAllocationRecs IndexAllocationRecords) FindType() string {
+	return idxAllocationRecs.Header.GetType()
 }
 
-func (idxAllocation IndexAllocation) IsNoNResident() bool {
-	return idxAllocation.Header.IsNoNResident()
+func (idxAllocationRecs IndexAllocationRecords) IsNoNResident() bool {
+	return idxAllocationRecs.Header.IsNoNResident()
 }
 
-func (idxAllocation IndexAllocation) ShowInfo() {
-	fmt.Printf("type %s nof entries %d\n", idxAllocation.FindType(), idxAllocation.NumFixupEntries)
-	for _, idxEntry := range idxAllocation.IndexEntries {
-		idxEntry.ShowInfo()
+func (idxAllocationRecs IndexAllocationRecords) GetEntries() IndexEntries {
+	var idxEntries IndexEntries
+	for _, record := range idxAllocationRecs.Records {
+		idxEntries = append(idxEntries, record.GetEntries()...)
 	}
+	return idxEntries
 }
 
-/*
-	FindType() string
-	SetHeader(header *MFTAttributes.AttributeHeader)
-	GetHeader() MFTAttributes.AttributeHeader
-	IsNoNResident() bool
-	ShowInfo()
-	Parse([]byte)*/
+func (idxAllocationRecs IndexAllocationRecords) ShowInfo() {
+	fmt.Printf("type %s nof entries %d\n", idxAllocationRecs.FindType())
+	for _, record := range idxAllocationRecs.Records {
+		fmt.Printf(" %d ", record.NumFixupEntries)
+		for _, idxEntry := range record.IndexEntries {
+			idxEntry.ShowInfo()
+		}
+	}
 
-func (indexRecords *IndexRecords) Parse(data []byte) {
+}
+
+func (idxAllocation *IndexAllocationRecords) Parse(data []byte) {
 	//index record size 4096bytes
-	*indexRecords = make([]IndexAllocation, len(data)/4096)
-	for i := 0; i <= len(data); i = i + 4096 {
-		(*indexRecords)[i].Parse(data[4096*i : 4096*(i+1)])
+	idxAllocation.Records = make([]IndexAllocation, len(data)/4096)
+	for i := 0; i < len(data); i = i + 4096 {
+		idxAllocation.Records[i/4096].Parse(data[i : i+4096])
 	}
 }
 
@@ -156,5 +162,13 @@ func (idxAllocation IndexAllocation) GetIndexEntriesSortedByMFTEntry() IndexEntr
 		idxEntries = append(idxEntries, entry)
 	}
 	sort.Sort(ByMFTEntryID(idxEntries))
+	return idxEntries
+}
+
+func (idxAlloactionRecs IndexAllocationRecords) GetIndexEntriesSortedByMFTEntry() IndexEntries {
+	var idxEntries IndexEntries
+	for _, record := range idxAlloactionRecs.Records {
+		idxEntries = append(idxEntries, record.GetIndexEntriesSortedByMFTEntry()...)
+	}
 	return idxEntries
 }

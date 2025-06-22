@@ -817,7 +817,7 @@ func (record *Record) Process(bs []byte) error {
 				data.SetHeader(&attrHeader)
 				attributes = append(attributes, data)
 			} else if attrHeader.IsIndexAllocation() {
-				var idxAllocation *MFTAttributes.IndexAllocation = new(MFTAttributes.IndexAllocation)
+				var idxAllocation *MFTAttributes.IndexAllocationRecords = new(MFTAttributes.IndexAllocationRecords)
 				idxAllocation.SetHeader(&attrHeader)
 				attributes = append(attributes, idxAllocation)
 			} else if attrHeader.IsBitmap() { //BITMAP
