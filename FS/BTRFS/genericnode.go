@@ -185,13 +185,13 @@ func (genericNode *GenericNode) Parse(data []byte, physicalOffset int64, verify 
 	if verify && !genericNode.VerifyChkSum(data) {
 
 		msg := fmt.Sprintf("Node verification failed at %d", physicalOffset)
-		logger.MFTExtractorlogger.Error(msg)
+		logger.FSLogger.Error(msg)
 		return -1, errors.New(msg)
 	} else if verify {
-		logger.MFTExtractorlogger.Info(fmt.Sprintf("Node verification sucess at %d level %d items %d",
+		logger.FSLogger.Info(fmt.Sprintf("Node verification sucess at %d level %d items %d",
 			physicalOffset, genericNode.Header.Level, genericNode.Header.NofItems))
 	} else {
-		logger.MFTExtractorlogger.Info(fmt.Sprintf("Node at %d level %d items %d",
+		logger.FSLogger.Info(fmt.Sprintf("Node at %d level %d items %d",
 			physicalOffset, genericNode.Header.Level, genericNode.Header.NofItems))
 	}
 

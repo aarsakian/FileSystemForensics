@@ -361,7 +361,7 @@ func (dirIndex *DirIndex) Parse(data []byte) int {
 		dirIndex.Name = string(data[offset : offset+int(dirIndex.NameLen)]) //?
 		return offset + int(dirIndex.NameLen)
 	} else {
-		logger.MFTExtractorlogger.Warning(fmt.Sprintf("DirIdx nameLen %d exceeding available data %d", dirIndex.NameLen, len(data)))
+		logger.FSLogger.Warning(fmt.Sprintf("DirIdx nameLen %d exceeding available data %d", dirIndex.NameLen, len(data)))
 		return len(data)
 	}
 }
@@ -440,7 +440,7 @@ func (dirItem *DirItem) Parse(data []byte) int {
 		}
 
 	} else {
-		logger.MFTExtractorlogger.Warning(fmt.Sprintf("Dir Item nameLen %d exceeding available data %d", dirItem.NameLen, len(data)))
+		logger.FSLogger.Warning(fmt.Sprintf("Dir Item nameLen %d exceeding available data %d", dirItem.NameLen, len(data)))
 		return len(data)
 	}
 
@@ -643,7 +643,7 @@ func (leaf *LeafNode) Parse(data []byte, physicalOffset int64) int {
 		} else if item.IsXAttr() {
 			leaf.DataItems[idx] = &DirItem{}
 		} else {
-			logger.MFTExtractorlogger.Warning(fmt.Sprintf("Leaf at %d pos %d inodeid %d  %s  item type? %x", physicalOffset+int64(item.DataOffset),
+			logger.FSLogger.Warning(fmt.Sprintf("Leaf at %d pos %d inodeid %d  %s  item type? %x", physicalOffset+int64(item.DataOffset),
 				idx,
 				item.Key.ObjectID,
 				item.GetType(), item.Key.ItemType))
@@ -652,7 +652,7 @@ func (leaf *LeafNode) Parse(data []byte, physicalOffset int64) int {
 
 		leaf.DataItems[idx].Parse(data[item.DataOffset : item.DataOffset+item.DataLen])
 
-		logger.MFTExtractorlogger.Info(fmt.Sprintf("Leaf at %d pos %d inodeId %d %s %s", physicalOffset+int64(item.DataOffset),
+		logger.FSLogger.Info(fmt.Sprintf("Leaf at %d pos %d inodeId %d %s %s", physicalOffset+int64(item.DataOffset),
 			idx,
 			item.Key.ObjectID,
 			item.GetType(),

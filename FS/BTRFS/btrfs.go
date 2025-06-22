@@ -96,13 +96,13 @@ func (btrfs *BTRFS) Process(hD img.DiskReader, partitionOffsetB int64, selectedE
 
 	msg := "Reading superblock at offset %d"
 	fmt.Printf(msg+"\n", partitionOffsetB)
-	logger.MFTExtractorlogger.Info(fmt.Sprintf(msg, partitionOffsetB))
+	logger.FSLogger.Info(fmt.Sprintf(msg, partitionOffsetB))
 
 	data := hD.ReadFile(partitionOffsetB+OFFSET_TO_SUPERBLOCK, SUPERBLOCKSIZE)
 	btrfs.ParseSuperblock(data)
 	if !btrfs.VerifySuperBlock(data) {
 		msg := "superblock chcksum failed!"
-		logger.MFTExtractorlogger.Error(msg)
+		logger.FSLogger.Error(msg)
 		return
 	}
 	btrfs.ChunkTreeMap = make(ChunkTreeMap)
@@ -114,7 +114,7 @@ func (btrfs *BTRFS) Process(hD img.DiskReader, partitionOffsetB int64, selectedE
 		int(btrfs.Superblock.NodeSize), verify)
 	if err != nil {
 
-		logger.MFTExtractorlogger.Error(err)
+		logger.FSLogger.Error(err)
 		log.Fatal(err)
 	}
 
@@ -126,7 +126,7 @@ func (btrfs *BTRFS) Process(hD img.DiskReader, partitionOffsetB int64, selectedE
 		int(btrfs.Superblock.NodeSize), verify)
 	if err != nil {
 
-		logger.MFTExtractorlogger.Error(err)
+		logger.FSLogger.Error(err)
 		log.Fatal(err)
 	}
 
@@ -143,7 +143,7 @@ func (btrfs *BTRFS) DescendTreeCh(hD img.DiskReader, partitionOffsetB int64,
 
 	for inodeId, fsTree := range btrfs.FsTreeMap {
 		nodesLeaf := make(chan *GenericNode, CHANNELSIZE)
-		logger.MFTExtractorlogger.Info(fmt.Sprintf("Parsing tree %d", inodeId))
+		logger.FSLogger.Info(fmt.Sprintf("Parsing tree %d", inodeId))
 
 		wg.Add(2)
 		go btrfs.ParseTreeNodeCh(hD, wg, int(fsTree.LogicalOffset), partitionOffsetB, nodeSize, nodesLeaf, noverify, carve)
@@ -248,11 +248,11 @@ func (btrfs BTRFS) ParseTreeNodeCh(hD img.DiskReader, wg *sync.WaitGroup, logica
 	node, err := btrfs.CreateNode(hD, logicalOffset, partitionOffsetB, size, noverify, carve)
 
 	if err != nil {
-		logger.MFTExtractorlogger.Error(err)
+		logger.FSLogger.Error(err)
 		return
 	}
 
-	logger.MFTExtractorlogger.Info(fmt.Sprintf("First node GUID %s chk %d ", node.GetGuid(), node.ChsumToUint()))
+	logger.FSLogger.Info(fmt.Sprintf("First node GUID %s chk %d ", node.GetGuid(), node.ChsumToUint()))
 
 	if node.InternalNode != nil {
 		internalNodes.Push(node)
@@ -271,7 +271,7 @@ func (btrfs BTRFS) ParseTreeNodeCh(hD img.DiskReader, wg *sync.WaitGroup, logica
 				continue
 			}
 
-			logger.MFTExtractorlogger.Info(fmt.Sprintf("Node GUID %s  from internal item id %d %d",
+			logger.FSLogger.Info(fmt.Sprintf("Node GUID %s  from internal item id %d %d",
 				node.GetGuid(), item.Key.ObjectID, parentCHK))
 
 			if node.InternalNode != nil {
@@ -288,7 +288,7 @@ func (btrfs BTRFS) ParseTreeNodeCh(hD img.DiskReader, wg *sync.WaitGroup, logica
 }
 
 func (btrfs *BTRFS) DiscoverTrees(nodes GenericNodesPtr, nametree string) {
-	logger.MFTExtractorlogger.Info("Parsing root of root trees")
+	logger.FSLogger.Info("Parsing root of root trees")
 
 	var dir DirTree
 	fsTrees := make(FsTreeMap)
@@ -298,7 +298,7 @@ func (btrfs *BTRFS) DiscoverTrees(nodes GenericNodesPtr, nametree string) {
 		for idx, item := range node.LeafNode.Items {
 			msg := fmt.Sprintf("Node %s item  obj %d offs %d Type %s  %s", node.GetGuid(), item.Key.ObjectID, item.Key.Offset,
 				leafnode.ItemTypes[int(item.Key.ItemType)], leafnode.ObjectTypes[int(item.Key.ObjectID)])
-			logger.MFTExtractorlogger.Info(msg)
+			logger.FSLogger.Info(msg)
 
 			if item.IsRootItem() {
 				rootItem := node.LeafNode.DataItems[idx].(*leafnode.RootItem)
@@ -387,14 +387,14 @@ func (btrfs BTRFS) LocatePhysicalOffsetSize(logicalOffset uint64) (uint64, uint6
 		}
 	}
 	msg := fmt.Sprintf("physical offset not located for logical offset %d", logicalOffset)
-	logger.MFTExtractorlogger.Error(msg)
+	logger.FSLogger.Error(msg)
 	return 0, 0, errors.New(msg)
 }
 
 // returns leaf nodes
 func (btrfs BTRFS) ParseTreeNode(hD img.DiskReader, logicalOffset int, partitionOffsetB int64,
 	size int, verify bool) (GenericNodesPtr, error) {
-	logger.MFTExtractorlogger.Info(fmt.Sprintf("Parsing tree at %d", logicalOffset))
+	logger.FSLogger.Info(fmt.Sprintf("Parsing tree at %d", logicalOffset))
 
 	var internalNodes Stack
 	var leafNodes GenericNodesPtr
@@ -422,7 +422,7 @@ func (btrfs BTRFS) ParseTreeNode(hD img.DiskReader, logicalOffset int, partition
 				continue
 			}
 
-			logger.MFTExtractorlogger.Info(fmt.Sprintf("created node from internal id %d %s nof items %d", item.Key.ObjectID, node.GetGuid(), node.Header.NofItems))
+			logger.FSLogger.Info(fmt.Sprintf("created node from internal id %d %s nof items %d", item.Key.ObjectID, node.GetGuid(), node.Header.NofItems))
 			if node.InternalNode != nil {
 				internalNodes.Push(node)
 			} else {
@@ -438,7 +438,7 @@ func (btrfs BTRFS) ParseTreeNode(hD img.DiskReader, logicalOffset int, partition
 }
 
 func (btrfs *BTRFS) UpdateChunkMaps(genericNodes GenericNodesPtr) {
-	logger.MFTExtractorlogger.Info("updating system chunks map")
+	logger.FSLogger.Info("updating system chunks map")
 	for _, node := range genericNodes {
 
 		for idx, dataItem := range node.LeafNode.DataItems {
@@ -457,7 +457,7 @@ func (btrfs *BTRFS) UpdateChunkMaps(genericNodes GenericNodesPtr) {
 }
 
 func (btrfs *BTRFS) ParseSuperblock(data []byte) {
-	logger.MFTExtractorlogger.Info("Parsing superblock")
+	logger.FSLogger.Info("Parsing superblock")
 	superblock := new(Superblock)
 	utils.Unmarshal(data, superblock)
 
@@ -472,7 +472,7 @@ func (btrfs BTRFS) VerifySuperBlock(data []byte) bool {
 
 func (btrfs BTRFS) ParseSystemChunks() GenericNodesPtr {
 	// (KEY, CHUNK_ITEM) pairs for all SYSTEM chunks
-	logger.MFTExtractorlogger.Info("Parsing bootstrap data for system chunks.")
+	logger.FSLogger.Info("Parsing bootstrap data for system chunks.")
 
 	curOffset := 0
 	var genericNodes GenericNodesPtr
