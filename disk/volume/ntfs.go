@@ -68,7 +68,7 @@ func (ntfs *NTFS) Process(hD img.DiskReader, partitionOffsetB int64, MFTSelected
 
 	start = time.Now()
 	fmt.Printf("Processing NoN resident attributes of %d records.\n", len(ntfs.MFT.Records))
-	ntfs.MFT.ProcessNonResidentRecordsSync(hD, partitionOffsetB, int(ntfs.VBR.SectorsPerCluster)*int(ntfs.VBR.BytesPerSector))
+	ntfs.MFT.ProcessNonResidentRecords(hD, partitionOffsetB, int(ntfs.VBR.SectorsPerCluster)*int(ntfs.VBR.BytesPerSector))
 	elapsed := time.Since(start)
 
 	fmt.Printf("completed at %fsecs \n", elapsed.Seconds())
