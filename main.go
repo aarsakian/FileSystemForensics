@@ -57,10 +57,10 @@ func main() {
 	showVCNs := flag.Bool("vcns", false, "show the vcns of non resident file system attributes")
 	showAttributes := flag.String("attributes", "", "show file system attributes (write any for all attributes)")
 	showTimestamps := flag.Bool("showtimestamps", false, "show all file system timestamps")
-	showIndex := flag.Bool("index", false, "show index structures")
+	showIndex := flag.Bool("showindex", false, "show index structures")
 
 	physicalDrive := flag.Int("physicaldrive", -1, "select disk drive number")
-	partitionNum := flag.Int("partition", -1, "select partition number")
+	partitionNum := flag.Int("partition", 0, "select partition number")
 	physicalOffset := flag.Int("physicaloffset", -1, "offset to volume (sectors)")
 	logical := flag.String("volume", "", "select directly the volume requires offset in bytes, (ntfs, lvm2)")
 
@@ -151,7 +151,7 @@ func main() {
 		disk := new(disk.Disk)
 		disk.Initialize(*evidencefile, *physicalDrive, *vmdkfile)
 
-		recordsPerPartition, err := disk.Process(*partitionNum, entries, *fromMFTEntry, *toMFTEntry)
+		recordsPerPartition, err := disk.Process(*partitionNum-1, entries, *fromMFTEntry, *toMFTEntry)
 
 		defer disk.Close()
 		if err != nil {
@@ -160,7 +160,7 @@ func main() {
 		}
 
 		if *usnjrnl {
-			usnjrnlRecords = disk.ProcessJrnl(recordsPerPartition, *partitionNum)
+			usnjrnlRecords = disk.ProcessJrnl(recordsPerPartition, *partitionNum-1)
 		}
 
 		if *listPartitions {
@@ -184,7 +184,7 @@ func main() {
 			records = flm.ApplyFilters(records)
 
 			if *usnjrnl {
-				disk.ProcessJrnl(recordsPerPartition, *partitionNum)
+				disk.ProcessJrnl(recordsPerPartition, *partitionNum-1)
 			}
 
 			if location != "" {
