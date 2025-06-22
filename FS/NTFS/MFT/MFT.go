@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	MFTAttributes "github.com/aarsakian/FileSystemForensics/FS/NTFS/MFT/attributes"
 	"github.com/aarsakian/FileSystemForensics/img"
@@ -96,10 +97,10 @@ func (record Record) IsFolder() bool {
 	return recordType == "Folder Unallocated" || recordType == "Folder Allocated"
 }
 
-func (record *Record) ProcessNoNResidentAttributes(hD img.DiskReader, partitionOffsetB int64, clusterSizeB int) {
-	var buf bytes.Buffer
-	//allocate a large enough buffer
-	buf.Grow(clusterSizeB * 100)
+func (record *Record) ProcessNoNResidentAttributes(hD img.DiskReader, partitionOffsetB int64, clusterSizeB int, buf *bytes.Buffer) int {
+
+	totalReadBytes := 0
+	logger.FSLogger.Info(fmt.Sprintf("Record %d has %d attributes", record.Entry, len(record.Attributes)))
 	for idx := range record.Attributes {
 		//all non resident attrs except DATA
 		//process bitmap
@@ -115,10 +116,10 @@ func (record *Record) ProcessNoNResidentAttributes(hD img.DiskReader, partitionO
 		length := int(attrHeader.ATRrecordNoNResident.RunListTotalLenCl) * clusterSizeB
 		if length == 0 { // no runlists found
 			msg := "non resident attribute has zero length runlist"
-			logger.MFTExtractorlogger.Warning(msg)
+			logger.FSLogger.Warning(msg)
 			continue
 		}
-		err := attrHeader.ATRrecordNoNResident.GetContent(hD, partitionOffsetB, clusterSizeB, &buf)
+		err := attrHeader.ATRrecordNoNResident.GetContent(hD, partitionOffsetB, clusterSizeB, buf)
 
 		if err != nil {
 			continue
@@ -128,13 +129,67 @@ func (record *Record) ProcessNoNResidentAttributes(hD img.DiskReader, partitionO
 		if actualLen > length {
 			msg := fmt.Sprintf("attribute  actual length exceeds the runlist length actual %d runlist %d.",
 				actualLen, length)
-			logger.MFTExtractorlogger.Warning(msg)
+			logger.FSLogger.Warning(msg)
 
 		} else {
 			record.Attributes[idx].Parse(buf.Bytes()[:actualLen])
-		}
 
+		}
+		totalReadBytes += actualLen
 		buf.Reset()
+		logger.FSLogger.Info(fmt.Sprintf("Processed non resident attribute record %d at pos %d", record.Entry, idx))
+
+	}
+	return totalReadBytes
+}
+
+func ProcessNoNResidentAttributesWorker(records chan Record, hD img.DiskReader, partitionOffsetB int64,
+	clusterSizeB int, wg *sync.WaitGroup) {
+	var buf bytes.Buffer
+	//allocate a large enough buffer
+	buf.Grow(clusterSizeB)
+	defer wg.Done()
+
+	for record := range records {
+		logger.FSLogger.Info(fmt.Sprintf("Record %d has %d attributes", record.Entry, len(record.Attributes)))
+		for idx := range record.Attributes {
+			//all non resident attrs except DATA
+			//process bitmap
+			if !record.Attributes[idx].IsNoNResident() || record.Attributes[idx].FindType() == "DATA" && record.Entry != 6 {
+				continue
+			}
+
+			attrHeader := record.Attributes[idx].GetHeader()
+			if attrHeader.ATRrecordNoNResident == nil {
+				continue
+			}
+
+			length := int(attrHeader.ATRrecordNoNResident.RunListTotalLenCl) * clusterSizeB
+			if length == 0 { // no runlists found
+				msg := "non resident attribute has zero length runlist"
+				logger.FSLogger.Warning(msg)
+				continue
+			}
+			err := attrHeader.ATRrecordNoNResident.GetContent(hD, partitionOffsetB, clusterSizeB, &buf)
+
+			if err != nil {
+				continue
+			}
+
+			actualLen := int(attrHeader.ATRrecordNoNResident.ActualLength)
+			if actualLen > length {
+				msg := fmt.Sprintf("attribute  actual length exceeds the runlist length actual %d runlist %d.",
+					actualLen, length)
+				logger.FSLogger.Warning(msg)
+
+			} else {
+				record.Attributes[idx].Parse(buf.Bytes()[:actualLen])
+
+			}
+
+			logger.FSLogger.Info(fmt.Sprintf("Processed non resident attribute record %d at pos %d", record.Entry, idx))
+			buf.Reset()
+		}
 
 	}
 
@@ -197,13 +252,13 @@ func (record Record) LocateDataAsync(hD img.DiskReader, partitionOffset int64, c
 			offset += runlist.Offset * int64(clusterSizeB)
 			if offset > diskSize {
 				msg := fmt.Sprintf("skipped offset %d exceeds disk size! exiting", offset)
-				logger.MFTExtractorlogger.Warning(msg)
+				logger.FSLogger.Warning(msg)
 				break
 			}
 			res := p.Sprintf("%d", (offset-partitionOffset)/int64(clusterSizeB))
 
 			msg := fmt.Sprintf("offset %s cl len %d cl.", res, runlist.Length)
-			logger.MFTExtractorlogger.Info(msg)
+			logger.FSLogger.Info(msg)
 			if runlist.Offset != 0 && runlist.Length > 0 {
 				dataFragments <- hD.ReadFile(offset, int(runlist.Length)*clusterSizeB)
 			}
@@ -245,7 +300,7 @@ func (record Record) LocateData(hD img.DiskReader, partitionOffset int64, sector
 			offset += runlist.Offset * int64(sectorsPerCluster*bytesPerSector)
 			if offset > diskSize {
 				msg := fmt.Sprintf("skipped offset %d exceeds disk size! exiting", offset)
-				logger.MFTExtractorlogger.Warning(msg)
+				logger.FSLogger.Warning(msg)
 				break
 			}
 
@@ -254,7 +309,7 @@ func (record Record) LocateData(hD img.DiskReader, partitionOffset int64, sector
 				res := p.Sprintf("%d", (offset-partitionOffset)/int64(sectorsPerCluster*bytesPerSector))
 
 				msg := fmt.Sprintf("offset %s cl len %d cl.", res, runlist.Length)
-				logger.MFTExtractorlogger.Info(msg)
+				logger.FSLogger.Info(msg)
 			}
 
 			if runlist.Next == nil {
@@ -386,7 +441,7 @@ func (record Record) ShowParentRecordInfo() {
 		fmt.Printf("\n Record has no parent ")
 	} else {
 		fmt.Printf("\n Record has parent ")
-		record.Parent.showInfo()
+		record.Parent.ShowInfo()
 		record.Parent.ShowFileName("win32")
 
 	}
@@ -400,17 +455,16 @@ func (record Record) ShowPath(partitionId int) {
 
 func (record Record) ShowIndex() {
 	indexAttr := record.FindAttribute("Index Root")
+
 	indexAlloc := record.FindAttribute("Index Allocation")
 
 	if indexAttr != nil {
-		idxRoot := indexAttr.(*MFTAttributes.IndexRoot)
-		idxRoot.ShowInfo()
+		indexAttr.ShowInfo()
 
 	}
 
 	if indexAlloc != nil {
-		idx := indexAlloc.(*MFTAttributes.IndexAllocation)
-		idx.ShowInfo()
+		indexAlloc.ShowInfo()
 
 	}
 
@@ -450,13 +504,13 @@ func (record Record) ShowTimestamps() {
 	if attr != nil {
 		fnattr := attr.(*MFTAttributes.FNAttribute)
 		atime, ctime, mtime, mftime := fnattr.GetTimestamps()
-		fmt.Printf("FN a %s c %s m %s mftm %s ", atime, ctime, mtime, mftime)
+		fmt.Printf("FN a %s c %s m %s mftm %s \n", atime, ctime, mtime, mftime)
 	}
 	attr = record.FindAttribute("Standard Information")
 	if attr != nil {
 		siattr := attr.(*MFTAttributes.SIAttribute)
 		atime, ctime, mtime, mftime := siattr.GetTimestamps()
-		fmt.Printf("SI a %s c %s m %s mftm %s ", atime, ctime, mtime, mftime)
+		fmt.Printf("SI a %s c %s m %s mftm %s \n", atime, ctime, mtime, mftime)
 	}
 	//get parent
 	if !record.IsFolder() && record.Parent != nil {
@@ -485,7 +539,7 @@ func (record Record) ShowIndexTimestamps(attrName string) {
 	}
 }
 
-func (record Record) showInfo() {
+func (record Record) ShowInfo() {
 	fmt.Printf("record %d type %s\n", record.Entry, record.getType())
 }
 
@@ -603,7 +657,7 @@ func (record Record) GetSignature() string {
 func (record *Record) ProcessFixUpArrays(data []byte) {
 	if len(data) < int(2*record.UpdateFixUpArrSize) {
 		msg := fmt.Sprintf("Data not enough to parse fixup array by %d", int(2*record.UpdateFixUpArrSize)-len(data))
-		logger.MFTExtractorlogger.Warning(msg)
+		logger.FSLogger.Warning(msg)
 		return
 	}
 	fixuparray := data[record.UpdateFixUpArrOffset : record.UpdateFixUpArrOffset+2*record.UpdateFixUpArrSize]
@@ -614,6 +668,7 @@ func (record *Record) ProcessFixUpArrays(data []byte) {
 		fixupvals = append(fixupvals, fixuparray[val:val+2])
 		val += 2
 	}
+	//2bytes for USN update Sequence Number, rest is USA Update Sequence Array 4 byte
 	record.FixUp = &FixUp{Signature: fixuparray[:2], OriginalValues: fixupvals}
 
 }
@@ -638,6 +693,9 @@ func (record *Record) Process(bs []byte) error {
 	if record.FixUp.Signature[0] == bs[510] && record.FixUp.Signature[1] == bs[511] {
 		bs[510] = record.FixUp.OriginalValues[0][0]
 		bs[511] = record.FixUp.OriginalValues[0][1]
+
+	} else {
+		logger.FSLogger.Warning(fmt.Sprintf("Record %d fixup mismatch ", record.Entry))
 	}
 
 	for ReadPtr < 1024 {
@@ -728,7 +786,7 @@ func (record *Record) Process(bs []byte) error {
 			} else {
 				msg := fmt.Sprintf("uknown resident attribute %s at record %d",
 					attrHeader.GetType(), record.Entry)
-				logger.MFTExtractorlogger.Warning(msg)
+				logger.FSLogger.Warning(msg)
 			}
 			if attr != nil {
 				attr.SetHeader(&attrHeader)
@@ -750,7 +808,7 @@ func (record *Record) Process(bs []byte) error {
 			} else {
 				msg := fmt.Sprintf("attribute %s at record %d exceeded buffer by %d",
 					attrHeader.GetType(), record.Entry, int(ReadPtr+attrHeader.AttrLen)-len(bs))
-				logger.MFTExtractorlogger.Warning(msg)
+				logger.FSLogger.Warning(msg)
 			}
 			attrHeader.ATRrecordNoNResident = atrNoNRecordResident
 
@@ -776,7 +834,7 @@ func (record *Record) Process(bs []byte) error {
 				attributes = append(attributes, reparse)
 			} else {
 				msg := fmt.Sprintf("unknown non resident attr %s", attrHeader.GetType())
-				logger.MFTExtractorlogger.Warning(msg)
+				logger.FSLogger.Warning(msg)
 			}
 
 		} //ends non Resident
