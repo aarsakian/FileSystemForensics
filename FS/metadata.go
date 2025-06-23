@@ -1,7 +1,6 @@
 package metadata
 
 import (
-	"github.com/aarsakian/FileSystemForensics/FS/NTFS/MFT"
 	"github.com/aarsakian/FileSystemForensics/img"
 	"github.com/aarsakian/FileSystemForensics/utils"
 )
@@ -23,10 +22,10 @@ type Record interface {
 	GetID() int
 	LocateData(img.DiskReader, int64, int, int, chan<- utils.AskedFile)
 	LocateDataAsync(img.DiskReader, int64, int, chan<- []byte)
-	GetLinkedRecords() []*MFT.Record
+	GetLinkedRecords() []Record
 	GetLogicalFileSize() int64
 	GetSequence() int
-	FindAttribute(string) MFT.Attribute
+	FindAttribute(string) Attribute
 	ShowAttributes(string)
 	ShowTimestamps()
 	ShowIsResident()
