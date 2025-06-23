@@ -105,7 +105,8 @@ func (ntfs NTFS) GetFS() []metadata.Record {
 	//explicit conversion
 	var records []metadata.Record
 	for _, record := range ntfs.MFT.Records {
-		records = append(records, record)
+		temp := record
+		records = append(records, metadata.NTFSRecord{&temp})
 	}
 	return records
 }
