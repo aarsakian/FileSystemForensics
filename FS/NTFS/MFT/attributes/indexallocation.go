@@ -69,9 +69,9 @@ func (idxAllocationRecs IndexAllocationRecords) GetEntries() IndexEntries {
 }
 
 func (idxAllocationRecs IndexAllocationRecords) ShowInfo() {
-	fmt.Printf("type %s nof entries %d\n", idxAllocationRecs.FindType())
+	fmt.Printf("type %s \n", idxAllocationRecs.FindType())
 	for _, record := range idxAllocationRecs.Records {
-		fmt.Printf(" %d ", record.NumFixupEntries)
+		fmt.Printf("nof entries  %d ", record.NumFixupEntries)
 		for _, idxEntry := range record.IndexEntries {
 			idxEntry.ShowInfo()
 		}
