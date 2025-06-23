@@ -13,19 +13,19 @@ type AttributeListEntries struct {
 }
 
 type AttributeList struct { //more than one MFT entry to store a file/directory its attributes
-	Type       string //        typeif 0-4    # 4
-	Len        uint16 //4-6
-	Namelen    uint8  //7unsigned char           # 1
-	Nameoffset uint8  //8-8               # 1
-	StartVcn   uint64 //8-16         # 8
-	ParRef     uint64 //16-22      # 6
-	ParSeq     uint16 //       22-24    # 2
-	ID         uint8  //     24-26   # 4
+	Type       [4]byte //        typeif 0-4    # 4
+	Len        uint16  //4-6
+	Namelen    uint8   //7unsigned char           # 1
+	Nameoffset uint8   //8-8               # 1
+	StartVcn   uint64  //8-16         # 8
+	ParRef     uint64  //16-22      # 6
+	ParSeq     uint16  //       22-24    # 2
+	ID         uint8   //     24-26   # 4
 	Name       utils.NoNull
 }
 
 func (attrList AttributeList) GetType() string {
-	return AttrTypes[attrList.Type]
+	return AttrTypes[utils.Hexify(utils.Bytereverse(attrList.Type[:]))]
 }
 
 func (attrListEntries *AttributeListEntries) SetHeader(header *AttributeHeader) {
