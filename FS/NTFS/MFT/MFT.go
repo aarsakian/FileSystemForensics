@@ -745,9 +745,11 @@ func (record *Record) Process(bs []byte) error {
 				attrListEntries := attr.(*MFTAttributes.AttributeListEntries) //dereference
 
 				for _, entry := range attrListEntries.Entries {
-					if entry.GetType() != "DATA" {
+					// attribute is stored in the same base record
+					if entry.ParRef == uint64(record.Entry) {
 						continue
 					}
+					logger.FSLogger.Info(fmt.Sprintf("appended linked record %d to %d", entry.ParRef, record.Entry))
 					linkedRecordsInfo = append(linkedRecordsInfo,
 						LinkedRecordInfo{RefEntry: uint32(entry.ParRef), StartVCN: entry.StartVcn, RefSeq: entry.ParSeq})
 				}
