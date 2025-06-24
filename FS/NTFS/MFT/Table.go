@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"runtime"
 	"sync"
 
 	MFTAttributes "github.com/aarsakian/FileSystemForensics/FS/NTFS/MFT/attributes"
@@ -24,6 +25,25 @@ func (e *ParentReallocatedError) Error() string {
 type MFTTable struct {
 	Records []Record
 	Size    int
+}
+
+func (mfttable *MFTTable) ProcessRecordsAsync(data []byte) {
+
+	var wg sync.WaitGroup
+	mfttable.Records = make([]Record, len(data)/RecordSize)
+	msg := fmt.Sprintf("Processing %d $MFT entries", len(mfttable.Records))
+	fmt.Printf(" %s \n", msg)
+	logger.FSLogger.Info(msg)
+
+	for i := 0; i < len(data); i += RecordSize {
+		if utils.Hexify(data[i:i+4]) == "00000000" { //zero area skip
+			continue
+		}
+		wg.Add(1)
+		go mfttable.MFTWorker(data[i:i+RecordSize], i, &wg)
+
+	}
+	wg.Wait()
 }
 
 func (mfttable *MFTTable) ProcessRecords(data []byte) {
@@ -53,9 +73,23 @@ func (mfttable *MFTTable) ProcessRecords(data []byte) {
 
 }
 
+func (mfttable *MFTTable) MFTWorker(data []byte, pos int, wg *sync.WaitGroup) {
+	defer wg.Done()
+	var record Record
+	err := record.Process(data)
+	if err != nil {
+		logger.FSLogger.Error(err)
+		return
+	}
+
+	mfttable.Records[record.Entry] = record
+
+	logger.FSLogger.Info(fmt.Sprintf("Processed record %d at pos %d", record.Entry, pos/RecordSize))
+}
+
 func (mfttable *MFTTable) ProcessNonResidentRecords(hD img.DiskReader, partitionOffsetB int64, clusterSizeB int) {
 
-	const numWorker = 8
+	numWorker := 2 * runtime.NumCPU()
 
 	records := make(chan Record, len(mfttable.Records))
 
