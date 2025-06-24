@@ -171,7 +171,7 @@ func (ntfs *NTFS) ProcessMFT(data []byte, MFTSelectedEntries []int,
 		}
 
 	}
-	ntfs.MFT.ProcessRecords(buf.Bytes())
+	ntfs.MFT.ProcessRecordsAsync(buf.Bytes())
 
 }
 
