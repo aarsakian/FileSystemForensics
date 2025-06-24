@@ -69,7 +69,7 @@ func (disk *Disk) Process(partitionNum int, MFTentries []int, fromMFTEntry int, 
 	disk.ProcessPartitions()
 
 	disk.DiscoverFileSystems(MFTentries, fromMFTEntry, toMFTEntry)
-	return disk.GetFileSystemMetadata(partitionNum), err
+	return disk.GetFileSystemMetadata(), err
 }
 
 func (disk Disk) ProcessJrnl(recordsPerPartition map[int][]metadata.Record, partitionNum int) []UsnJrnl.Record {
@@ -116,7 +116,7 @@ func (disk *Disk) DiscoverFileSystems(MFTentries []int, fromMFTEntry int, toMFTE
 		}
 		partitionOffsetB := int64(disk.Partitions[idx].GetOffset() *
 			vol.GetBytesPerSector())
-
+		fmt.Printf("Processing partition %d ================================================\n", idx+1)
 		vol.Process(disk.Handler, partitionOffsetB, MFTentries, fromMFTEntry, toMFTEntry)
 
 	}
@@ -223,13 +223,11 @@ func (disk *Disk) ProcessPartitions() {
 
 }
 
-func (disk Disk) GetFileSystemMetadata(partitionNum int) map[int][]metadata.Record {
+func (disk Disk) GetFileSystemMetadata() map[int][]metadata.Record {
 
 	recordsPerPartition := map[int][]metadata.Record{}
 	for idx, partition := range disk.Partitions {
-		if partitionNum != -1 && idx+1 != partitionNum {
-			continue
-		}
+
 		vol := partition.GetVolume()
 		if vol == nil {
 			continue
