@@ -59,9 +59,9 @@ func (fnattr FNAttribute) FindType() string {
 
 func (fnattr FNAttribute) ShowInfo() {
 	atime, ctime, mtime, mfttime := fnattr.GetTimestamps()
-	typeAttr := fnattr.FindType()
-	fmt.Printf("type %s Par Ref %d name %s atime %s ctime %s mtime %s mfttime %s\n",
-		typeAttr, fnattr.ParRef, fnattr.Fname, atime, ctime, mtime, mfttime)
+
+	fmt.Printf("%s Par Ref %d name %s atime %s ctime %s mtime %s mfttime %s\n",
+		fnattr.FindType(), fnattr.ParRef, fnattr.Fname, atime, ctime, mtime, mfttime)
 }
 
 func (fnAttr FNAttribute) GetType() string {

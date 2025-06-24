@@ -52,7 +52,7 @@ func (siattr SIAttribute) GetTimestamps() (string, string, string, string) {
 
 func (siattr SIAttribute) ShowInfo() {
 	atime, ctime, mtime, mfttime := siattr.GetTimestamps()
-	typeAttr := siattr.FindType()
-	fmt.Printf("type %s usn  %d atime %s ctime %s mtime %s mfttime %s\n",
-		typeAttr, siattr.USN, atime, ctime, mtime, mfttime)
+
+	fmt.Printf(" %s usn  %d atime %s ctime %s mtime %s mfttime %s\n",
+		siattr.FindType(), siattr.USN, atime, ctime, mtime, mfttime)
 }
