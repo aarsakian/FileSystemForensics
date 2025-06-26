@@ -209,8 +209,10 @@ func main() {
 		disk.Initialize(*evidencefile, *physicalDrive, *vmdkfile)
 
 		lvm2 := new(lvmlib.LVM2)
-		lvm2.ProcessHeader(disk.Handler, int64(*physicalOffset*512+512))
-		lvm2.Process(disk.Handler, int64(*physicalOffset*512+512), entries, *fromMFTEntry, *toMFTEntry)
+		err := lvm2.ProcessHeader(disk.Handler, int64(*physicalOffset*512+512))
+		if err == nil {
+			lvm2.Process(disk.Handler, int64(*physicalOffset*512+512), entries, *fromMFTEntry, *toMFTEntry)
+		}
 
 	}
 	/* else if *inputfile != "Disk MFT" {
