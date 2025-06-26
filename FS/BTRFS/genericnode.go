@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	//exporter "github.com/aarsakian/FileSystemForensics/Exporter"
+	"github.com/aarsakian/FileSystemForensics/FS/BTRFS/attributes"
 	"github.com/aarsakian/FileSystemForensics/FS/BTRFS/internalnode"
 	"github.com/aarsakian/FileSystemForensics/FS/BTRFS/leafnode"
 	"github.com/aarsakian/FileSystemForensics/logger"
@@ -27,7 +28,7 @@ type FsTree struct {
 type DirTree struct {
 	Id       uint64
 	Name     string
-	InodePtr *leafnode.InodeItem
+	InodePtr *attributes.InodeItem
 	Index    uint64
 }
 
@@ -93,13 +94,13 @@ func (nodesPtr GenericNodesPtr) FilterItemsByIds(ids []string) ([]leafnode.Item,
 		for _, node := range nodesPtr {
 		for idx, item := range node.LeafNode.Items {
 			if item.IsDirItem() {
-				dirItem := node.LeafNode.DataItems[idx].(*leafnode.DirItem)
+				dirItem := node.LeafNode.DataItems[idx].(*attributes.DirItem)
 				if dirItem.GetType() == "BTRFS_TYPE_FILE" || dirItem.GetType() == "BTRFS_TYPE_DIRECTORY" {
 					exp.WriteFile(fmt.Sprintf("Dir Inode %d index id %d ", item.Key.ObjectID, item.Key.Offset))
 					exp.WriteFile(dirItem.GetInfo())
 				}
 			} else if item.IsDirIndex() {
-				dirIdx := node.LeafNode.DataItems[idx].(*leafnode.DirIndex)
+				dirIdx := node.LeafNode.DataItems[idx].(*attributes.DirIndex)
 				if dirIdx.GetType() == "BTRFS_TYPE_FILE" || dirIdx.GetType() == "BTRFS_TYPE_DIRECTORY" {
 					exp.WriteFile(fmt.Sprintf("Dir Idx %d ", item.Key.ObjectID))
 					exp.WriteFile(node.LeafNode.DataItems[idx].GetInfo())
@@ -124,13 +125,13 @@ func (nodesPtr GenericNodesPtr) ShowFilesDirsInfo() {
 	for _, node := range nodesPtr {
 		for idx, item := range node.LeafNode.Items {
 			if item.IsDirItem() {
-				dirItem := node.LeafNode.DataItems[idx].(*leafnode.DirItem)
+				dirItem := node.LeafNode.DataItems[idx].(*attributes.DirItem)
 				if dirItem.GetType() == "BTRFS_TYPE_FILE" || dirItem.GetType() == "BTRFS_TYPE_DIRECTORY" {
 					fmt.Printf("Dir Inode %d index id %d %s", item.Key.ObjectID, item.Key.Offset, dirItem.GetInfo())
 
 				}
 			} else if item.IsDirIndex() {
-				dirIdx := node.LeafNode.DataItems[idx].(*leafnode.DirIndex)
+				dirIdx := node.LeafNode.DataItems[idx].(*attributes.DirIndex)
 				if dirIdx.GetType() == "BTRFS_TYPE_FILE" || dirIdx.GetType() == "BTRFS_TYPE_DIRECTORY" {
 					fmt.Printf("Dir Idx %d %s", item.Key.ObjectID, node.LeafNode.DataItems[idx].GetInfo())
 
@@ -214,8 +215,8 @@ func (genericNode *GenericNode) Parse(data []byte, physicalOffset int64, verify 
 }
 
 func (key Key) ShowInfo() {
-	fmt.Printf("key %s  %s %d\n", leafnode.ItemTypes[int(key.ItemType)],
-		leafnode.ObjectTypes[int(key.ObjectID)], key.Offset)
+	fmt.Printf("key %s  %s %d\n", attributes.ItemTypes[int(key.ItemType)],
+		attributes.ObjectTypes[int(key.ObjectID)], key.Offset)
 }
 
 func (nodes GenericNodesPtr) ShowInfo() {
