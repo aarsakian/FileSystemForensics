@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	metadata "github.com/aarsakian/FileSystemForensics/FS"
-	"github.com/aarsakian/FileSystemForensics/FS/BTRFS"
 	"github.com/aarsakian/FileSystemForensics/img"
 	"github.com/aarsakian/FileSystemForensics/logger"
 	"github.com/aarsakian/FileSystemForensics/utils"
@@ -15,7 +14,7 @@ import (
 type LVM2 struct {
 	Header            *PhysicalVolLabel
 	ConfigurationInfo string
-	btrfs             *BTRFS.BTRFS
+	btrfs             *BTRFS
 }
 
 type PhysicalVolLabel struct {
@@ -79,7 +78,10 @@ func (lvm2 *LVM2) ProcessHeader(hD img.DiskReader, physicalOffsetB int64) error 
 
 func (lvm2 *LVM2) Process(hD img.DiskReader, physicalOffsetB int64, SelectedEntries []int,
 	fromEntry int, toEntry int) {
-	btrfs := new(BTRFS.BTRFS)
+	btrfs := new(BTRFS)
+
+	data := hD.ReadFile(physicalOffsetB+OFFSET_TO_SUPERBLOCK, SUPERBLOCKSIZE)
+	btrfs.ParseSuperblock(data)
 	btrfs.Process(hD, physicalOffsetB+lvm2.Header.PhysicalVolHeader.DataAreaDescriptors[0].OffsetB,
 		SelectedEntries, fromEntry, toEntry)
 	lvm2.btrfs = btrfs
