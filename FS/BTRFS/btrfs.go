@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"sync"
 
+	"github.com/aarsakian/FileSystemForensics/FS/BTRFS/attributes"
 	"github.com/aarsakian/FileSystemForensics/FS/BTRFS/leafnode"
 	"github.com/aarsakian/FileSystemForensics/img"
 	"github.com/aarsakian/FileSystemForensics/logger"
@@ -20,7 +21,7 @@ const CHANNELSIZE = 10000
 
 const OFFSET_TO_SUPERBLOCK = 0x10000 //64KB fixed position
 
-type ChunkTreeMap = map[uint64]*leafnode.ChunkItem
+type ChunkTreeMap = map[uint64]*attributes.ChunkItem
 
 type BTRFS struct {
 	Superblock   *Superblock
@@ -103,6 +104,7 @@ func (btrfs *BTRFS) Process(hD img.DiskReader, partitionOffsetB int64, selectedE
 	if !btrfs.VerifySuperBlock(data) {
 		msg := "superblock chcksum failed!"
 		logger.FSLogger.Error(msg)
+		fmt.Printf("%s \n", msg)
 		return
 	}
 	btrfs.ChunkTreeMap = make(ChunkTreeMap)
@@ -172,20 +174,18 @@ func (fsTreeMap FsTreeMap) Update(wgs *sync.WaitGroup, nodesLeaf chan *GenericNo
 
 			if item.IsInodeItem() {
 
-				dataItem := node.LeafNode.DataItems[idx].(*leafnode.InodeItem)
-				fstree.FilesDirsMap[item.Key.ObjectID] = FileDirEntry{Id: int(item.Key.ObjectID),
-					SizeB: int(dataItem.StSize), Nlink: int(dataItem.StNlink),
-					Uid: int(dataItem.StUid), Gid: int(dataItem.StGid), ATime: dataItem.ATime.ToTime(),
-					MTime: dataItem.MTime.ToTime(),
-					CTime: dataItem.CTime.ToTime(), OTime: dataItem.OTime.ToTime(), Type: dataItem.GetType()}
+				fileDirEntry := FileDirEntry{Id: int(item.Key.ObjectID)}
+				fileDirEntry.DataItems = append(fileDirEntry.DataItems,
+					node.LeafNode.DataItems[idx])
+
+				fstree.FilesDirsMap[item.Key.ObjectID] = fileDirEntry
 
 			} else if item.IsDirItem() {
 
 				fileDirEntry := fstree.FilesDirsMap[item.Key.ObjectID]
 
-				dataItem := node.LeafNode.DataItems[idx].(*leafnode.DirItem)
-				fileDirEntry.Flags = dataItem.GetType()
-				fileDirEntry.Type = dataItem.GetType()
+				fileDirEntry.DataItems = append(fileDirEntry.DataItems,
+					node.LeafNode.DataItems[idx])
 
 				fstree.FilesDirsMap[item.Key.ObjectID] = fileDirEntry
 
@@ -193,6 +193,8 @@ func (fsTreeMap FsTreeMap) Update(wgs *sync.WaitGroup, nodesLeaf chan *GenericNo
 
 				fileDirEntry := fstree.FilesDirsMap[item.Key.ObjectID]
 				fileDirEntry.Index = int(item.Key.Offset)
+				fileDirEntry.DataItems = append(fileDirEntry.DataItems,
+					node.LeafNode.DataItems[idx])
 
 				fstree.FilesDirsMap[item.Key.ObjectID] = fileDirEntry
 
@@ -200,16 +202,14 @@ func (fsTreeMap FsTreeMap) Update(wgs *sync.WaitGroup, nodesLeaf chan *GenericNo
 
 				fileDirEntry := fstree.FilesDirsMap[item.Key.ObjectID]
 
-				dataItem := node.LeafNode.DataItems[idx].(*leafnode.InodeRef)
 				//obtains a copy
 				fileDirParent := fstree.FilesDirsMap[item.Key.Offset]
 
-				fileDirEntry.Index = int(dataItem.Index)
 				fileDirEntry.Parent = &fileDirParent
-				fileDirEntry.Name = dataItem.Name
 
 				fileDirParent.Children = append(fileDirParent.Children, &fileDirEntry)
-
+				fileDirEntry.DataItems = append(fileDirEntry.DataItems,
+					node.LeafNode.DataItems[idx])
 				//reassign
 				fstree.FilesDirsMap[item.Key.Offset] = fileDirParent
 				fstree.FilesDirsMap[item.Key.ObjectID] = fileDirEntry
@@ -217,16 +217,9 @@ func (fsTreeMap FsTreeMap) Update(wgs *sync.WaitGroup, nodesLeaf chan *GenericNo
 			} else if item.IsExtentData() {
 
 				fileDirEntry := fstree.FilesDirsMap[item.Key.ObjectID]
-
-				dataItem := node.LeafNode.DataItems[idx].(*leafnode.ExtentData)
-				if dataItem.GetType() == "Inline Extent" {
-
-				} else if dataItem.GetType() == "Regular Extent" {
-					extent := Extent{Offset: int(dataItem.ExtentDataRem.LogicaAddress),
-						PSize: int(dataItem.ExtentDataRem.Size), LSize: int(dataItem.ExtentDataRem.LogicalBytes)}
-					fileDirEntry.Extents = append(fileDirEntry.Extents, extent)
-					fstree.FilesDirsMap[item.Key.ObjectID] = fileDirEntry
-				}
+				fileDirEntry.DataItems = append(fileDirEntry.DataItems,
+					node.LeafNode.DataItems[idx])
+				fstree.FilesDirsMap[item.Key.ObjectID] = fileDirEntry
 
 			}
 
@@ -296,12 +289,11 @@ func (btrfs *BTRFS) DiscoverTrees(nodes GenericNodesPtr, nametree string) {
 	for _, node := range nodes {
 
 		for idx, item := range node.LeafNode.Items {
-			msg := fmt.Sprintf("Node %s item  obj %d offs %d Type %s  %s", node.GetGuid(), item.Key.ObjectID, item.Key.Offset,
-				leafnode.ItemTypes[int(item.Key.ItemType)], leafnode.ObjectTypes[int(item.Key.ObjectID)])
+			msg := fmt.Sprintf("Node %s item %s", node.GetGuid(), item.GetInfo())
 			logger.FSLogger.Info(msg)
 
 			if item.IsRootItem() {
-				rootItem := node.LeafNode.DataItems[idx].(*leafnode.RootItem)
+				rootItem := node.LeafNode.DataItems[idx].(*attributes.RootItem)
 				fsTree, ok := fsTrees[item.Key.ObjectID]
 				if !ok {
 					fsTrees[item.Key.ObjectID] = FsTree{
@@ -315,7 +307,7 @@ func (btrfs *BTRFS) DiscoverTrees(nodes GenericNodesPtr, nametree string) {
 				}
 
 			} else if item.IsRootRef() {
-				name := node.LeafNode.DataItems[idx].(*leafnode.RootRef).Name
+				name := node.LeafNode.DataItems[idx].(*attributes.RootRef).Name
 
 				fsTree, ok := fsTrees[item.Key.Offset]
 
@@ -331,13 +323,13 @@ func (btrfs *BTRFS) DiscoverTrees(nodes GenericNodesPtr, nametree string) {
 				}
 
 			} else if item.IsInodeItem() && item.IsDIRTree() {
-				inode := node.LeafNode.DataItems[idx].(*leafnode.InodeItem)
+				inode := node.LeafNode.DataItems[idx].(*attributes.InodeItem)
 				dir = DirTree{Id: item.Key.ObjectID, InodePtr: inode}
 
 			} else if item.IsDirItem() && item.IsDIRTree() {
-				dir.Name = node.LeafNode.DataItems[idx].(*leafnode.DirItem).Name
+				dir.Name = node.LeafNode.DataItems[idx].(*attributes.DirItem).Name
 			} else if item.IsInodeRef() && item.IsDIRTree() {
-				dir.Index = node.LeafNode.DataItems[idx].(*leafnode.InodeRef).Index
+				dir.Index = node.LeafNode.DataItems[idx].(*attributes.InodeRef).Index
 			}
 		}
 
@@ -445,7 +437,7 @@ func (btrfs *BTRFS) UpdateChunkMaps(genericNodes GenericNodesPtr) {
 			if reflect.TypeOf(dataItem).Elem().Name() != "ChunkItem" {
 				continue
 			}
-			chunkItem := dataItem.(*leafnode.ChunkItem)
+			chunkItem := dataItem.(*attributes.ChunkItem)
 			key := node.LeafNode.Items[idx].Key
 
 			btrfs.ChunkTreeMap[key.Offset] = chunkItem
@@ -478,10 +470,10 @@ func (btrfs BTRFS) ParseSystemChunks() GenericNodesPtr {
 	var genericNodes GenericNodesPtr
 	data := btrfs.Superblock.SystemChunkArr[:btrfs.Superblock.SystemChunkArrSize]
 	for curOffset < len(data) {
-		key := new(leafnode.Key)
+		key := new(attributes.Key)
 		curOffset += key.Parse(data[curOffset:])
 
-		chunkItem := new(leafnode.ChunkItem)
+		chunkItem := new(attributes.ChunkItem)
 		curOffset += chunkItem.Parse(data[curOffset:])
 
 		leafNode := leafnode.LeafNode{}
