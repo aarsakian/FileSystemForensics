@@ -6,6 +6,7 @@ import (
 
 	volume "github.com/aarsakian/FileSystemForensics/disk/volume"
 	"github.com/aarsakian/FileSystemForensics/img"
+	"github.com/aarsakian/FileSystemForensics/logger"
 	"github.com/aarsakian/FileSystemForensics/utils"
 )
 
@@ -45,17 +46,28 @@ func (partition Partition) GetPartitionType() string {
 }
 
 func (partition *Partition) LocateVolume(hD img.DiskReader) {
-	partitionOffetB := uint64(partition.GetOffset() * 512)
-	data := hD.ReadFile(int64(partitionOffetB), 512)
-	if partition.Type == 0x07 || partition.Type == 0x17 {
 
+	if partition.Type == 0x07 || partition.Type == 0x17 {
+		partitionOffetB := uint64(partition.GetOffset() * 512)
+		data := hD.ReadFile(int64(partitionOffetB), 512)
 		ntfs := new(volume.NTFS)
 		ntfs.AddVolume(data)
 
 		if ntfs.HasValidSignature() {
 			partition.Volume = ntfs
-		} else {
-			partition.Volume = nil
+		}
+	} else if partition.Type == 0x83 { //linux native
+		btrfs := new(volume.BTRFS)
+
+		partitionOffsetB := int64(partition.GetOffset() * 512)
+		data := hD.ReadFile(partitionOffsetB+volume.OFFSET_TO_SUPERBLOCK, volume.SUPERBLOCKSIZE)
+		msg := "Reading superblock at offset %d"
+		fmt.Printf(msg+"\n", partitionOffsetB)
+		logger.FSLogger.Info(fmt.Sprintf(msg, partitionOffsetB))
+
+		err := btrfs.ParseSuperblock(data)
+		if err == nil && btrfs.HasValidSignature() {
+			partition.Volume = btrfs
 		}
 	}
 
