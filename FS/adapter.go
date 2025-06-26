@@ -1,14 +1,33 @@
 package metadata
 
-import "github.com/aarsakian/FileSystemForensics/FS/NTFS/MFT"
+import (
+	"github.com/aarsakian/FileSystemForensics/FS/BTRFS"
+	"github.com/aarsakian/FileSystemForensics/FS/NTFS/MFT"
+)
 
 type NTFSRecord struct {
 	*MFT.Record
 }
 
+type BTRFSRecord struct {
+	*BTRFS.FileDirEntry
+}
+
+func (btrfsRecord BTRFSRecord) FindAttribute(attrName string) Attribute {
+	return btrfsRecord.FileDirEntry.FindAttribute(attrName)
+}
+
+func (btrfsRecord BTRFSRecord) GetLinkedRecords() []Record {
+	var linkedRecords []Record
+	for _, linkedRecord := range btrfsRecord.FileDirEntry.GetLinkedRecords() {
+		linkedRecords = append(linkedRecords, BTRFSRecord{linkedRecord})
+	}
+	return linkedRecords
+}
+
 func (ntfsRecord NTFSRecord) GetLinkedRecords() []Record {
 	var linkedRecords []Record
-	for _, linkedRecord := range ntfsRecord.LinkedRecords {
+	for _, linkedRecord := range ntfsRecord.Record.LinkedRecords {
 		linkedRecords = append(linkedRecords, NTFSRecord{linkedRecord})
 	}
 	return linkedRecords
