@@ -3,36 +3,36 @@ package BTRFS
 import (
 	"errors"
 	"fmt"
-	"time"
+	"strings"
+
+	"github.com/aarsakian/FileSystemForensics/FS/BTRFS/attributes"
+	"github.com/aarsakian/FileSystemForensics/FS/BTRFS/leafnode"
+	"github.com/aarsakian/FileSystemForensics/img"
+	"github.com/aarsakian/FileSystemForensics/utils"
 )
 
 type FilesDirsMap map[uint64]FileDirEntry //inodeid -> FileDirEntry
 
 type FileDirEntry struct {
 	Id       int
-	SizeB    int
-	StBlock  int
-	Nlink    int
-	Uid      int
-	Gid      int
 	Index    int
-	Name     string
-	Type     string
-	Flags    string
-	ATime    time.Time
-	CTime    time.Time
-	MTime    time.Time
-	OTime    time.Time
 	Children []*FileDirEntry
 	Parent   *FileDirEntry
 	Path     string
-	Extents  []Extent
+
+	DataItems []leafnode.DataItem
+	Items     []*leafnode.Item
+	Extents   []Extent
 }
 
 type Extent struct {
 	Offset int
 	LSize  int
 	PSize  int
+}
+
+func (extent Extent) GetInfo() string {
+	return fmt.Sprintf("%d %d %d", extent.Offset, extent.LSize, extent.PSize)
 }
 
 func (fileDirEntry FileDirEntry) GetParentId() (int, error) {
@@ -43,29 +43,169 @@ func (fileDirEntry FileDirEntry) GetParentId() (int, error) {
 	}
 }
 
-func (fileDirEntry FileDirEntry) GetInfo() string {
-	return fmt.Sprintf("Id %d, %s, A %s, C %s, M %s, O %s, %s, Idx %d, lnks %d, exts %s, path %s\n",
-		fileDirEntry.Id,
-		fileDirEntry.Name, fileDirEntry.ATime, fileDirEntry.CTime,
-		fileDirEntry.MTime, fileDirEntry.OTime,
-		fileDirEntry.Type, fileDirEntry.Index, fileDirEntry.Nlink,
-		fileDirEntry.GetExtentsInfo(), fileDirEntry.Path)
+func (fileDirEntry *FileDirEntry) ParseExtents() {
+
+	for _, attribute := range fileDirEntry.FindAttributes("EXTENT_DATA") {
+		extent := attribute.(*attributes.ExtentData)
+		if extent.GetType() == "Inline Extent" {
+
+		} else if extent.GetType() == "Regular Extent" {
+			extent := Extent{Offset: int(extent.ExtentDataRem.LogicaAddress),
+				PSize: int(extent.ExtentDataRem.Size), LSize: int(extent.ExtentDataRem.LogicalBytes)}
+			fileDirEntry.Extents = append(fileDirEntry.Extents, extent)
+		}
+
+	}
 }
 
-func (fileDirEntry FileDirEntry) GetExtentsInfo() string {
-	var extentInfo string
-	for _, extent := range fileDirEntry.Extents {
-		extentInfo += fmt.Sprintf(" off %d Ps %d Ls %d|",
-			extent.Offset, extent.LSize, extent.PSize)
+func (fileDirEntry FileDirEntry) GetLogicalFileSize() int64 {
+	attr := fileDirEntry.FindAttributes("INODE_ITEM")[0].(*attributes.InodeItem)
+	return int64(attr.StSize)
+}
+
+func (fileDirEntry FileDirEntry) GetFname() string {
+	attr := fileDirEntry.FindAttributes("INODE_REF")[0].(*attributes.InodeRef)
+	return attr.Name
+}
+
+func (fileDirEntry FileDirEntry) GetID() int {
+	return fileDirEntry.Id
+}
+
+func (fileDirEntry FileDirEntry) GetLinkedRecords() []*FileDirEntry {
+	return []*FileDirEntry{}
+}
+
+func (fileDirEntry FileDirEntry) GetSequence() int {
+	return 0
+}
+
+func (fileDirEntry FileDirEntry) HasFilenameExtension(extension string) bool {
+	fname := fileDirEntry.GetFname()
+	if strings.HasSuffix(fname, strings.ToUpper("."+extension)) ||
+		strings.HasSuffix(fname, strings.ToLower("."+extension)) {
+		return true
 	}
-	return extentInfo
+
+	return false
+}
+
+func (fileDirEntry FileDirEntry) HasFilenames(filenames []string) bool {
+	fname := fileDirEntry.GetFname()
+	for _, filename := range filenames {
+		if fname == filename {
+			return true
+		}
+	}
+	return false
+}
+
+func (fileDirEntry FileDirEntry) HasParent() bool {
+	return fileDirEntry.Parent != nil
+}
+
+func (fileDirEntry FileDirEntry) HasPath(path string) bool {
+	return fileDirEntry.Path == path
+}
+
+func (fileDirEntry FileDirEntry) HasPrefix(prefix string) bool {
+	fname := fileDirEntry.GetFname()
+	return strings.HasPrefix(fname, prefix)
+}
+
+func (fileDirEntry FileDirEntry) HasSuffix(suffix string) bool {
+	fname := fileDirEntry.GetFname()
+	return strings.HasSuffix(fname, suffix)
+}
+
+func (fileDirEntry FileDirEntry) IsDeleted() bool {
+	return false
+}
+
+func (fileDirEntry FileDirEntry) IsFolder() bool {
+	return false
+}
+
+func (fileDirEntry FileDirEntry) GetIndex() int {
+	attr := fileDirEntry.FindAttributes("INODE_REF")[0].(*attributes.InodeRef)
+	return int(attr.Index)
+}
+
+func (fileDirEntry FileDirEntry) LocateDataAsync(hD img.DiskReader, partitionOffset int64,
+	clusterSizeB int, dataFragments chan<- []byte) {
+
+}
+
+func (fileDirEntry FileDirEntry) LocateData(hD img.DiskReader, partitionOffset int64, sectorsPerCluster int, bytesPerSector int, results chan<- utils.AskedFile) {
+
+}
+
+func (fileDirEntry FileDirEntry) ShowAttributes(attrName string) {
+	for _, attribute := range fileDirEntry.DataItems {
+		attribute.ShowInfo()
+	}
+}
+
+func (fileDirEntry FileDirEntry) ShowFileSize() {
+	fmt.Printf("%d\n", fileDirEntry.GetLogicalFileSize())
+}
+
+func (fileDirEntry FileDirEntry) ShowIndex() {
+	fmt.Printf("%d\n", fileDirEntry.GetIndex())
+}
+
+func (fileDirEntry FileDirEntry) ShowInfo() {
+
+}
+
+func (fileDirEntry FileDirEntry) ShowIsResident() {
+
+}
+
+func (fileDirEntry FileDirEntry) ShowParentRecordInfo() {
+
+}
+
+func (fileDirEntry FileDirEntry) ShowPath(pathtype int) {
+
+}
+
+func (fileDirEntry FileDirEntry) ShowRunList() {
+
+}
+
+func (fileDirEntry FileDirEntry) ShowTimestamps() {
+
+}
+
+func (fileDirEntry FileDirEntry) ShowVCNs() {
+
+}
+
+func (fileDirEntry FileDirEntry) GetTimestamps() string {
+	attr := fileDirEntry.FindAttributes("INODE_ITEM")[0].(*attributes.InodeItem)
+	return attr.GetTimestamps()
+}
+
+func (fileDirEntry FileDirEntry) GetInfo() string {
+	return ""
+}
+
+func (fileDirEntry FileDirEntry) GetExtentsInfo() []string {
+
+	var extentsInfo []string
+	for _, extent := range fileDirEntry.Extents {
+		extent.GetInfo()
+	}
+	return extentsInfo
 }
 
 func (fileDirEntry *FileDirEntry) BuildPath() {
 	parent := fileDirEntry.Parent
 	var paths []string
 	for parent != nil {
-		paths = append(paths, parent.Name)
+
+		paths = append(paths, parent.GetFname())
 		parent = parent.Parent
 	}
 
@@ -81,4 +221,18 @@ func (fileDirEntry *FileDirEntry) BuildPath() {
 		fileDirEntry.Children[idx].BuildPath()
 	}
 
+}
+
+func (fileDirEntry FileDirEntry) FindAttribute(attrName string) leafnode.DataItem {
+	return fileDirEntry.FindAttributes(attrName)[0]
+}
+
+func (fileDirEntry FileDirEntry) FindAttributes(attrName string) []leafnode.DataItem {
+	var attributes []leafnode.DataItem
+	for idx, attribute := range fileDirEntry.DataItems {
+		if fileDirEntry.Items[idx].GetInfo() == attrName {
+			attributes = append(attributes, attribute)
+		}
+	}
+	return attributes
 }
