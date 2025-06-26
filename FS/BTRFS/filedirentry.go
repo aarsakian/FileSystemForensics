@@ -1,4 +1,4 @@
-package BTRFS
+package fstree
 
 import (
 	"errors"
@@ -21,7 +21,7 @@ type FileDirEntry struct {
 	Path     string
 
 	DataItems []leafnode.DataItem
-	Items     []*leafnode.Item
+	Items     []leafnode.Item
 	Extents   []Extent
 }
 
@@ -175,7 +175,7 @@ func (fileDirEntry FileDirEntry) ShowRunList() {
 }
 
 func (fileDirEntry FileDirEntry) ShowTimestamps() {
-
+	fmt.Printf("%s\n", fileDirEntry.GetTimestamps())
 }
 
 func (fileDirEntry FileDirEntry) ShowVCNs() {
@@ -183,8 +183,10 @@ func (fileDirEntry FileDirEntry) ShowVCNs() {
 }
 
 func (fileDirEntry FileDirEntry) GetTimestamps() string {
-	attr := fileDirEntry.FindAttributes("INODE_ITEM")[0].(*attributes.InodeItem)
-	return attr.GetTimestamps()
+	for _, attr := range fileDirEntry.FindAttributes("INODE_ITEM") {
+		return attr.(*attributes.InodeItem).GetTimestamps()
+	}
+	return ""
 }
 
 func (fileDirEntry FileDirEntry) GetInfo() string {
@@ -230,7 +232,7 @@ func (fileDirEntry FileDirEntry) FindAttribute(attrName string) leafnode.DataIte
 func (fileDirEntry FileDirEntry) FindAttributes(attrName string) []leafnode.DataItem {
 	var attributes []leafnode.DataItem
 	for idx, attribute := range fileDirEntry.DataItems {
-		if fileDirEntry.Items[idx].GetInfo() == attrName {
+		if fileDirEntry.Items[idx].GetType() == attrName {
 			attributes = append(attributes, attribute)
 		}
 	}
