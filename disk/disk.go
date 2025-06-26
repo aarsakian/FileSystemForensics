@@ -114,9 +114,9 @@ func (disk *Disk) DiscoverFileSystems(MFTentries []int, fromMFTEntry int, toMFTE
 		if vol == nil {
 			continue
 		}
-		partitionOffsetB := int64(disk.Partitions[idx].GetOffset() *
-			vol.GetBytesPerSector())
-		fmt.Printf("Processing partition %d ================================================\n", idx+1)
+		partitionOffsetB := int64(disk.Partitions[idx].GetOffset() * 512)
+		fmt.Printf("Processing partition %d at %d ================================================\n",
+			idx+1, partitionOffsetB)
 		vol.Process(disk.Handler, partitionOffsetB, MFTentries, fromMFTEntry, toMFTEntry)
 
 	}
