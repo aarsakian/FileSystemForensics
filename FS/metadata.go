@@ -11,7 +11,6 @@ type Attribute interface {
 type Record interface {
 	HasFilenameExtension(string) bool
 	HasFilenames([]string) bool
-	HasFilename(string) bool
 	HasPath(string) bool
 	HasParent() bool
 	HasSuffix(string) bool
@@ -20,8 +19,6 @@ type Record interface {
 	IsFolder() bool
 	GetFname() string
 	GetID() int
-	LocateData(img.DiskReader, int64, int, int, chan<- utils.AskedFile)
-	LocateDataAsync(img.DiskReader, int64, int, chan<- []byte)
 	GetLinkedRecords() []Record
 	GetLogicalFileSize() int64
 	GetSequence() int
@@ -36,6 +33,9 @@ type Record interface {
 	ShowInfo()
 	ShowParentRecordInfo()
 	ShowPath(int)
+
+	LocateData(img.DiskReader, int64, int, int, chan<- utils.AskedFile)
+	LocateDataAsync(img.DiskReader, int64, int, chan<- []byte)
 }
 
 func FilterByExtensions(records []Record, extensions []string) []Record {
@@ -70,7 +70,7 @@ func FilterByPath(records []Record, filespath string) []Record {
 
 func FilterByName(records []Record, filename string) []Record {
 	return utils.Filter(records, func(record Record) bool {
-		return record.HasFilename(filename)
+		return record.HasFilenames([]string{filename})
 	})
 
 }
