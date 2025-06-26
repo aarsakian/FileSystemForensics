@@ -1,7 +1,7 @@
 package metadata
 
 import (
-	"github.com/aarsakian/FileSystemForensics/FS/BTRFS"
+	fstree "github.com/aarsakian/FileSystemForensics/FS/BTRFS"
 	"github.com/aarsakian/FileSystemForensics/FS/NTFS/MFT"
 )
 
@@ -10,7 +10,7 @@ type NTFSRecord struct {
 }
 
 type BTRFSRecord struct {
-	*BTRFS.FileDirEntry
+	*fstree.FileDirEntry
 }
 
 func (btrfsRecord BTRFSRecord) FindAttribute(attrName string) Attribute {
