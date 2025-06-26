@@ -2,10 +2,13 @@ package volume
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 
 	metadata "github.com/aarsakian/FileSystemForensics/FS"
 	"github.com/aarsakian/FileSystemForensics/FS/BTRFS"
 	"github.com/aarsakian/FileSystemForensics/img"
+	"github.com/aarsakian/FileSystemForensics/logger"
 	"github.com/aarsakian/FileSystemForensics/utils"
 )
 
@@ -58,13 +61,20 @@ type RawLocationDescriptor struct {
 	Flags  uint64
 }
 
-func (lvm2 *LVM2) ProcessHeader(hD img.DiskReader, physicalOffsetB int64) {
+func (lvm2 *LVM2) ProcessHeader(hD img.DiskReader, physicalOffsetB int64) error {
 	data := hD.ReadFile(physicalOffsetB, 4096)
 	lvm2.Parse(data)
+	if !lvm2.HasValidSignature() {
+		msg := "no lvm2 found"
+		logger.FSLogger.Error(msg)
+		fmt.Printf("%s \n", msg)
+		return errors.New(msg)
+	}
 	data = hD.ReadFile(physicalOffsetB+4096, 512)
 	lvm2.ParseMetaHeader(data)
 	lvm2.ConfigurationInfo = string(hD.ReadFile(int64(physicalOffsetB)+4096+int64(lvm2.Header.MetadataAreaHeader.RawLocationDescriptors[0].Offset),
 		int(lvm2.Header.MetadataAreaHeader.RawLocationDescriptors[0].Len)))
+	return nil
 }
 
 func (lvm2 *LVM2) Process(hD img.DiskReader, physicalOffsetB int64, SelectedEntries []int,
@@ -75,14 +85,18 @@ func (lvm2 *LVM2) Process(hD img.DiskReader, physicalOffsetB int64, SelectedEntr
 	lvm2.btrfs = btrfs
 }
 
+func (lvm2 LVM2) HasValidSignature() bool {
+	return utils.Hexify(lvm2.Header.PhysicalVolLabelHeader.Signature[:]) == "LABELONE"
+}
+
 // this will change
 func (lvm2 LVM2) GetFS() []metadata.Record {
 	var records []metadata.Record
-	/*	for _, tree := range lvm2.btrfs.FsTreeMap {
+	for _, tree := range lvm2.btrfs.FsTreeMap {
 		for _, record := range tree.FilesDirsMap {
-			records = append(records, record)
+			records = append(records, metadata.BTRFSRecord{&record})
 		}
-	}*/
+	}
 	return records
 }
 func (lvm2 *LVM2) Parse(data []byte) {
