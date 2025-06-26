@@ -1,4 +1,4 @@
-package BTRFS
+package fstree
 
 import (
 	"errors"
