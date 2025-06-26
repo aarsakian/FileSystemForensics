@@ -1,34 +1,12 @@
-package BTRFS
+package fstree
 
 import (
-	"errors"
-	"fmt"
-	"log"
-	"reflect"
 	"sync"
 
 	"github.com/aarsakian/FileSystemForensics/FS/BTRFS/attributes"
-	"github.com/aarsakian/FileSystemForensics/FS/BTRFS/leafnode"
-	"github.com/aarsakian/FileSystemForensics/img"
-	"github.com/aarsakian/FileSystemForensics/logger"
-	"github.com/aarsakian/FileSystemForensics/utils"
 )
 
-const SYSTEMCHUNKARRSIZE = 2048
-const SUPERBLOCKSIZE = 4096
-
-const CHANNELSIZE = 10000
-
-const OFFSET_TO_SUPERBLOCK = 0x10000 //64KB fixed position
-
 type ChunkTreeMap = map[uint64]*attributes.ChunkItem
-
-type BTRFS struct {
-	Superblock   *Superblock
-	Trees        []Tree
-	ChunkTreeMap ChunkTreeMap
-	FsTreeMap    FsTreeMap
-}
 
 type Stack struct {
 	nodes []*GenericNode
@@ -57,107 +35,6 @@ type Tree struct {
 	FilesDirsMap  FilesDirsMap //map for files and folders per inodeid
 }
 
-type Superblock struct { //4096B
-	Chksum                      [32]byte
-	UUID                        [16]byte
-	PhysicalAddress             uint64
-	Flags                       uint64
-	Signature                   [8]byte //8bytes 64 offset
-	Generation                  uint64
-	LogicalAddressRootTree      uint64
-	LogicalAddressRootChunkTree uint64
-	LogicalAddressLogRootTree   uint64
-	LogRootTransid              uint64
-	VolumeSizeB                 uint64
-	VolumeUsedSizeB             uint64
-	ObjectID                    uint64
-	NofVolumeDevices            uint64
-	SectorSize                  uint32
-	NodeSize                    uint32
-	LeafSize                    uint32
-	StripeSize                  uint32
-	SystemChunkArrSize          uint32
-	ChunkRootGeneration         uint64
-	CompatFlags                 uint64
-	CompatROFlags               uint64
-	InCompatFlags               uint64
-	CsumType                    uint16
-	RootLevel                   uint8 //198
-	ChunkRootLevel              uint8
-	LogRootLevel                uint8 //200
-	DevItemArea                 [98]byte
-	Label                       [256]byte //299
-	Reserved                    [256]byte
-	SystemChunkArr              [SYSTEMCHUNKARRSIZE]byte //811
-
-}
-
-func (btrfs *BTRFS) Process(hD img.DiskReader, partitionOffsetB int64, selectedEntries []int,
-	fromEntry int, toEntry int) {
-
-	msg := "Reading superblock at offset %d"
-	fmt.Printf(msg+"\n", partitionOffsetB)
-	logger.FSLogger.Info(fmt.Sprintf(msg, partitionOffsetB))
-
-	data := hD.ReadFile(partitionOffsetB+OFFSET_TO_SUPERBLOCK, SUPERBLOCKSIZE)
-	btrfs.ParseSuperblock(data)
-	if !btrfs.VerifySuperBlock(data) {
-		msg := "superblock chcksum failed!"
-		logger.FSLogger.Error(msg)
-		fmt.Printf("%s \n", msg)
-		return
-	}
-	btrfs.ChunkTreeMap = make(ChunkTreeMap)
-	btrfs.UpdateChunkMaps(btrfs.ParseSystemChunks())
-
-	verify := true
-	node, err := btrfs.ParseTreeNode(hD, int(btrfs.Superblock.LogicalAddressRootChunkTree),
-		partitionOffsetB,
-		int(btrfs.Superblock.NodeSize), verify)
-	if err != nil {
-
-		logger.FSLogger.Error(err)
-		log.Fatal(err)
-	}
-
-	btrfs.UpdateChunkMaps(node)
-
-	/* parse root of root trees*/
-
-	genericNodes, err := btrfs.ParseTreeNode(hD, int(btrfs.Superblock.LogicalAddressRootTree), partitionOffsetB,
-		int(btrfs.Superblock.NodeSize), verify)
-	if err != nil {
-
-		logger.FSLogger.Error(err)
-		log.Fatal(err)
-	}
-
-	subvolumename := ""
-	btrfs.DiscoverTrees(genericNodes, subvolumename)
-	carve := false
-	btrfs.DescendTreeCh(hD, partitionOffsetB, int(btrfs.Superblock.NodeSize), verify, carve)
-
-}
-
-func (btrfs *BTRFS) DescendTreeCh(hD img.DiskReader, partitionOffsetB int64,
-	nodeSize int, noverify bool, carve bool) {
-	wg := new(sync.WaitGroup)
-
-	for inodeId, fsTree := range btrfs.FsTreeMap {
-		nodesLeaf := make(chan *GenericNode, CHANNELSIZE)
-		logger.FSLogger.Info(fmt.Sprintf("Parsing tree %d", inodeId))
-
-		wg.Add(2)
-		go btrfs.ParseTreeNodeCh(hD, wg, int(fsTree.LogicalOffset), partitionOffsetB, nodeSize, nodesLeaf, noverify, carve)
-
-		go btrfs.FsTreeMap.Update(wg, nodesLeaf, inodeId)
-
-	}
-
-	wg.Wait()
-
-}
-
 func (fsTreeMap FsTreeMap) Update(wgs *sync.WaitGroup, nodesLeaf chan *GenericNode, inodeid uint64) {
 	defer wgs.Done()
 
@@ -175,6 +52,7 @@ func (fsTreeMap FsTreeMap) Update(wgs *sync.WaitGroup, nodesLeaf chan *GenericNo
 			if item.IsInodeItem() {
 
 				fileDirEntry := FileDirEntry{Id: int(item.Key.ObjectID)}
+				fileDirEntry.Items = append(fileDirEntry.Items, item)
 				fileDirEntry.DataItems = append(fileDirEntry.DataItems,
 					node.LeafNode.DataItems[idx])
 
@@ -183,7 +61,7 @@ func (fsTreeMap FsTreeMap) Update(wgs *sync.WaitGroup, nodesLeaf chan *GenericNo
 			} else if item.IsDirItem() {
 
 				fileDirEntry := fstree.FilesDirsMap[item.Key.ObjectID]
-
+				fileDirEntry.Items = append(fileDirEntry.Items, item)
 				fileDirEntry.DataItems = append(fileDirEntry.DataItems,
 					node.LeafNode.DataItems[idx])
 
@@ -193,6 +71,7 @@ func (fsTreeMap FsTreeMap) Update(wgs *sync.WaitGroup, nodesLeaf chan *GenericNo
 
 				fileDirEntry := fstree.FilesDirsMap[item.Key.ObjectID]
 				fileDirEntry.Index = int(item.Key.Offset)
+				fileDirEntry.Items = append(fileDirEntry.Items, item)
 				fileDirEntry.DataItems = append(fileDirEntry.DataItems,
 					node.LeafNode.DataItems[idx])
 
@@ -208,6 +87,7 @@ func (fsTreeMap FsTreeMap) Update(wgs *sync.WaitGroup, nodesLeaf chan *GenericNo
 				fileDirEntry.Parent = &fileDirParent
 
 				fileDirParent.Children = append(fileDirParent.Children, &fileDirEntry)
+				fileDirEntry.Items = append(fileDirEntry.Items, item)
 				fileDirEntry.DataItems = append(fileDirEntry.DataItems,
 					node.LeafNode.DataItems[idx])
 				//reassign
@@ -217,6 +97,7 @@ func (fsTreeMap FsTreeMap) Update(wgs *sync.WaitGroup, nodesLeaf chan *GenericNo
 			} else if item.IsExtentData() {
 
 				fileDirEntry := fstree.FilesDirsMap[item.Key.ObjectID]
+				fileDirEntry.Items = append(fileDirEntry.Items, item)
 				fileDirEntry.DataItems = append(fileDirEntry.DataItems,
 					node.LeafNode.DataItems[idx])
 				fstree.FilesDirsMap[item.Key.ObjectID] = fileDirEntry
@@ -227,283 +108,4 @@ func (fsTreeMap FsTreeMap) Update(wgs *sync.WaitGroup, nodesLeaf chan *GenericNo
 
 	}
 	fsTreeMap[inodeid] = fstree
-}
-
-// returns leaf nodes
-func (btrfs BTRFS) ParseTreeNodeCh(hD img.DiskReader, wg *sync.WaitGroup, logicalOffset int,
-	partitionOffsetB int64, size int, leafNodes chan<- *GenericNode,
-	noverify bool, carve bool) {
-	defer wg.Done()
-	defer close(leafNodes)
-
-	var internalNodes Stack
-
-	node, err := btrfs.CreateNode(hD, logicalOffset, partitionOffsetB, size, noverify, carve)
-
-	if err != nil {
-		logger.FSLogger.Error(err)
-		return
-	}
-
-	logger.FSLogger.Info(fmt.Sprintf("First node GUID %s chk %d ", node.GetGuid(), node.ChsumToUint()))
-
-	if node.InternalNode != nil {
-		internalNodes.Push(node)
-	} else {
-		//	fmt.Println("sending no internal node", logicalOffset)
-		leafNodes <- node
-	}
-
-	for !internalNodes.IsEmpty() {
-		node := internalNodes.Pop()
-		parentCHK := node.ChsumToUint()
-
-		for _, item := range node.InternalNode.Items {
-			node, err := btrfs.CreateNode(hD, int(item.LogicalAddressRefHeader), partitionOffsetB, size, noverify, carve)
-			if err != nil {
-				continue
-			}
-
-			logger.FSLogger.Info(fmt.Sprintf("Node GUID %s  from internal item id %d %d",
-				node.GetGuid(), item.Key.ObjectID, parentCHK))
-
-			if node.InternalNode != nil {
-				internalNodes.Push(node)
-			} else {
-				leafNodes <- node
-
-			}
-
-		}
-
-	}
-
-}
-
-func (btrfs *BTRFS) DiscoverTrees(nodes GenericNodesPtr, nametree string) {
-	logger.FSLogger.Info("Parsing root of root trees")
-
-	var dir DirTree
-	fsTrees := make(FsTreeMap)
-
-	for _, node := range nodes {
-
-		for idx, item := range node.LeafNode.Items {
-			msg := fmt.Sprintf("Node %s item %s", node.GetGuid(), item.GetInfo())
-			logger.FSLogger.Info(msg)
-
-			if item.IsRootItem() {
-				rootItem := node.LeafNode.DataItems[idx].(*attributes.RootItem)
-				fsTree, ok := fsTrees[item.Key.ObjectID]
-				if !ok {
-					fsTrees[item.Key.ObjectID] = FsTree{
-						LogicalOffset: rootItem.Bytenr,
-						Uuid:          utils.StringifyGUID(rootItem.Uuid[:]),
-					}
-				} else {
-					fsTree.LogicalOffset = rootItem.Bytenr
-					fsTree.Uuid = utils.StringifyGUID(rootItem.Uuid[:])
-					fsTrees[item.Key.ObjectID] = fsTree
-				}
-
-			} else if item.IsRootRef() {
-				name := node.LeafNode.DataItems[idx].(*attributes.RootRef).Name
-
-				fsTree, ok := fsTrees[item.Key.Offset]
-
-				if !ok {
-					fsTrees[item.Key.Offset] = FsTree{
-						ParentId: item.Key.ObjectID,
-						Name:     name,
-					}
-				} else {
-					fsTree.ParentId = item.Key.ObjectID
-					fsTree.Name = name
-					fsTrees[item.Key.Offset] = fsTree
-				}
-
-			} else if item.IsInodeItem() && item.IsDIRTree() {
-				inode := node.LeafNode.DataItems[idx].(*attributes.InodeItem)
-				dir = DirTree{Id: item.Key.ObjectID, InodePtr: inode}
-
-			} else if item.IsDirItem() && item.IsDIRTree() {
-				dir.Name = node.LeafNode.DataItems[idx].(*attributes.DirItem).Name
-			} else if item.IsInodeRef() && item.IsDIRTree() {
-				dir.Index = node.LeafNode.DataItems[idx].(*attributes.InodeRef).Index
-			}
-		}
-
-	}
-
-	if nametree != "" {
-
-		for id, fsTree := range fsTrees {
-			if fsTree.Name != nametree {
-				delete(fsTrees, id)
-
-			}
-		}
-
-	}
-	btrfs.FsTreeMap = fsTrees
-}
-
-// producer of nodes
-func (btrfs BTRFS) CreateNode(hD img.DiskReader, logicalOffset int, partitionOffsetB int64,
-	size int, verify bool, carve bool) (*GenericNode, error) {
-
-	physicalOffset, blockSize, err := btrfs.LocatePhysicalOffsetSize(uint64(logicalOffset))
-	if err != nil {
-		log.Fatal(err)
-	}
-	if int(blockSize) < size {
-		size = int(blockSize)
-	}
-	data := hD.ReadFile(int64(physicalOffset)+partitionOffsetB, size)
-
-	node := new(GenericNode)
-	_, err = node.Parse(data, int64(physicalOffset)+partitionOffsetB, verify, carve)
-	if err != nil {
-		return nil, err
-	}
-
-	return node, nil
-
-}
-
-func (btrfs BTRFS) LocatePhysicalOffsetSize(logicalOffset uint64) (uint64, uint64, error) {
-	for keyOffset, chunkItem := range btrfs.ChunkTreeMap {
-		if logicalOffset >= keyOffset && logicalOffset-keyOffset < chunkItem.Size {
-			blockGroupOffset := logicalOffset - keyOffset
-			return chunkItem.Stripes[0].Offset + blockGroupOffset, chunkItem.Size, nil
-		}
-	}
-	msg := fmt.Sprintf("physical offset not located for logical offset %d", logicalOffset)
-	logger.FSLogger.Error(msg)
-	return 0, 0, errors.New(msg)
-}
-
-// returns leaf nodes
-func (btrfs BTRFS) ParseTreeNode(hD img.DiskReader, logicalOffset int, partitionOffsetB int64,
-	size int, verify bool) (GenericNodesPtr, error) {
-	logger.FSLogger.Info(fmt.Sprintf("Parsing tree at %d", logicalOffset))
-
-	var internalNodes Stack
-	var leafNodes GenericNodesPtr
-	carve := false
-
-	node, err := btrfs.CreateNode(hD, logicalOffset, partitionOffsetB, size, verify, carve)
-
-	if err != nil {
-		return nil, err
-	}
-
-	if node.InternalNode != nil {
-		internalNodes.Push(node)
-	} else {
-		leafNodes = append(leafNodes, node)
-	}
-
-	for !internalNodes.IsEmpty() {
-		node := internalNodes.Pop()
-
-		for _, item := range node.InternalNode.Items {
-
-			node, err := btrfs.CreateNode(hD, int(item.LogicalAddressRefHeader), partitionOffsetB, size, verify, carve)
-			if err != nil {
-				continue
-			}
-
-			logger.FSLogger.Info(fmt.Sprintf("created node from internal id %d %s nof items %d", item.Key.ObjectID, node.GetGuid(), node.Header.NofItems))
-			if node.InternalNode != nil {
-				internalNodes.Push(node)
-			} else {
-				leafNodes = append(leafNodes, node)
-
-			}
-
-		}
-
-	}
-	return leafNodes, nil
-
-}
-
-func (btrfs *BTRFS) UpdateChunkMaps(genericNodes GenericNodesPtr) {
-	logger.FSLogger.Info("updating system chunks map")
-	for _, node := range genericNodes {
-
-		for idx, dataItem := range node.LeafNode.DataItems {
-			if reflect.TypeOf(dataItem).Elem().Name() != "ChunkItem" {
-				continue
-			}
-			chunkItem := dataItem.(*attributes.ChunkItem)
-			key := node.LeafNode.Items[idx].Key
-
-			btrfs.ChunkTreeMap[key.Offset] = chunkItem
-
-		}
-
-	}
-
-}
-
-func (btrfs *BTRFS) ParseSuperblock(data []byte) {
-	logger.FSLogger.Info("Parsing superblock")
-	superblock := new(Superblock)
-	utils.Unmarshal(data, superblock)
-
-	btrfs.Superblock = superblock
-
-}
-
-func (btrfs BTRFS) VerifySuperBlock(data []byte) bool {
-	return utils.ToUint32(btrfs.Superblock.Chksum[:]) == utils.CalcCRC32(data[32:])
-
-}
-
-func (btrfs BTRFS) ParseSystemChunks() GenericNodesPtr {
-	// (KEY, CHUNK_ITEM) pairs for all SYSTEM chunks
-	logger.FSLogger.Info("Parsing bootstrap data for system chunks.")
-
-	curOffset := 0
-	var genericNodes GenericNodesPtr
-	data := btrfs.Superblock.SystemChunkArr[:btrfs.Superblock.SystemChunkArrSize]
-	for curOffset < len(data) {
-		key := new(attributes.Key)
-		curOffset += key.Parse(data[curOffset:])
-
-		chunkItem := new(attributes.ChunkItem)
-		curOffset += chunkItem.Parse(data[curOffset:])
-
-		leafNode := leafnode.LeafNode{}
-		leafNode.Items = append(leafNode.Items, leafnode.Item{Key: key})
-		leafNode.DataItems = append(leafNode.DataItems, chunkItem)
-		node := GenericNode{LeafNode: &leafNode}
-
-		genericNodes = append(genericNodes, &node)
-
-	}
-	return genericNodes
-}
-
-func (btrfs BTRFS) GetSectorsPerCluster() int {
-	return int(btrfs.Superblock.NodeSize)
-}
-
-func (btrfs BTRFS) GetBytesPerSector() uint64 {
-	return uint64(btrfs.Superblock.SectorSize)
-}
-
-func (btrfs BTRFS) GetMetadata() []FileDirEntry {
-	//return btrfs.tree.fileDirEntries
-	return nil
-}
-
-func (btrfs BTRFS) CollectUnallocated(img.DiskReader, int64, chan<- []byte) {
-
-}
-
-func (btrfs BTRFS) GetSignature() string {
-	return string(btrfs.Superblock.Signature[:])
 }
