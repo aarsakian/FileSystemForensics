@@ -211,7 +211,7 @@ func (disk *Disk) ProcessPartitions() {
 		parttionOffset := disk.Partitions[idx].GetOffset()
 		vol := disk.Partitions[idx].GetVolume()
 		if vol == nil {
-			msg := "No Known Volume at partition %d (Currently supported NTFS)."
+			msg := "No Known Volume at partition %d (Currently supported NTFS BTRFS)."
 			logger.FSLogger.Error(fmt.Sprintf(msg, idx))
 			continue //fs not found
 		}
