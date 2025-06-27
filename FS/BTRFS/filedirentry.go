@@ -163,6 +163,7 @@ func (fileDirEntry FileDirEntry) ShowIsResident() {
 }
 
 func (fileDirEntry FileDirEntry) ShowParentRecordInfo() {
+	fileDirEntry.Parent.ShowInfo()
 
 }
 
@@ -171,7 +172,9 @@ func (fileDirEntry FileDirEntry) ShowPath(pathtype int) {
 }
 
 func (fileDirEntry FileDirEntry) ShowRunList() {
-
+	for _, extent := range fileDirEntry.Extents {
+		fmt.Printf("%s \t", extent.GetInfo())
+	}
 }
 
 func (fileDirEntry FileDirEntry) ShowTimestamps() {
