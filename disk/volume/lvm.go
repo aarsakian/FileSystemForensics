@@ -80,15 +80,19 @@ func (lvm2 *LVM2) Process(hD img.DiskReader, physicalOffsetB int64, SelectedEntr
 	fromEntry int, toEntry int) {
 	btrfs := new(BTRFS)
 
-	data := hD.ReadFile(physicalOffsetB+OFFSET_TO_SUPERBLOCK, SUPERBLOCKSIZE)
-	btrfs.ParseSuperblock(data)
+	data := hD.ReadFile(physicalOffsetB+lvm2.Header.PhysicalVolHeader.DataAreaDescriptors[0].OffsetB+OFFSET_TO_SUPERBLOCK,
+		SUPERBLOCKSIZE)
+	err := btrfs.ParseSuperblock(data)
+	if err != nil {
+		return
+	}
 	btrfs.Process(hD, physicalOffsetB+lvm2.Header.PhysicalVolHeader.DataAreaDescriptors[0].OffsetB,
 		SelectedEntries, fromEntry, toEntry)
 	lvm2.btrfs = btrfs
 }
 
 func (lvm2 LVM2) HasValidSignature() bool {
-	return utils.Hexify(lvm2.Header.PhysicalVolLabelHeader.Signature[:]) == "LABELONE"
+	return string(lvm2.Header.PhysicalVolLabelHeader.Signature[:]) == "LABELONE"
 }
 
 // this will change
