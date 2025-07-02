@@ -201,11 +201,6 @@ func Hexify(barray []byte) string {
 
 }
 
-func stringifyGuIDs(barray []byte) string {
-	s := []string{Hexify(barray[0:4]), Hexify(barray[4:6]), Hexify(barray[6:8]), Hexify(barray[8:10]), Hexify(barray[10:16])}
-	return strings.Join(s, "-")
-}
-
 func Unmarshal(data []byte, v interface{}) (int, error) {
 	idx := 0
 	val := reflect.ValueOf(v)
@@ -222,21 +217,23 @@ func Unmarshal(data []byte, v interface{}) (int, error) {
 		switch field.Kind() {
 
 		case reflect.Struct:
-			typeName := field.Type().Name()
-			if typeName == "TimeSpec" {
+			switch field.Type().Name() {
+			case "TimeSpec":
 				var timeSpec TimeSpec
 				Unmarshal(data[idx:idx+12], &timeSpec)
 				field.Set(reflect.ValueOf(timeSpec))
 				idx += 12
 
-			} else if typeName == "WindowsTime" {
+			case "WindowsTime":
 				var windowsTime WindowsTime
 				Unmarshal(data[idx:idx+8], &windowsTime)
 				field.Set(reflect.ValueOf(windowsTime))
 				idx += 8
+
 			}
+
 		case reflect.Pointer:
-			if name == "Key" {
+			if name == "Key" || name == "DropProgress" {
 				idx += 17
 			}
 
@@ -472,5 +469,11 @@ func SetProgress(progressStat int, msg string) {
 func StringifyGUID(barray []byte) string {
 	return fmt.Sprintf("%x-%x-%x-%x-%x", Bytereverse(barray[0:4]),
 		Bytereverse(barray[4:6]), Bytereverse(barray[6:8]),
+		barray[8:10], barray[10:])
+}
+
+func StringifyUUID(barray []byte) string {
+	return fmt.Sprintf("%x-%x-%x-%x-%x", barray[0:4],
+		barray[4:6], barray[6:8],
 		barray[8:10], barray[10:])
 }
