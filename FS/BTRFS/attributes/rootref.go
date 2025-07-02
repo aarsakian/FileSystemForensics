@@ -1,6 +1,10 @@
 package attributes
 
-import "github.com/aarsakian/FileSystemForensics/utils"
+import (
+	"fmt"
+
+	"github.com/aarsakian/FileSystemForensics/utils"
+)
 
 // size 18
 // used to identify snapshot or volume
@@ -35,7 +39,7 @@ func (rootRef RootRef) ShowInfo() {
 }
 
 func (rootRef RootRef) GetInfo() string {
-	return ""
+	return fmt.Sprintf("Index %d Name %s", rootRef.Index, rootRef.Name)
 }
 
 func (rootBackRef *RootBackRef) Parse(data []byte) int {
