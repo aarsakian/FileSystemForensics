@@ -141,9 +141,15 @@ func (fileDirEntry FileDirEntry) LocateData(hD img.DiskReader, partitionOffset i
 }
 
 func (fileDirEntry FileDirEntry) ShowAttributes(attrName string) {
-	for _, attribute := range fileDirEntry.DataItems {
-		attribute.ShowInfo()
+	if attrName == "FileName" {
+		fileDirEntry.ShowFileName()
 	}
+
+}
+
+func (fileDirEntry FileDirEntry) ShowFileName() {
+	fmt.Printf("%s\n", fileDirEntry.GetFname())
+
 }
 
 func (fileDirEntry FileDirEntry) ShowFileSize() {
@@ -155,7 +161,7 @@ func (fileDirEntry FileDirEntry) ShowIndex() {
 }
 
 func (fileDirEntry FileDirEntry) ShowInfo() {
-
+	fmt.Printf("%d ", fileDirEntry.Id)
 }
 
 func (fileDirEntry FileDirEntry) ShowIsResident() {
@@ -168,7 +174,7 @@ func (fileDirEntry FileDirEntry) ShowParentRecordInfo() {
 }
 
 func (fileDirEntry FileDirEntry) ShowPath(pathtype int) {
-
+	fmt.Printf("%s ", fileDirEntry.Path)
 }
 
 func (fileDirEntry FileDirEntry) ShowRunList() {
@@ -222,10 +228,6 @@ func (fileDirEntry *FileDirEntry) BuildPath() {
 		fileDirEntry.Path += "\\" + path
 	}
 
-	for idx := range fileDirEntry.Children {
-		fileDirEntry.Children[idx].BuildPath()
-	}
-
 }
 
 func (fileDirEntry FileDirEntry) FindAttribute(attrName string) leafnode.DataItem {
@@ -240,4 +242,12 @@ func (fileDirEntry FileDirEntry) FindAttributes(attrName string) []leafnode.Data
 		}
 	}
 	return attributes
+}
+
+func (filesDirsMap FilesDirsMap) BuildPath() {
+	for inodeId, fileDirEntry := range filesDirsMap {
+
+		fileDirEntry.BuildPath()
+		filesDirsMap[inodeId] = fileDirEntry
+	}
 }
