@@ -78,7 +78,8 @@ func (btrfs BTRFS) GetFS() []metadata.Record {
 	var fileDirEntries []metadata.Record
 	for _, fstree := range btrfs.FsTreeMap {
 		for _, filedirEntry := range fstree.FilesDirsMap {
-			fileDirEntries = append(fileDirEntries, metadata.BTRFSRecord{&filedirEntry})
+			temp := filedirEntry
+			fileDirEntries = append(fileDirEntries, metadata.BTRFSRecord{&temp})
 		}
 	}
 	return fileDirEntries
@@ -236,10 +237,33 @@ func (btrfs BTRFS) ParseTreeNodeCh(hD img.DiskReader, wg *sync.WaitGroup, logica
 
 }
 
+/*ROOT_ITEMs: Metadata for each subvolume or snapshot
+
+ROOT_REF and ROOT_BACKREF: Relationships between subvolumes
+
+for each subvolume
+INODE_ITEMs (file metadata)
+
+DIR_ITEMs (directory entries)
+
+DIR_INDEX_ITEMs (hashed directory entries for fast lookup)
+
+INODE_REFs (reverse references to parent directories)
+
+fs_tree per subvolume info the B-tree that stores the actual file and directory
+
+root_dir_tree top-level subvolume always 1
+contains only
+INODE_ITEM, DIR_ITEM, INODE_REF
+objectid = 2 → inode of the top-level directory
+5->	Top-level subvolume ID contains DIR_ITEMs for all other subvolumes created
+256+->	Subvolume/snapshot IDs
+
+*/
+
 func (btrfs *BTRFS) DiscoverTrees(nodes fstree.GenericNodesPtr, nametree string) {
 	logger.FSLogger.Info("Parsing root of root trees")
 
-	var dir fstree.DirTree
 	fsTrees := make(fstree.FsTreeMap)
 
 	for _, node := range nodes {
@@ -254,11 +278,11 @@ func (btrfs *BTRFS) DiscoverTrees(nodes fstree.GenericNodesPtr, nametree string)
 				if !ok {
 					fsTrees[item.Key.ObjectID] = fstree.FsTree{
 						LogicalOffset: rootItem.Bytenr,
-						Uuid:          utils.StringifyGUID(rootItem.Uuid[:]),
+						Uuid:          utils.StringifyUUID(rootItem.Uuid[:]),
 					}
 				} else {
 					fsTree.LogicalOffset = rootItem.Bytenr
-					fsTree.Uuid = utils.StringifyGUID(rootItem.Uuid[:])
+					fsTree.Uuid = utils.StringifyUUID(rootItem.Uuid[:])
 					fsTrees[item.Key.ObjectID] = fsTree
 				}
 
@@ -278,14 +302,6 @@ func (btrfs *BTRFS) DiscoverTrees(nodes fstree.GenericNodesPtr, nametree string)
 					fsTrees[item.Key.Offset] = fsTree
 				}
 
-			} else if item.IsInodeItem() && item.IsDIRTree() {
-				inode := node.LeafNode.DataItems[idx].(*attributes.InodeItem)
-				dir = fstree.DirTree{Id: item.Key.ObjectID, InodePtr: inode}
-
-			} else if item.IsDirItem() && item.IsDIRTree() {
-				dir.Name = node.LeafNode.DataItems[idx].(*attributes.DirItem).Name
-			} else if item.IsInodeRef() && item.IsDIRTree() {
-				dir.Index = node.LeafNode.DataItems[idx].(*attributes.InodeRef).Index
 			}
 		}
 

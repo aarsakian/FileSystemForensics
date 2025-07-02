@@ -100,7 +100,8 @@ func (lvm2 LVM2) GetFS() []metadata.Record {
 	var records []metadata.Record
 	for _, tree := range lvm2.btrfs.FsTreeMap {
 		for _, record := range tree.FilesDirsMap {
-			records = append(records, metadata.BTRFSRecord{&record})
+			temp := record
+			records = append(records, metadata.BTRFSRecord{&temp})
 		}
 	}
 	return records
