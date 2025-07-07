@@ -1,6 +1,7 @@
 package fstree
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"strings"
@@ -8,7 +9,10 @@ import (
 	"github.com/aarsakian/FileSystemForensics/FS/BTRFS/attributes"
 	"github.com/aarsakian/FileSystemForensics/FS/BTRFS/leafnode"
 	"github.com/aarsakian/FileSystemForensics/img"
+	"github.com/aarsakian/FileSystemForensics/logger"
 	"github.com/aarsakian/FileSystemForensics/utils"
+	"golang.org/x/text/language"
+	"golang.org/x/text/message"
 )
 
 type FilesDirsMap map[uint64]FileDirEntry //inodeid -> FileDirEntry
@@ -22,17 +26,6 @@ type FileDirEntry struct {
 
 	DataItems []leafnode.DataItem
 	Items     []leafnode.Item
-	Extents   []Extent
-}
-
-type Extent struct {
-	Offset int
-	LSize  int
-	PSize  int
-}
-
-func (extent Extent) GetInfo() string {
-	return fmt.Sprintf("%d %d %d", extent.Offset, extent.LSize, extent.PSize)
 }
 
 func (fileDirEntry FileDirEntry) GetParentId() (int, error) {
@@ -43,19 +36,22 @@ func (fileDirEntry FileDirEntry) GetParentId() (int, error) {
 	}
 }
 
-func (fileDirEntry *FileDirEntry) ParseExtents() {
-
-	for _, attribute := range fileDirEntry.FindAttributes("EXTENT_DATA") {
-		extent := attribute.(*attributes.ExtentData)
-		if extent.GetType() == "Inline Extent" {
-
-		} else if extent.GetType() == "Regular Extent" {
-			extent := Extent{Offset: int(extent.ExtentDataRem.LogicaAddress),
-				PSize: int(extent.ExtentDataRem.Size), LSize: int(extent.ExtentDataRem.LogicalBytes)}
-			fileDirEntry.Extents = append(fileDirEntry.Extents, extent)
+func (fileDirEntry *FileDirEntry) GetExtents() map[uint64]*attributes.ExtentData {
+	//	Logical offset in the file to extent
+	var extentsMap map[uint64]*attributes.ExtentData
+	for idx, item := range fileDirEntry.Items {
+		if !item.IsExtentData() {
+			continue
+		}
+		extData, ok := fileDirEntry.DataItems[idx].(*attributes.ExtentData)
+		if !ok {
+			continue
 		}
 
+		extentsMap[item.Key.Offset] = extData
 	}
+	return extentsMap
+
 }
 
 func (fileDirEntry FileDirEntry) GetLogicalFileSize() int64 {
@@ -64,7 +60,12 @@ func (fileDirEntry FileDirEntry) GetLogicalFileSize() int64 {
 }
 
 func (fileDirEntry FileDirEntry) GetFname() string {
-	attr := fileDirEntry.FindAttributes("INODE_REF")[0].(*attributes.InodeRef)
+	attrs := fileDirEntry.FindAttributes("INODE_REF")
+	if len(attrs) == 0 {
+		logger.FSLogger.Warning("no inode_ref attribute found")
+		return ""
+	}
+	attr := attrs[0].(*attributes.InodeRef)
 	return attr.Name
 }
 
@@ -137,7 +138,40 @@ func (fileDirEntry FileDirEntry) LocateDataAsync(hD img.DiskReader, partitionOff
 }
 
 func (fileDirEntry FileDirEntry) LocateData(hD img.DiskReader, partitionOffset int64, sectorsPerCluster int, bytesPerSector int, results chan<- utils.AskedFile) {
+	p := message.NewPrinter(language.Greek)
 
+	var buf bytes.Buffer
+
+	lSize := int(fileDirEntry.GetLogicalFileSize())
+	buf.Grow(lSize)
+
+	/*if fileDirEntry.HasResidentDataAttr() {
+		buf.Write(fileDirEntry.GetResidentData())
+
+	} else {*/
+
+	diskSize := hD.GetDiskSize()
+
+	for logicalOffset, extent := range fileDirEntry.GetExtents() {
+		offset := partitionOffset + int64(logicalOffset)
+		if offset > diskSize {
+			msg := fmt.Sprintf("skipped offset %d exceeds disk size! exiting", offset)
+			logger.FSLogger.Warning(msg)
+			break
+		}
+
+		if extent.ExtentDataRem.LogicaAddress != 0 && extent.ExtentDataRem.LSize > 0 {
+			buf.Write(hD.ReadFile(offset, int(extent.ExtentDataRem.LSize)))
+			res := p.Sprintf("%d", (offset-partitionOffset)/int64(sectorsPerCluster*bytesPerSector))
+
+			msg := fmt.Sprintf("offset %s cl len %d cl.", res, extent.ExtentDataRem.LSize)
+			logger.FSLogger.Info(msg)
+		}
+
+	}
+
+	//truncate buf grows over len?
+	results <- utils.AskedFile{Fname: fileDirEntry.GetFname(), Content: buf.Bytes()[:lSize], Id: int(fileDirEntry.Id)}
 }
 
 func (fileDirEntry FileDirEntry) ShowAttributes(attrName string) {
@@ -178,7 +212,7 @@ func (fileDirEntry FileDirEntry) ShowPath(pathtype int) {
 }
 
 func (fileDirEntry FileDirEntry) ShowRunList() {
-	for _, extent := range fileDirEntry.Extents {
+	for _, extent := range fileDirEntry.GetExtents() {
 		fmt.Printf("%s \t", extent.GetInfo())
 	}
 }
@@ -205,7 +239,7 @@ func (fileDirEntry FileDirEntry) GetInfo() string {
 func (fileDirEntry FileDirEntry) GetExtentsInfo() []string {
 
 	var extentsInfo []string
-	for _, extent := range fileDirEntry.Extents {
+	for _, extent := range fileDirEntry.GetExtents() {
 		extent.GetInfo()
 	}
 	return extentsInfo
