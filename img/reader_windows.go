@@ -1,11 +1,18 @@
 package img
 
 import (
+	"bytes"
+	"fmt"
 	"log"
 	"unsafe"
 
-	"github.com/aarsakian/FileSystemForensics/utils"
+	"github.com/aarsakian/FileSystemForensics/logger"
 	"golang.org/x/sys/windows"
+)
+
+var (
+	kernel32             = windows.NewLazySystemDLL("kernel32.dll")
+	procSetFilePointerEx = kernel32.NewProc("SetFilePointerEx")
 )
 
 type DISK_GEOMETRY struct {
@@ -54,22 +61,54 @@ func (winreader WindowsReader) GetDiskSize() int64 {
 		int64(disk_geometry.SectorsPerTrack) * int64(disk_geometry.BytesPerSector)
 }
 
-func (winreader WindowsReader) ReadFile(buf_pointer int64, length int) []byte {
-	buffer := make([]byte, length)
+func (winreader WindowsReader) ReadFile(startOffset int64, totalSize int) []byte {
+	var wholebuffer bytes.Buffer
+	wholebuffer.Grow(totalSize)
 
-	largeInteger := utils.NewLargeInteger(buf_pointer)
-	var bytesRead uint32
+	const chunkSize = 512 * 1024 * 1024 // 512 MB
 
-	newLowOffset, err := windows.SetFilePointer(winreader.fd, largeInteger.LowPart,
-		&largeInteger.HighPart, windows.FILE_BEGIN)
-	largeInteger.LowPart = int32(newLowOffset)
-	if err != nil {
-		log.Fatalln(err)
+	buffer := make([]byte, chunkSize)
+	bytesRead := int64(0)
+	offset := int64(0)
+
+	for bytesRead < int64(totalSize) {
+		err := setFilePointerEx(winreader.fd, offset+startOffset, windows.FILE_BEGIN)
+		if err != nil {
+			panic(fmt.Sprintf("Seek failed at offset %d: %v", offset, err))
+		}
+
+		toRead := chunkSize
+		if int64(totalSize)-offset < int64(chunkSize) {
+			toRead = int(int64(totalSize) - offset)
+		}
+
+		var bytesRead uint32
+		err = windows.ReadFile(winreader.fd, buffer[:toRead], &bytesRead, nil)
+		if err != nil {
+			panic(fmt.Sprintf("Read failed at offset %d: %v", offset, err))
+		}
+		wholebuffer.Write(buffer)
+
+		logger.FSLogger.Info(fmt.Sprintf("Read %d bytes at offset %d\n", bytesRead, offset))
+		offset += int64(bytesRead)
+
+		if bytesRead == 0 {
+			break
+		}
 	}
+	return wholebuffer.Bytes()[:totalSize]
+}
 
-	err = windows.ReadFile(winreader.fd, buffer, &bytesRead, nil)
-	if err != nil {
-		log.Fatalln("error reading win32 api file", err)
+func setFilePointerEx(handle windows.Handle, distance int64, moveMethod uint32) error {
+	var newPos int64
+	r1, _, err := procSetFilePointerEx.Call(
+		uintptr(handle),
+		uintptr(distance),
+		uintptr(unsafe.Pointer(&newPos)),
+		uintptr(moveMethod),
+	)
+	if r1 == 0 {
+		return err
 	}
-	return buffer
+	return nil
 }
