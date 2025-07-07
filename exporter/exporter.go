@@ -70,7 +70,7 @@ func (exp Exporter) ExportRecords(records []metadata.Record, physicalDisk disk.D
 	}
 
 	if len(records) == 0 {
-		msg := fmt.Sprintf("filenames not found in Partition %d", partitionNum+1)
+		msg := "No records  found in Partition"
 		logger.FSLogger.Warning(msg)
 		fmt.Printf("%s \n", msg)
 		return
