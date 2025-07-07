@@ -164,7 +164,7 @@ func (lvm2 LVM2) GetBytesPerSector() uint64 {
 }
 
 func (lvm2 LVM2) GetSectorsPerCluster() int {
-	return 0
+	return lvm2.btrfs.GetSectorsPerCluster()
 }
 
 func (lvm2 LVM2) GetSignature() string {
