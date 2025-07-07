@@ -20,9 +20,9 @@ type ExtentData struct {
 // used when no compression, encryption other encoding is used non inline
 type ExtentDataRem struct {
 	LogicaAddress uint64 //logical address of extent
-	Size          uint64
-	Offset        uint64
-	LogicalBytes  uint64
+	Psize         uint64 //physical size of the extent on disk
+	Offset        uint64 //offset within extent
+	LSize         uint64 //logical size of the extent
 }
 
 func (extentData *ExtentData) Parse(data []byte) int {
