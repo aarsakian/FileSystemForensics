@@ -1,6 +1,7 @@
 package MFT
 
 import (
+	"bufio"
 	"bytes"
 	"errors"
 	"fmt"
@@ -146,8 +147,8 @@ func (record *Record) ProcessNoNResidentAttributes(hD img.DiskReader, partitionO
 func ProcessNoNResidentAttributesWorker(records chan Record, hD img.DiskReader, partitionOffsetB int64,
 	clusterSizeB int, wg *sync.WaitGroup) {
 	var buf bytes.Buffer
-	//allocate a large enough buffer
-	buf.Grow(clusterSizeB)
+	w := bufio.NewWriter(&buf)
+
 	defer wg.Done()
 
 	for record := range records {
@@ -188,7 +189,7 @@ func ProcessNoNResidentAttributesWorker(records chan Record, hD img.DiskReader, 
 			}
 
 			logger.FSLogger.Info(fmt.Sprintf("Processed non resident attribute record %d at pos %d", record.Entry, idx))
-			buf.Reset()
+			w.Flush()
 		}
 
 	}

@@ -1,6 +1,7 @@
 package img
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"log"
@@ -63,7 +64,7 @@ func (winreader WindowsReader) GetDiskSize() int64 {
 
 func (winreader WindowsReader) ReadFile(startOffset int64, totalSize int) []byte {
 	var wholebuffer bytes.Buffer
-	wholebuffer.Grow(totalSize)
+	w := bufio.NewWriter(&wholebuffer)
 
 	const chunkSize = 512 * 1024 * 1024 // 512 MB
 
@@ -72,7 +73,9 @@ func (winreader WindowsReader) ReadFile(startOffset int64, totalSize int) []byte
 	offset := int64(0)
 
 	for bytesRead < int64(totalSize) {
+
 		err := setFilePointerEx(winreader.fd, offset+startOffset, windows.FILE_BEGIN)
+
 		if err != nil {
 			panic(fmt.Sprintf("Seek failed at offset %d: %v", offset, err))
 		}
@@ -83,11 +86,13 @@ func (winreader WindowsReader) ReadFile(startOffset int64, totalSize int) []byte
 		}
 
 		var bytesRead uint32
+
 		err = windows.ReadFile(winreader.fd, buffer[:toRead], &bytesRead, nil)
 		if err != nil {
 			panic(fmt.Sprintf("Read failed at offset %d: %v", offset, err))
 		}
-		wholebuffer.Write(buffer)
+
+		w.Write(buffer)
 
 		logger.FSLogger.Info(fmt.Sprintf("Read %d bytes at offset %d\n", bytesRead, offset))
 		offset += int64(bytesRead)
@@ -96,6 +101,7 @@ func (winreader WindowsReader) ReadFile(startOffset int64, totalSize int) []byte
 			break
 		}
 	}
+	w.Flush()
 	return wholebuffer.Bytes()[:totalSize]
 }
 
