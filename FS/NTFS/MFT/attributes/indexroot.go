@@ -44,8 +44,18 @@ func (idxRoot IndexRoot) GetEntries() IndexEntries {
 
 func (idxEntry IndexEntry) ShowInfo() {
 	if idxEntry.Fnattr != nil {
-		fmt.Printf("type %s file ref %d idx name %s flags %d allocated size %d real size %d \n", idxEntry.Fnattr.GetType(), idxEntry.ParRef,
-			idxEntry.Fnattr.Fname, idxEntry.Flags, idxEntry.Fnattr.AllocFsize, idxEntry.Fnattr.RealFsize)
+		if idxEntry.Flags == 0 {
+			fmt.Printf("type %s file ref %d idx name %s  allocated size %d real size %d \n",
+				idxEntry.Fnattr.GetType(), idxEntry.ParRef,
+				idxEntry.Fnattr.Fname,
+				idxEntry.Fnattr.AllocFsize, idxEntry.Fnattr.RealFsize)
+		} else {
+			fmt.Printf("type %s file ref %d idx name %s  allocated size %d real size %d VCN %d\n",
+				idxEntry.Fnattr.GetType(), idxEntry.ParRef,
+				idxEntry.Fnattr.Fname,
+				idxEntry.Fnattr.AllocFsize, idxEntry.Fnattr.RealFsize, idxEntry.ChildVCN)
+		}
+
 	}
 
 }
