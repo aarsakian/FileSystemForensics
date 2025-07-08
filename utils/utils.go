@@ -45,6 +45,24 @@ func (timeSpec TimeSpec) ToTime() time.Time {
 
 }
 
+func Truncate(fname string, size int64) {
+	file, err := os.OpenFile(fname, os.O_RDWR, 0666)
+	if err != nil {
+		msg := fmt.Sprintf("err %s opening the file \n", err)
+		fmt.Printf("%s \n", msg)
+		logger.FSLogger.Error(msg)
+	}
+	defer file.Close()
+
+	err = file.Truncate(size)
+	if err != nil {
+		msg := fmt.Sprintf("err % truncating file \n", err)
+		fmt.Printf("%s \n", msg)
+		logger.FSLogger.Error(msg)
+	}
+
+}
+
 func GetStructSize(v interface{}, size int) int {
 	val := reflect.ValueOf(v)
 	if val.Kind() == reflect.Ptr {
@@ -271,8 +289,12 @@ func Unmarshal(data []byte, v interface{}) (int, error) {
 				binary.Read(bytes.NewBuffer(buf), binary.LittleEndian, &temp)
 				idx += 6
 			} else if name == "ChildVCN" {
-				len := val.Elem().FieldByName("Len").Uint()
-				binary.Read(bytes.NewBuffer(data[len-8:len]), binary.LittleEndian, &temp)
+				len := val.FieldByName("Len").Uint()
+				flags := val.FieldByName("Flags").Uint()
+				if flags == 1 {
+					binary.Read(bytes.NewBuffer(data[len-8:len]), binary.LittleEndian, &temp)
+
+				}
 
 			} else {
 				binary.Read(bytes.NewBuffer(data[idx:idx+8]), binary.LittleEndian, &temp)
@@ -320,6 +342,7 @@ func Bytereverse(barray []byte) []byte { //work with indexes
 }
 
 func WriteFile(filename string, content []byte) {
+	now := time.Now()
 	if file, err := os.OpenFile(filename, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644); err != nil {
 		fmt.Printf("err %s opening the file \n", err)
 	} else {
@@ -329,8 +352,8 @@ func WriteFile(filename string, content []byte) {
 
 		}
 
-		msg := fmt.Sprintf("wrote file %s  %d bytes",
-			filename, bytesWritten)
+		msg := fmt.Sprintf("wrote file %s  %d bytes in %f secs",
+			filename, bytesWritten, time.Since(now).Seconds())
 		logger.FSLogger.Info(msg)
 		fmt.Printf(msg + "\n")
 		file.Close()
