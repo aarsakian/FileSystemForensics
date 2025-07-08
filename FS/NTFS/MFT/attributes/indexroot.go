@@ -24,7 +24,7 @@ type IndexEntry struct {
 	Len        uint16 //8-9
 	ContentLen uint16 //10-11
 	Flags      uint32 //12-15
-	ChildVCN   int64
+	ChildVCN   uint64
 	Fnattr     *FNAttribute
 }
 
@@ -113,11 +113,7 @@ func Parse(data []byte) IndexEntries {
 }
 
 func (idxEntry *IndexEntry) Parse(data []byte) {
-	utils.Unmarshal(data[:16], idxEntry)
-
-	if IndexFlags[idxEntry.Flags] == "Has VCN" {
-		idxEntry.ChildVCN = utils.ReadEndianInt(data[16+idxEntry.Len-8 : 16+idxEntry.Len])
-	}
+	utils.Unmarshal(data, idxEntry)
 
 	if idxEntry.ContentLen > 0 {
 		var fnattrIDXEntry FNAttribute
