@@ -2,7 +2,7 @@ package attributes
 
 import (
 	"fmt"
-	"sort"
+	"slices"
 
 	"github.com/aarsakian/FileSystemForensics/logger"
 	"github.com/aarsakian/FileSystemForensics/utils"
@@ -154,15 +154,14 @@ func (idxAllocation *IndexAllocation) ProcessFixUpArrays(data []byte) {
 }
 
 func (idxAllocation IndexAllocation) GetIndexEntriesSortedByMFTEntry() IndexEntries {
-	var idxEntries IndexEntries
-	for _, entry := range idxAllocation.IndexEntries {
-		if entry.Fnattr == nil {
-			continue
-		}
-		idxEntries = append(idxEntries, entry)
-	}
-	sort.Sort(ByMFTEntryID(idxEntries))
-	return idxEntries
+	idxEntriesSortedByMFTEntryID := utils.FilterClone(idxAllocation.IndexEntries, func(idxEntry IndexEntry) bool {
+		return idxEntry.Fnattr != nil
+	})
+
+	slices.SortFunc(idxEntriesSortedByMFTEntryID, func(idxEntryA, idxEntryB IndexEntry) int {
+		return int(idxEntryA.Fnattr.ParRef - idxEntryB.Fnattr.ParRef)
+	})
+	return idxEntriesSortedByMFTEntryID
 }
 
 func (idxAlloactionRecs IndexAllocationRecords) GetIndexEntriesSortedByMFTEntry() IndexEntries {

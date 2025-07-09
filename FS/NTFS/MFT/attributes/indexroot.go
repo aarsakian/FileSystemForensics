@@ -2,7 +2,7 @@ package attributes
 
 import (
 	"fmt"
-	"sort"
+	"slices"
 
 	"github.com/aarsakian/FileSystemForensics/logger"
 	"github.com/aarsakian/FileSystemForensics/utils"
@@ -97,15 +97,14 @@ func (idxRoot IndexRoot) ShowInfo() {
 }
 
 func (idxRoot IndexRoot) GetIndexEntriesSortedByMFTEntry() IndexEntries {
-	var idxEntries IndexEntries
-	for _, entry := range idxRoot.IndexEntries {
-		if entry.Fnattr == nil {
-			continue
-		}
-		idxEntries = append(idxEntries, entry)
-	}
-	sort.Sort(ByMFTEntryID(idxEntries))
-	return idxEntries
+	idxEntriesSortedByMFTEntryID := utils.FilterClone(idxRoot.IndexEntries, func(idxEntry IndexEntry) bool {
+		return idxEntry.Fnattr != nil
+	})
+
+	slices.SortFunc(idxEntriesSortedByMFTEntryID, func(idxEntryA, idxEntryB IndexEntry) int {
+		return int(idxEntryA.Fnattr.ParRef - idxEntryB.Fnattr.ParRef)
+	})
+	return idxEntriesSortedByMFTEntryID
 }
 
 func Parse(data []byte) IndexEntries {
@@ -139,12 +138,4 @@ func (idxEntry *IndexEntry) Parse(data []byte) {
 		idxEntry.Fnattr = &fnattrIDXEntry
 
 	}
-}
-
-func (idxEntries ByMFTEntryID) Len() int { return len(idxEntries) }
-func (idxEntries ByMFTEntryID) Less(i, j int) bool {
-	return idxEntries[i].Fnattr.ParRef < idxEntries[j].Fnattr.ParRef
-}
-func (idxEntries ByMFTEntryID) Swap(i, j int) {
-	idxEntries[i], idxEntries[j] = idxEntries[j], idxEntries[i]
 }
