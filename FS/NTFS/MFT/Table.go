@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"runtime"
 	"sync"
 
 	MFTAttributes "github.com/aarsakian/FileSystemForensics/FS/NTFS/MFT/attributes"
@@ -88,8 +87,8 @@ func (mfttable *MFTTable) MFTWorker(data []byte, pos int, wg *sync.WaitGroup) {
 }
 
 func (mfttable *MFTTable) ProcessNonResidentRecords(hD img.DiskReader, partitionOffsetB int64, clusterSizeB int) {
-
-	numWorker := 2 * runtime.NumCPU()
+	//2 * runtime.NumCPU()
+	numWorker := 4
 
 	records := make(chan Record, len(mfttable.Records))
 
@@ -178,13 +177,6 @@ func (mfttable MFTTable) GetRecord(referencedEntry uint32, referencedSeq uint16)
 				return &mfttable.Records[referencedEntry], nil
 			}
 		}
-	} else { //brute force seach
-		for idx := range mfttable.Records {
-			if mfttable.Records[idx].Entry == referencedEntry &&
-				mfttable.Records[referencedEntry].Seq == referencedSeq {
-				return &mfttable.Records[idx], nil
-			}
-		}
 	}
 	msg := fmt.Sprintf("cannot find entry record for ref %d", referencedEntry)
 	logger.FSLogger.Warning(msg)
@@ -192,20 +184,37 @@ func (mfttable MFTTable) GetRecord(referencedEntry uint32, referencedSeq uint16)
 }
 
 func (mfttable *MFTTable) CalculateFileSizes() {
+	numWorker := 4
+	recordIds := make(chan int, len(mfttable.Records))
 
-	for idx := range mfttable.Records {
-		//process only I30 records
-		if !mfttable.Records[idx].IsFolder() {
-			continue
-		}
-		if mfttable.Records[idx].HasAttr("Index Root") {
-			mfttable.SetI30Size(idx, "Index Root")
-		}
-		if mfttable.Records[idx].HasAttr("Index Allocation") {
-			mfttable.SetI30Size(idx, "Index Allocation")
-		}
+	var wg sync.WaitGroup
+	for w := 1; w <= numWorker; w++ {
+		wg.Add(1)
+		go func(wg *sync.WaitGroup, recordIds chan int) {
+			defer wg.Done()
+			for idx := range recordIds {
+				if !mfttable.Records[idx].IsFolder() {
+					continue
+				}
 
+				if mfttable.Records[idx].HasAttr("Index Root") {
+					mfttable.SetI30Size(idx, "Index Root")
+				}
+				if mfttable.Records[idx].HasAttr("Index Allocation") {
+					mfttable.SetI30Size(idx, "Index Allocation")
+				}
+
+			}
+
+		}(&wg, recordIds)
 	}
+	for _, record := range mfttable.Records {
+		recordIds <- int(record.Entry)
+	}
+
+	close(recordIds)
+	wg.Wait()
+
 }
 
 func (mfttable *MFTTable) SetI30Size(recordId int, attrType string) {
@@ -215,9 +224,6 @@ func (mfttable *MFTTable) SetI30Size(recordId int, attrType string) {
 	idxEntries := attr.GetIndexEntriesSortedByMFTEntry()
 
 	for _, idxEntry := range idxEntries {
-		if idxEntry.Fnattr == nil {
-			continue
-		}
 
 		//issue with realsize in 8.3 fnattr
 		referencedEntry, err := mfttable.GetRecord(uint32(idxEntry.ParRef), idxEntry.ParSeq)
