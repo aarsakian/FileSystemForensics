@@ -45,6 +45,17 @@ func (timeSpec TimeSpec) ToTime() time.Time {
 
 }
 
+func FilterClone[S ~[]E, E any](s S, keep func(E) bool) S {
+	dst := make(S, 0, len(s))
+	for _, v := range s {
+		if keep(v) {
+
+			dst = append(dst, v)
+		}
+	}
+	return dst
+}
+
 func Truncate(fname string, size int64) {
 	file, err := os.OpenFile(fname, os.O_RDWR, 0666)
 	if err != nil {
