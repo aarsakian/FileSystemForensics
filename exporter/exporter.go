@@ -1,6 +1,7 @@
 package exporter
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -120,9 +121,12 @@ func (exp Exporter) CreateFile(fname string, data []byte) {
 	if err != nil && !os.IsExist(err) {
 		fmt.Println(err)
 	}
-	err = os.Remove(fullpath)
-	if err != nil && !os.IsExist(err) {
-		fmt.Println(err)
+	if _, err = os.Stat(fullpath); !errors.Is(err, os.ErrNotExist) {
+		err = os.Remove(fullpath)
+		if err != nil && !os.IsExist(err) {
+			fmt.Println("SDSD", fullpath, err)
+		}
+
 	}
 
 	utils.WriteFile(fullpath, data)
