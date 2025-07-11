@@ -184,7 +184,7 @@ func main() {
 			records = flm.ApplyFilters(records)
 
 			if *usnjrnl {
-				disk.ProcessJrnl(recordsPerPartition, *partitionNum-1)
+				disk.ProcessJrnl(recordsPerPartition, partitionId)
 			}
 
 			if location != "" {
