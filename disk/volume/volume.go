@@ -13,4 +13,5 @@ type Volume interface {
 	GetFS() []metadata.Record
 	GetUnallocatedClusters() []int
 	GetSignature() string
+	GetLogicalToPhysicalMap() map[uint64]metadata.Chunk
 }

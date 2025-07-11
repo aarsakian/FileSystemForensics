@@ -113,6 +113,10 @@ func (lvm2 *LVM2) Parse(data []byte) {
 
 }
 
+func (lvm2 LVM2) GetLogicalToPhysicalMap() map[uint64]metadata.Chunk {
+	return lvm2.btrfs.GetLogicalToPhysicalMap()
+}
+
 func (lvm2 *LVM2) ParseMetaHeader(data []byte) {
 	metadataAreaHeader := new(MetadataAreaHeader)
 	offset, _ := utils.Unmarshal(data, metadataAreaHeader)
