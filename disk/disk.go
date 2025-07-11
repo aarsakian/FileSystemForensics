@@ -58,7 +58,7 @@ func (disk *Disk) Initialize(evidencefile string, physicaldrive int, vmdkfile st
 
 func (disk *Disk) Process(partitionNum int, MFTentries []int, fromMFTEntry int, toMFTEntry int) (map[int][]metadata.Record, error) {
 
-	err := disk.DiscoverPartitions(partitionNum)
+	err := disk.DiscoverPartitions()
 	if errors.Is(err, ErrNTFSVol) {
 		msg := "No MBR discovered, instead NTFS volume found at 1st sector"
 		fmt.Printf("%s\n", msg)
@@ -66,10 +66,22 @@ func (disk *Disk) Process(partitionNum int, MFTentries []int, fromMFTEntry int, 
 
 		disk.CreatePseudoMBR("NTFS")
 	}
-	disk.ProcessPartitions()
+	disk.ProcessPartitions(partitionNum)
 
 	disk.DiscoverFileSystems(MFTentries, fromMFTEntry, toMFTEntry)
 	return disk.GetFileSystemMetadata(), err
+}
+
+func (disk Disk) GetLogicalToPhysicalMap(partitioNum int) (map[uint64]metadata.Chunk, error) {
+	partition := disk.Partitions[partitioNum]
+	vol := partition.GetVolume()
+	if vol == nil {
+		msg := fmt.Sprintf("No Volume found for partition %d", partitioNum)
+		fmt.Printf("%s\n", msg)
+		logger.FSLogger.Error(msg)
+		return nil, errors.New(msg)
+	}
+	return vol.GetLogicalToPhysicalMap(), nil
 }
 
 func (disk Disk) ProcessJrnl(recordsPerPartition map[int][]metadata.Record, partitionNum int) []UsnJrnl.Record {
@@ -175,7 +187,7 @@ func (disk *Disk) CreatePseudoMBR(voltype string) {
 
 }
 
-func (disk *Disk) DiscoverPartitions(partitionNum int) error {
+func (disk *Disk) DiscoverPartitions() error {
 
 	err := disk.populateMBR()
 	if err != nil {
@@ -184,9 +196,7 @@ func (disk *Disk) DiscoverPartitions(partitionNum int) error {
 	if disk.hasProtectiveMBR() {
 		disk.populateGPT()
 		for idx := range disk.GPT.Partitions {
-			if partitionNum != -1 && partitionNum != idx {
-				continue
-			}
+
 			disk.Partitions = append(disk.Partitions, &disk.GPT.Partitions[idx])
 
 		}
@@ -202,10 +212,12 @@ func (disk *Disk) DiscoverPartitions(partitionNum int) error {
 	return nil
 }
 
-func (disk *Disk) ProcessPartitions() {
+func (disk *Disk) ProcessPartitions(partitionNum int) {
 
 	for idx := range disk.Partitions {
-
+		if partitionNum != -1 && partitionNum != idx {
+			continue
+		}
 		disk.Partitions[idx].LocateVolume(disk.Handler)
 
 		parttionOffset := disk.Partitions[idx].GetOffset()
@@ -276,7 +288,12 @@ func (disk Disk) Worker(wg *sync.WaitGroup, records []metadata.Record, results c
 	vol := partition.GetVolume()
 	sectorsPerCluster := int(vol.GetSectorsPerCluster())
 	bytesPerSector := int(vol.GetBytesPerSector())
-	partitionOffsetB := int64(partition.GetOffset()) * int64(bytesPerSector)
+	partitionOffsetB := int64(partition.GetOffset()) * 512
+
+	physicalToLogicalMap, err := disk.GetLogicalToPhysicalMap(partitionNum)
+	if err != nil {
+		return
+	}
 
 	for _, record := range records {
 
@@ -285,14 +302,15 @@ func (disk Disk) Worker(wg *sync.WaitGroup, records []metadata.Record, results c
 			logger.FSLogger.Warning(msg)
 			continue
 		}
+
 		fmt.Printf("pulling data file %s Id %d\n", record.GetFname(), record.GetID())
 		linkedRecords := record.GetLinkedRecords()
 		if len(linkedRecords) == 0 {
-			record.LocateData(disk.Handler, partitionOffsetB, sectorsPerCluster, bytesPerSector, results)
+			record.LocateData(disk.Handler, partitionOffsetB, sectorsPerCluster*bytesPerSector, results, physicalToLogicalMap)
 		} else { // attribute runlist
 
 			for _, linkedRecord := range linkedRecords {
-				linkedRecord.LocateData(disk.Handler, partitionOffsetB, sectorsPerCluster, bytesPerSector, results)
+				linkedRecord.LocateData(disk.Handler, partitionOffsetB, sectorsPerCluster*bytesPerSector, results, physicalToLogicalMap)
 
 			}
 		}
