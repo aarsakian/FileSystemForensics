@@ -1,18 +1,15 @@
 package fstree
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/aarsakian/FileSystemForensics/FS/BTRFS/attributes"
 	"github.com/aarsakian/FileSystemForensics/FS/BTRFS/leafnode"
 	"github.com/aarsakian/FileSystemForensics/img"
 	"github.com/aarsakian/FileSystemForensics/logger"
-	"github.com/aarsakian/FileSystemForensics/utils"
-	"golang.org/x/text/language"
-	"golang.org/x/text/message"
 )
 
 type FilesDirsMap map[uint64]FileDirEntry //inodeid -> FileDirEntry
@@ -37,8 +34,8 @@ func (fileDirEntry FileDirEntry) GetParentId() (int, error) {
 }
 
 func (fileDirEntry *FileDirEntry) GetExtents() map[uint64]*attributes.ExtentData {
-	//	Logical offset in the file to extent
-	var extentsMap map[uint64]*attributes.ExtentData
+	//Map of logical offset in the file to extent
+	extentsMap := make(map[uint64]*attributes.ExtentData)
 	for idx, item := range fileDirEntry.Items {
 		if !item.IsExtentData() {
 			continue
@@ -137,43 +134,6 @@ func (fileDirEntry FileDirEntry) LocateDataAsync(hD img.DiskReader, partitionOff
 
 }
 
-func (fileDirEntry FileDirEntry) LocateData(hD img.DiskReader, partitionOffset int64, sectorsPerCluster int, bytesPerSector int, results chan<- utils.AskedFile) {
-	p := message.NewPrinter(language.Greek)
-
-	var buf bytes.Buffer
-
-	lSize := int(fileDirEntry.GetLogicalFileSize())
-	buf.Grow(lSize)
-
-	/*if fileDirEntry.HasResidentDataAttr() {
-		buf.Write(fileDirEntry.GetResidentData())
-
-	} else {*/
-
-	diskSize := hD.GetDiskSize()
-
-	for logicalOffset, extent := range fileDirEntry.GetExtents() {
-		offset := partitionOffset + int64(logicalOffset)
-		if offset > diskSize {
-			msg := fmt.Sprintf("skipped offset %d exceeds disk size! exiting", offset)
-			logger.FSLogger.Warning(msg)
-			break
-		}
-
-		if extent.ExtentDataRem.LogicaAddress != 0 && extent.ExtentDataRem.LSize > 0 {
-			buf.Write(hD.ReadFile(offset, int(extent.ExtentDataRem.LSize)))
-			res := p.Sprintf("%d", (offset-partitionOffset)/int64(sectorsPerCluster*bytesPerSector))
-
-			msg := fmt.Sprintf("offset %s cl len %d cl.", res, extent.ExtentDataRem.LSize)
-			logger.FSLogger.Info(msg)
-		}
-
-	}
-
-	//truncate buf grows over len?
-	results <- utils.AskedFile{Fname: fileDirEntry.GetFname(), Content: buf.Bytes()[:lSize], Id: int(fileDirEntry.Id)}
-}
-
 func (fileDirEntry FileDirEntry) ShowAttributes(attrName string) {
 	if attrName == "FileName" {
 		fileDirEntry.ShowFileName()
@@ -208,7 +168,7 @@ func (fileDirEntry FileDirEntry) ShowParentRecordInfo() {
 }
 
 func (fileDirEntry FileDirEntry) ShowPath(pathtype int) {
-	fmt.Printf("%s ", fileDirEntry.Path)
+	fmt.Printf("%s ", filepath.Join(fileDirEntry.Path, fileDirEntry.GetFname()))
 }
 
 func (fileDirEntry FileDirEntry) ShowRunList() {
