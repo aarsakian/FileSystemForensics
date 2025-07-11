@@ -111,6 +111,10 @@ func (ntfs NTFS) GetFS() []metadata.Record {
 	return records
 }
 
+func (ntfs NTFS) GetLogicalToPhysicalMap() map[uint64]metadata.Chunk {
+	return map[uint64]metadata.Chunk{}
+}
+
 func (ntfs NTFS) GetInfo() string {
 	return fmt.Sprintf("%s size %d cluster size %d", ntfs.GetSignature(), ntfs.VBR.TotalSectors*uint64(ntfs.VBR.BytesPerSector),
 		ntfs.VBR.SectorsPerCluster)
