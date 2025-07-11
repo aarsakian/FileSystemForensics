@@ -89,6 +89,16 @@ func (btrfs BTRFS) CollectUnallocated(img.DiskReader, int64, chan<- []byte) {
 
 }
 
+func (btrfs BTRFS) GetLogicalToPhysicalMap() map[uint64]metadata.Chunk {
+	mapper := make(map[uint64]metadata.Chunk)
+	for keyOffset, chunkItem := range btrfs.ChunkTreeMap {
+		tmp := chunkItem
+		mapper[keyOffset] = metadata.BTRFSChunk{tmp}
+
+	}
+	return mapper
+}
+
 func (btrfs BTRFS) GetUnallocatedClusters() []int {
 	return []int{}
 }
