@@ -276,56 +276,6 @@ func (record Record) LocateDataAsync(hD img.DiskReader, partitionOffset int64, c
 
 }
 
-func (record Record) LocateData(hD img.DiskReader, partitionOffset int64, sectorsPerCluster int, bytesPerSector int, results chan<- utils.AskedFile) {
-	p := message.NewPrinter(language.Greek)
-
-	writeOffset := 0
-
-	var buf bytes.Buffer
-
-	lSize := int(record.GetLogicalFileSize())
-	buf.Grow(lSize)
-
-	if record.HasResidentDataAttr() {
-		buf.Write(record.GetResidentData())
-
-	} else {
-
-		runlist := record.GetRunList("DATA")
-
-		offset := partitionOffset // partition in bytes
-
-		diskSize := hD.GetDiskSize()
-
-		for runlist != nil {
-			offset += runlist.Offset * int64(sectorsPerCluster*bytesPerSector)
-			if offset > diskSize {
-				msg := fmt.Sprintf("skipped offset %d exceeds disk size! exiting", offset)
-				logger.FSLogger.Warning(msg)
-				break
-			}
-
-			if runlist.Offset != 0 && runlist.Length > 0 {
-				buf.Write(hD.ReadFile(offset, int(runlist.Length)*sectorsPerCluster*bytesPerSector))
-				res := p.Sprintf("%d", (offset-partitionOffset)/int64(sectorsPerCluster*bytesPerSector))
-
-				msg := fmt.Sprintf("offset %s cl len %d cl.", res, runlist.Length)
-				logger.FSLogger.Info(msg)
-			}
-
-			if runlist.Next == nil {
-				break
-			}
-
-			runlist = runlist.Next
-			writeOffset += int(runlist.Length) * sectorsPerCluster * bytesPerSector
-		}
-
-	}
-	//truncate buf grows over len?
-	results <- utils.AskedFile{Fname: record.GetFname(), Content: buf.Bytes()[:lSize], Id: int(record.Entry)}
-}
-
 func (record Record) FindNonResidentAttributes() []Attribute {
 	return utils.Filter(record.Attributes, func(attribute Attribute) bool {
 		return attribute.IsNoNResident()
