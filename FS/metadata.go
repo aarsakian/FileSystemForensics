@@ -8,6 +8,9 @@ import (
 type Attribute interface {
 }
 
+type Chunk interface {
+}
+
 type Record interface {
 	HasFilenameExtension(string) bool
 	HasFilenames([]string) bool
@@ -34,7 +37,7 @@ type Record interface {
 	ShowParentRecordInfo()
 	ShowPath(int)
 
-	LocateData(img.DiskReader, int64, int, int, chan<- utils.AskedFile)
+	LocateData(img.DiskReader, int64, int, chan<- utils.AskedFile, map[uint64]Chunk)
 	LocateDataAsync(img.DiskReader, int64, int, chan<- []byte)
 }
 
