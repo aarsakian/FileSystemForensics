@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	metadata "github.com/aarsakian/FileSystemForensics/FS"
@@ -91,10 +92,6 @@ func (exp Exporter) ExportRecords(records []metadata.Record, physicalDisk disk.D
 
 func (exp Exporter) HashFiles(records []metadata.Record) {
 
-	if exp.Hash != "MD5" && exp.Hash != "SHA1" {
-		fmt.Printf("Only Supported Hashes are MD5 or SHA1 and not %s!\n", exp.Hash)
-		return
-	}
 	fmt.Printf("Hashing Stage\n")
 	for _, record := range records {
 		fname := record.GetFname()
@@ -104,10 +101,13 @@ func (exp Exporter) HashFiles(records []metadata.Record) {
 			fmt.Printf("ERROR %s", e)
 			continue
 		}
-		if exp.Hash == "MD5" {
+		if strings.ToLower(exp.Hash) == "md5" {
 			fmt.Printf("File %s has %s %s \n", fname, exp.Hash, utils.GetMD5(data))
-		} else if exp.Hash == "SHA1" {
+		} else if strings.ToLower(exp.Hash) == "sha1" {
 			fmt.Printf("File %s has %s %s \n", fname, exp.Hash, utils.GetSHA1(data))
+		} else {
+			fmt.Printf("Only Supported Hashes are MD5 or SHA1 and not %s!\n", exp.Hash)
+			return
 		}
 
 	}
