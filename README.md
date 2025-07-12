@@ -1,7 +1,7 @@
 FileSystemForensics
 ============
 
-### a tool to inspect, extract, files and file system metadata. It currently supports NTFS, gradually BTRFS support will be added. 
+### a tool to inspect, extract, files and file system metadata. It currently supports NTFS,  BTRFS. Exporting files in BTRFS volumes is being tested.
 
 
 
@@ -10,7 +10,7 @@ By using this tool, you can explore NTFS and its file system attributes. You can
 Exporting files can be achieved either by mounting the evidence and providing its physical drive order and partition number or by using the acquired forensic image (Expert Witness Format), or a virtual machine disk format (VMDK). 
 
 #### Examples #####
-you can explore NTFS by providing physical drive number and partition number 
+you can explore NTFS or BTRFS by providing physical drive number and partition number 
 
 e.g. *-physicaldrive 0 -partition 1* translates to \\\\.\\PHYSICALDRIVE0 D drive respectively,
 
@@ -21,60 +21,58 @@ e.g. *-evidence path_to_evidence -partition 1*.
 
 ##### Usage information  type: FileSystemForensics.exe -h #####
 
+ 
   -attributes string
         show file system attributes (write any for all attributes)
-
+ 
   -deleted
         show deleted records
-
+ 
   -entries string
         select file system records by entering its id, use comma as a seperator
-
+ 
   -evidence string
         path to image file (EWF/Raw formats are supported)
-
+ 
   -extensions string
         search file system records by extensions use comma as a seperator
-
+ 
   -filenames string
         files to export use comma as a seperator
-
+ 
   -filesize
         show file size
-
-  -fromEntry int
+ 
+  -fromentry int
         select file system record id to start processing (default -1)
-
+ 
   -hash string
         hash exported files, enter md5 or sha1
-
-  -index
-        show index structures
-
+ 
   -listpartitions
         list partitions
-
+ 
   -listunallocated
         list unallocated clusters
-
+ 
   -location string
         the path to export files
-
+ 
   -log
         enable logging
-
+ 
   -orphans
         show information only for orphan records
-
+ 
   -parent
         show information about parent record
-
+ 
   -partition int
-        select partition number (default -1)
-
+        select partition number
+ 
   -path string
         base path of files to exported must be absolute e.g. C:\MYFILES\ABC translates to MYFILES\ABC
-
+ 
   -physicaldrive int
         select disk drive number (default -1)
 
@@ -89,6 +87,9 @@ e.g. *-evidence path_to_evidence -partition 1*.
 
   -showfull
         show full information about record
+
+  -showindex
+        show index structures
 
   -showpath
         show the full path of the selected files
@@ -111,12 +112,11 @@ e.g. *-evidence path_to_evidence -partition 1*.
   -strategy string
         what strategy will be used for files sharing the same name, default is ovewrite, or use Id (default "overwrite")
 
-  -toEntry int
+  -toentry int
         select file system record id to end processing (default 4294967295)
 
   -tree
         reconstrut file system tree
-
   -unallocated
         collect unallocated area of a volume
 
@@ -134,4 +134,3 @@ e.g. *-evidence path_to_evidence -partition 1*.
 
   -volume string
         select directly the volume requires offset in bytes, (ntfs, lvm2)
-        
