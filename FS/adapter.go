@@ -7,8 +7,8 @@ import (
 	fstree "github.com/aarsakian/FileSystemForensics/FS/BTRFS"
 	attr "github.com/aarsakian/FileSystemForensics/FS/BTRFS/attributes"
 	"github.com/aarsakian/FileSystemForensics/FS/NTFS/MFT"
-	"github.com/aarsakian/FileSystemForensics/img"
 	"github.com/aarsakian/FileSystemForensics/logger"
+	"github.com/aarsakian/FileSystemForensics/readers"
 	"github.com/aarsakian/FileSystemForensics/utils"
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
@@ -54,7 +54,7 @@ func (ntfsRecord NTFSRecord) FindAttribute(attrName string) Attribute {
 	return ntfsRecord.Record.FindAttribute(attrName)
 }
 
-func (record BTRFSRecord) LocateData(hD img.DiskReader, partitionOffsetB int64, blockSizeB int, results chan<- utils.AskedFile,
+func (record BTRFSRecord) LocateData(hD readers.DiskReader, partitionOffsetB int64, blockSizeB int, results chan<- utils.AskedFile,
 	physicalToLogicalMap map[uint64]Chunk) {
 	p := message.NewPrinter(language.Greek)
 
@@ -109,7 +109,7 @@ func (record BTRFSRecord) LocateData(hD img.DiskReader, partitionOffsetB int64, 
 	results <- utils.AskedFile{Fname: record.GetFname(), Content: buf.Bytes()[:lSize], Id: int(record.Id)}
 }
 
-func (record NTFSRecord) LocateData(hD img.DiskReader, partitionOffset int64, clusterSizeB int, results chan<- utils.AskedFile,
+func (record NTFSRecord) LocateData(hD readers.DiskReader, partitionOffset int64, clusterSizeB int, results chan<- utils.AskedFile,
 	physicalToLogicalMap map[uint64]Chunk) {
 	p := message.NewPrinter(language.Greek)
 

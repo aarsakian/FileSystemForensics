@@ -1,7 +1,7 @@
 package metadata
 
 import (
-	"github.com/aarsakian/FileSystemForensics/img"
+	"github.com/aarsakian/FileSystemForensics/readers"
 	"github.com/aarsakian/FileSystemForensics/utils"
 )
 
@@ -37,8 +37,8 @@ type Record interface {
 	ShowParentRecordInfo()
 	ShowPath(int)
 
-	LocateData(img.DiskReader, int64, int, chan<- utils.AskedFile, map[uint64]Chunk)
-	LocateDataAsync(img.DiskReader, int64, int, chan<- []byte)
+	LocateData(readers.DiskReader, int64, int, chan<- utils.AskedFile, map[uint64]Chunk)
+	LocateDataAsync(readers.DiskReader, int64, int, chan<- []byte)
 }
 
 func FilterByExtensions(records []Record, extensions []string) []Record {

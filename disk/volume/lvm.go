@@ -6,8 +6,8 @@ import (
 	"fmt"
 
 	metadata "github.com/aarsakian/FileSystemForensics/FS"
-	"github.com/aarsakian/FileSystemForensics/img"
 	"github.com/aarsakian/FileSystemForensics/logger"
+	"github.com/aarsakian/FileSystemForensics/readers"
 	"github.com/aarsakian/FileSystemForensics/utils"
 )
 
@@ -60,7 +60,7 @@ type RawLocationDescriptor struct {
 	Flags  uint64
 }
 
-func (lvm2 *LVM2) ProcessHeader(hD img.DiskReader, physicalOffsetB int64) error {
+func (lvm2 *LVM2) ProcessHeader(hD readers.DiskReader, physicalOffsetB int64) error {
 	data := hD.ReadFile(physicalOffsetB, 4096)
 	lvm2.Parse(data)
 	if !lvm2.HasValidSignature() {
@@ -76,7 +76,7 @@ func (lvm2 *LVM2) ProcessHeader(hD img.DiskReader, physicalOffsetB int64) error 
 	return nil
 }
 
-func (lvm2 *LVM2) Process(hD img.DiskReader, physicalOffsetB int64, SelectedEntries []int,
+func (lvm2 *LVM2) Process(hD readers.DiskReader, physicalOffsetB int64, SelectedEntries []int,
 	fromEntry int, toEntry int) {
 	btrfs := new(BTRFS)
 

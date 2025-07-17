@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	volume "github.com/aarsakian/FileSystemForensics/disk/volume"
-	"github.com/aarsakian/FileSystemForensics/img"
 	"github.com/aarsakian/FileSystemForensics/logger"
+	"github.com/aarsakian/FileSystemForensics/readers"
 	"github.com/aarsakian/FileSystemForensics/utils"
 )
 
@@ -45,7 +45,7 @@ func (partition Partition) GetPartitionType() string {
 	return PartitionTypes[partition.Type]
 }
 
-func (partition *Partition) LocateVolume(hD img.DiskReader) {
+func (partition *Partition) LocateVolume(hD readers.DiskReader) {
 
 	if partition.Type == 0x07 || partition.Type == 0x17 {
 		partitionOffetB := uint64(partition.GetOffset() * 512)
@@ -77,7 +77,7 @@ func (extPartition ExtendedPartition) GetOffset() uint64 {
 	return uint64(extPartition.Partition.StartLBA) + uint64(extPartition.TableOffset)
 }
 
-func (extPartition *ExtendedPartition) LocateVolume(hD img.DiskReader) {
+func (extPartition *ExtendedPartition) LocateVolume(hD readers.DiskReader) {
 	extPartition.Partition.LocateVolume(hD)
 }
 

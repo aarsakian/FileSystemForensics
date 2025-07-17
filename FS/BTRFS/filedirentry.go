@@ -8,8 +8,8 @@ import (
 
 	"github.com/aarsakian/FileSystemForensics/FS/BTRFS/attributes"
 	"github.com/aarsakian/FileSystemForensics/FS/BTRFS/leafnode"
-	"github.com/aarsakian/FileSystemForensics/img"
 	"github.com/aarsakian/FileSystemForensics/logger"
+	"github.com/aarsakian/FileSystemForensics/readers"
 )
 
 type FilesDirsMap map[uint64]FileDirEntry //inodeid -> FileDirEntry
@@ -129,7 +129,7 @@ func (fileDirEntry FileDirEntry) GetIndex() int {
 	return int(attr.Index)
 }
 
-func (fileDirEntry FileDirEntry) LocateDataAsync(hD img.DiskReader, partitionOffset int64,
+func (fileDirEntry FileDirEntry) LocateDataAsync(hD readers.DiskReader, partitionOffset int64,
 	clusterSizeB int, dataFragments chan<- []byte) {
 
 }

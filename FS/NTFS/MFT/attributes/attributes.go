@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/aarsakian/FileSystemForensics/img"
 	"github.com/aarsakian/FileSystemForensics/logger"
+	"github.com/aarsakian/FileSystemForensics/readers"
 	"github.com/aarsakian/FileSystemForensics/utils"
 )
 
@@ -66,7 +66,7 @@ func (atrRecordResident *ATRrecordResident) Parse(data []byte) {
 	utils.Unmarshal(data[:8], atrRecordResident)
 }
 
-func (atrRecordNoNResident ATRrecordNoNResident) GetContent(hD img.DiskReader, partitionOffsetB int64, clusterSizeB int, buf *bytes.Buffer) error {
+func (atrRecordNoNResident ATRrecordNoNResident) GetContent(hD readers.DiskReader, partitionOffsetB int64, clusterSizeB int, buf *bytes.Buffer) error {
 
 	if atrRecordNoNResident.RunList == nil {
 		msg := "non resident attribute has no runlists"

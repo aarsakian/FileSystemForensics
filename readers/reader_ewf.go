@@ -1,4 +1,4 @@
-package img
+package readers
 
 import (
 	"path"
@@ -36,5 +36,5 @@ func (imgreader EWFReader) ReadFile(physicalOffset int64, length int) []byte {
 }
 
 func (imgreader EWFReader) GetDiskSize() int64 {
-	return int64(imgreader.fd.Chuncksize) * int64(imgreader.fd.NofChunks)
+	return int64(imgreader.fd.Chunksize) * int64(imgreader.fd.NofChunks)
 }

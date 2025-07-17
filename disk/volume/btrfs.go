@@ -11,8 +11,8 @@ import (
 	fstree "github.com/aarsakian/FileSystemForensics/FS/BTRFS"
 	"github.com/aarsakian/FileSystemForensics/FS/BTRFS/attributes"
 	"github.com/aarsakian/FileSystemForensics/FS/BTRFS/leafnode"
-	"github.com/aarsakian/FileSystemForensics/img"
 	"github.com/aarsakian/FileSystemForensics/logger"
+	"github.com/aarsakian/FileSystemForensics/readers"
 	"github.com/aarsakian/FileSystemForensics/utils"
 )
 
@@ -85,7 +85,7 @@ func (btrfs BTRFS) GetFS() []metadata.Record {
 	return fileDirEntries
 }
 
-func (btrfs BTRFS) CollectUnallocated(img.DiskReader, int64, chan<- []byte) {
+func (btrfs BTRFS) CollectUnallocated(readers.DiskReader, int64, chan<- []byte) {
 
 }
 
@@ -136,7 +136,7 @@ func (btrfs BTRFS) VerifySuperBlock(data []byte) bool {
 	return btrfs.Superblock.Verify(data)
 }
 
-func (btrfs *BTRFS) Process(hD img.DiskReader, partitionOffsetB int64, selectedEntries []int,
+func (btrfs *BTRFS) Process(hD readers.DiskReader, partitionOffsetB int64, selectedEntries []int,
 	fromEntry int, toEntry int) {
 
 	btrfs.ChunkTreeMap = make(fstree.ChunkTreeMap)
@@ -177,7 +177,7 @@ func (btrfs BTRFS) HasValidSignature() bool {
 	return btrfs.GetSignature() == "5f42485266535f4d" //"_BHRfS_M"
 }
 
-func (btrfs *BTRFS) DescendTreeCh(hD img.DiskReader, partitionOffsetB int64,
+func (btrfs *BTRFS) DescendTreeCh(hD readers.DiskReader, partitionOffsetB int64,
 	nodeSize int, noverify bool, carve bool) {
 	wg := new(sync.WaitGroup)
 
@@ -197,7 +197,7 @@ func (btrfs *BTRFS) DescendTreeCh(hD img.DiskReader, partitionOffsetB int64,
 }
 
 // returns leaf nodes
-func (btrfs BTRFS) ParseTreeNodeCh(hD img.DiskReader, wg *sync.WaitGroup, logicalOffset int,
+func (btrfs BTRFS) ParseTreeNodeCh(hD readers.DiskReader, wg *sync.WaitGroup, logicalOffset int,
 	partitionOffsetB int64, size int, leafNodes chan<- *fstree.GenericNode,
 	noverify bool, carve bool) {
 	defer wg.Done()
@@ -331,7 +331,7 @@ func (btrfs *BTRFS) DiscoverTrees(nodes fstree.GenericNodesPtr, nametree string)
 }
 
 // producer of nodes
-func (btrfs BTRFS) CreateNode(hD img.DiskReader, logicalOffset int, partitionOffsetB int64,
+func (btrfs BTRFS) CreateNode(hD readers.DiskReader, logicalOffset int, partitionOffsetB int64,
 	size int, verify bool, carve bool) (*fstree.GenericNode, error) {
 
 	physicalOffset, blockSize, err := btrfs.LocatePhysicalOffsetSize(uint64(logicalOffset))
@@ -366,7 +366,7 @@ func (btrfs BTRFS) LocatePhysicalOffsetSize(logicalOffset uint64) (uint64, uint6
 }
 
 // returns leaf nodes
-func (btrfs BTRFS) ParseTreeNode(hD img.DiskReader, logicalOffset int, partitionOffsetB int64,
+func (btrfs BTRFS) ParseTreeNode(hD readers.DiskReader, logicalOffset int, partitionOffsetB int64,
 	size int, verify bool) (fstree.GenericNodesPtr, error) {
 	logger.FSLogger.Info(fmt.Sprintf("Parsing tree at %d", logicalOffset))
 

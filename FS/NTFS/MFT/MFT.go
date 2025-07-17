@@ -11,8 +11,9 @@ import (
 	"sync"
 
 	MFTAttributes "github.com/aarsakian/FileSystemForensics/FS/NTFS/MFT/attributes"
-	"github.com/aarsakian/FileSystemForensics/img"
+
 	"github.com/aarsakian/FileSystemForensics/logger"
+	"github.com/aarsakian/FileSystemForensics/readers"
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
 
@@ -98,7 +99,7 @@ func (record Record) IsFolder() bool {
 	return recordType == "Folder Unallocated" || recordType == "Folder Allocated"
 }
 
-func (record *Record) ProcessNoNResidentAttributes(hD img.DiskReader, partitionOffsetB int64, clusterSizeB int, buf *bytes.Buffer) int {
+func (record *Record) ProcessNoNResidentAttributes(hD readers.DiskReader, partitionOffsetB int64, clusterSizeB int, buf *bytes.Buffer) int {
 
 	totalReadBytes := 0
 	logger.FSLogger.Info(fmt.Sprintf("Record %d has %d attributes", record.Entry, len(record.Attributes)))
@@ -144,7 +145,7 @@ func (record *Record) ProcessNoNResidentAttributes(hD img.DiskReader, partitionO
 	return totalReadBytes
 }
 
-func ProcessNoNResidentAttributesWorker(records chan Record, hD img.DiskReader, partitionOffsetB int64,
+func ProcessNoNResidentAttributesWorker(records chan Record, hD readers.DiskReader, partitionOffsetB int64,
 	clusterSizeB int, wg *sync.WaitGroup) {
 	var buf bytes.Buffer
 	w := bufio.NewWriter(&buf)
@@ -234,7 +235,7 @@ func (record Record) GetUnallocatedClusters() []int {
 	}
 }*/
 
-func (record Record) LocateDataAsync(hD img.DiskReader, partitionOffset int64, clusterSizeB int, dataFragments chan<- []byte) {
+func (record Record) LocateDataAsync(hD readers.DiskReader, partitionOffset int64, clusterSizeB int, dataFragments chan<- []byte) {
 	writeOffset := 0
 	p := message.NewPrinter(language.Greek)
 	if record.HasResidentDataAttr() {

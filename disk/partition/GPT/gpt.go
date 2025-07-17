@@ -6,7 +6,7 @@ import (
 	mdraid "github.com/aarsakian/FileSystemForensics/disk/raid"
 	"github.com/aarsakian/FileSystemForensics/disk/volume"
 	lvmlib "github.com/aarsakian/FileSystemForensics/disk/volume"
-	"github.com/aarsakian/FileSystemForensics/img"
+	"github.com/aarsakian/FileSystemForensics/readers"
 	"github.com/aarsakian/FileSystemForensics/utils"
 )
 
@@ -116,7 +116,7 @@ func (partition Partition) GetVolInfo() string {
 
 }
 
-func (partition *Partition) LocateVolume(hD img.DiskReader) {
+func (partition *Partition) LocateVolume(hD readers.DiskReader) {
 	partitionOffetB := uint64(partition.GetOffset() * 512)
 
 	if partition.GetPartitionType() == "Basic Data Partition" {

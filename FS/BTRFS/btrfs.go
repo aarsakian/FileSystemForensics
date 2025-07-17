@@ -107,5 +107,7 @@ func (fsTreeMap FsTreeMap) Update(wgs *sync.WaitGroup, nodesLeaf chan *GenericNo
 		}
 
 	}
+
+	fstree.FilesDirsMap.BuildPath()
 	fsTreeMap[inodeid] = fstree
 }

@@ -2,11 +2,11 @@ package volume
 
 import (
 	metadata "github.com/aarsakian/FileSystemForensics/FS"
-	"github.com/aarsakian/FileSystemForensics/img"
+	"github.com/aarsakian/FileSystemForensics/readers"
 )
 
 type Volume interface {
-	Process(img.DiskReader, int64, []int, int, int)
+	Process(readers.DiskReader, int64, []int, int, int)
 	GetSectorsPerCluster() int
 	GetBytesPerSector() uint64
 	GetInfo() string

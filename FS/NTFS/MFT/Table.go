@@ -7,8 +7,8 @@ import (
 	"sync"
 
 	MFTAttributes "github.com/aarsakian/FileSystemForensics/FS/NTFS/MFT/attributes"
-	"github.com/aarsakian/FileSystemForensics/img"
 	"github.com/aarsakian/FileSystemForensics/logger"
+	"github.com/aarsakian/FileSystemForensics/readers"
 	"github.com/aarsakian/FileSystemForensics/utils"
 )
 
@@ -86,7 +86,7 @@ func (mfttable *MFTTable) MFTWorker(data []byte, pos int, wg *sync.WaitGroup) {
 	logger.FSLogger.Info(fmt.Sprintf("Processed record %d at pos %d", record.Entry, pos/RecordSize))
 }
 
-func (mfttable *MFTTable) ProcessNonResidentRecords(hD img.DiskReader, partitionOffsetB int64, clusterSizeB int) {
+func (mfttable *MFTTable) ProcessNonResidentRecords(hD readers.DiskReader, partitionOffsetB int64, clusterSizeB int) {
 	//2 * runtime.NumCPU()
 	numWorker := 4
 
@@ -106,7 +106,7 @@ func (mfttable *MFTTable) ProcessNonResidentRecords(hD img.DiskReader, partition
 
 }
 
-func (mfttable *MFTTable) ProcessNonResidentRecordsSync(hD img.DiskReader, partitionOffsetB int64, clusterSizeB int) int {
+func (mfttable *MFTTable) ProcessNonResidentRecordsSync(hD readers.DiskReader, partitionOffsetB int64, clusterSizeB int) int {
 	totalReadBytes := 0
 	var buf bytes.Buffer
 	//allocate a large enough buffer

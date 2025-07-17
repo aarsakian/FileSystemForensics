@@ -1,6 +1,6 @@
 //go:build !windows
 
-package img
+package readers
 
 import (
 	"log"

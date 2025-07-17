@@ -12,8 +12,8 @@ import (
 	gptLib "github.com/aarsakian/FileSystemForensics/disk/partition/GPT"
 	mbrLib "github.com/aarsakian/FileSystemForensics/disk/partition/MBR"
 	"github.com/aarsakian/FileSystemForensics/disk/volume"
-	"github.com/aarsakian/FileSystemForensics/img"
 	"github.com/aarsakian/FileSystemForensics/logger"
+	"github.com/aarsakian/FileSystemForensics/readers"
 	"github.com/aarsakian/FileSystemForensics/utils"
 )
 
@@ -21,7 +21,7 @@ var ErrNTFSVol = errors.New("NTFS volume discovered instead of MBR")
 
 type Partition interface {
 	GetOffset() uint64
-	LocateVolume(img.DiskReader)
+	LocateVolume(readers.DiskReader)
 	GetVolume() volume.Volume
 	GetInfo() string
 	GetVolInfo() string
@@ -30,27 +30,27 @@ type Partition interface {
 type Disk struct {
 	MBR        *mbrLib.MBR
 	GPT        *gptLib.GPT
-	Handler    img.DiskReader
+	Handler    readers.DiskReader
 	Partitions []Partition
 }
 
 func (disk *Disk) Initialize(evidencefile string, physicaldrive int, vmdkfile string) {
-	var hD img.DiskReader
+	var hD readers.DiskReader
 	if evidencefile != "" {
 		extension := path.Ext(evidencefile)
 		if strings.ToLower(extension) == ".e01" {
-			hD = img.GetHandler(evidencefile, "ewf")
+			hD = readers.GetHandler(evidencefile, "ewf")
 		} else {
-			hD = img.GetHandler(evidencefile, "raw")
+			hD = readers.GetHandler(evidencefile, "raw")
 		}
 
 	} else if physicaldrive != -1 {
 
-		hD = img.GetHandler(fmt.Sprintf("\\\\.\\PHYSICALDRIVE%d", physicaldrive), "physicalDrive")
+		hD = readers.GetHandler(fmt.Sprintf("\\\\.\\PHYSICALDRIVE%d", physicaldrive), "physicalDrive")
 
 	} else {
 
-		hD = img.GetHandler(vmdkfile, "vmdk")
+		hD = readers.GetHandler(vmdkfile, "vmdk")
 
 	}
 	disk.Handler = hD

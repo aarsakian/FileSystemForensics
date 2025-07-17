@@ -8,8 +8,8 @@ import (
 
 	metadata "github.com/aarsakian/FileSystemForensics/FS"
 	"github.com/aarsakian/FileSystemForensics/FS/NTFS/MFT"
-	"github.com/aarsakian/FileSystemForensics/img"
 	"github.com/aarsakian/FileSystemForensics/logger"
+	"github.com/aarsakian/FileSystemForensics/readers"
 	"github.com/aarsakian/FileSystemForensics/utils"
 )
 
@@ -35,7 +35,7 @@ func (ntfs *NTFS) AddVolume(data []byte) {
 	ntfs.VBR.Parse(data)
 }
 
-func (ntfs *NTFS) Process(hD img.DiskReader, partitionOffsetB int64, MFTSelectedEntries []int,
+func (ntfs *NTFS) Process(hD readers.DiskReader, partitionOffsetB int64, MFTSelectedEntries []int,
 	fromMFTEntry int, toMFTEntry int) {
 	physicalOffset := partitionOffsetB + int64(ntfs.VBR.MFTOffset)*int64(ntfs.VBR.SectorsPerCluster)*int64(ntfs.VBR.BytesPerSector)
 
@@ -179,7 +179,7 @@ func (ntfs *NTFS) ProcessMFT(data []byte, MFTSelectedEntries []int,
 
 }
 
-func (ntfs NTFS) CollectMFTArea(hD img.DiskReader, partitionOffsetB int64) []byte {
+func (ntfs NTFS) CollectMFTArea(hD readers.DiskReader, partitionOffsetB int64) []byte {
 	var buf bytes.Buffer
 
 	length := int(ntfs.MFT.Size) * int(ntfs.VBR.BytesPerSector) * int(ntfs.VBR.SectorsPerCluster) // allow for MFT size

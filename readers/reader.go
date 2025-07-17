@@ -1,4 +1,4 @@
-package img
+package readers
 
 type DiskReader interface {
 	CreateHandler()
