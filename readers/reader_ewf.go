@@ -5,8 +5,7 @@ import (
 	"strings"
 
 	ewfLib "github.com/aarsakian/EWF_Reader/ewf"
-
-	"github.com/aarsakian/FileSystemForensics/utils"
+	ewfutils "github.com/aarsakian/EWF_Reader/ewf/utils"
 )
 
 type EWFReader struct {
@@ -18,7 +17,7 @@ func (imgreader *EWFReader) CreateHandler() {
 	extension := path.Ext(imgreader.PathToEvidenceFiles)
 	if strings.ToLower(extension) == ".e01" {
 		var ewf_image ewfLib.EWF_Image
-		filenames := utils.FindEvidenceFiles(imgreader.PathToEvidenceFiles)
+		filenames := ewfutils.FindEvidenceFiles(imgreader.PathToEvidenceFiles)
 
 		ewf_image.ParseEvidence(filenames)
 

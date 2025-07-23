@@ -7,11 +7,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"os"
-	"path/filepath"
 	"reflect"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -458,36 +455,6 @@ func readEndianString(barray []byte) (val []byte) {
 	binary.Read(bytes.NewBuffer(barray), binary.LittleEndian, &val)
 
 	return val
-}
-
-func FindEvidenceFiles(path_ string) []string {
-
-	basePath := filepath.Dir(path_)
-
-	files, err := os.ReadDir(basePath)
-	if err != nil {
-		log.Fatal("ERR", err)
-	}
-
-	var filenames []string
-	r, _ := regexp.Compile("\\.[eE][a-zA-Z0-9]{1,2}$")
-	for _, finfo := range files {
-
-		if finfo.IsDir() {
-
-			continue
-		}
-
-		if r.MatchString(finfo.Name()) {
-
-			filenames = append(filenames, filepath.Join(basePath, finfo.Name())) //supply channel
-			//fmt.Println("INFO", basePath+finfo.Name(), strings.Split(fname, ".")[0])
-
-		}
-	}
-
-	return filenames
-
 }
 
 func SetProgress(progressStat int, msg string) {
