@@ -7,22 +7,22 @@ import (
 )
 
 type ExtentData struct {
-	Generation     uint64
-	LogicalDataLen uint64 //size of decoded text
-	Compression    uint8
-	Encryption     uint8
-	OtherEncoding  uint16
-	Type           uint8
-	ExtentDataRem  *ExtentDataRem
-	InlineData     []byte
+	Generation    uint64
+	DecodedSize   uint64 //size of decoded text after decompression
+	Compression   uint8
+	Encryption    uint8
+	OtherEncoding uint16
+	Type          uint8
+	ExtentDataRem *ExtentDataRem
+	InlineData    []byte
 }
 
 // used when no compression, encryption other encoding is used non inline
 type ExtentDataRem struct {
-	LogicaAddress uint64 //logical address of extent
-	Psize         uint64 //physical size of the extent on disk
-	Offset        uint64 //offset within extent
-	LSize         uint64 //logical size of the extent
+	LogicalAddress uint64 //logical address of extent
+	Psize          uint64 //physical size of the extent on disk
+	Offset         uint64 //offset within extent
+	LSize          uint64 //logical size of the extent
 }
 
 func (extentData *ExtentData) Parse(data []byte) int {
@@ -49,6 +49,20 @@ func (extentData ExtentData) GetType() string {
 	return ExtentTypes[extentData.Type]
 }
 
+func (extentData ExtentData) GetCompressionType() string {
+	return CompressionTypes[int(extentData.Compression)]
+}
+
 func (extentData ExtentData) GetInfo() string {
-	return fmt.Sprintf("%s %d", extentData.GetType(), extentData.LogicalDataLen)
+	if extentData.ExtentDataRem != nil {
+		return fmt.Sprintf("%s %s %s", extentData.GetType(), extentData.GetCompressionType(), extentData.ExtentDataRem.GetInfo())
+	} else {
+		return fmt.Sprintf("%s %s", extentData.GetType(), extentData.GetCompressionType())
+	}
+
+}
+
+func (extentDataRem ExtentDataRem) GetInfo() string {
+	return fmt.Sprintf("Logical Offset %d logical size %d extent offset %d",
+		extentDataRem.LogicalAddress, extentDataRem.LSize, extentDataRem.Offset)
 }
