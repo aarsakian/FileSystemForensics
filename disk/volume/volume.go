@@ -11,6 +11,7 @@ type Volume interface {
 	GetBytesPerSector() uint64
 	GetInfo() string
 	GetFS() []metadata.Record
+	GetFSOffset() int64
 	GetUnallocatedClusters() []int
 	GetSignature() string
 	GetLogicalToPhysicalMap() map[uint64]metadata.Chunk

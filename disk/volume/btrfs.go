@@ -454,3 +454,7 @@ func (btrfs BTRFS) ParseSystemChunks() fstree.GenericNodesPtr {
 	}
 	return genericNodes
 }
+
+func (btrfs BTRFS) GetFSOffset() int64 {
+	return 0
+}

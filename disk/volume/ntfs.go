@@ -35,6 +35,10 @@ func (ntfs *NTFS) AddVolume(data []byte) {
 	ntfs.VBR.Parse(data)
 }
 
+func (ntfs NTFS) GetFSOffset() int64 {
+	return 0
+}
+
 func (ntfs *NTFS) Process(hD readers.DiskReader, partitionOffsetB int64, MFTSelectedEntries []int,
 	fromMFTEntry int, toMFTEntry int) {
 	physicalOffset := partitionOffsetB + int64(ntfs.VBR.MFTOffset)*int64(ntfs.VBR.SectorsPerCluster)*int64(ntfs.VBR.BytesPerSector)

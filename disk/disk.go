@@ -288,7 +288,7 @@ func (disk Disk) Worker(wg *sync.WaitGroup, records []metadata.Record, results c
 	vol := partition.GetVolume()
 	sectorsPerCluster := int(vol.GetSectorsPerCluster())
 	bytesPerSector := int(vol.GetBytesPerSector())
-	partitionOffsetB := int64(partition.GetOffset()) * 512
+	partitionOffsetB := int64(partition.GetOffset())*512 + vol.GetFSOffset()
 
 	physicalToLogicalMap, err := disk.GetLogicalToPhysicalMap(partitionNum)
 	if err != nil {

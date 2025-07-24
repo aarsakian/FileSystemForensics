@@ -187,3 +187,7 @@ func (lvm2 LVM2) GetInfo() string {
 	return string(prettyJson)
 
 }
+
+func (lvm2 LVM2) GetFSOffset() int64 {
+	return lvm2.Header.PhysicalVolHeader.DataAreaDescriptors[0].OffsetB
+}
