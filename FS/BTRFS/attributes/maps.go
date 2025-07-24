@@ -104,3 +104,7 @@ var ObjectTypes = map[int]string{
 	11: "BLOCK_GROUP",
 	12: "RAID_STRIPE",
 }
+
+var CompressionTypes = map[int]string{
+	0: "No compression", 1: "Zlib", 2: "LZO", 3: "ZSTD",
+}
