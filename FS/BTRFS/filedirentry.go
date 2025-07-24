@@ -173,7 +173,7 @@ func (fileDirEntry FileDirEntry) ShowPath(pathtype int) {
 
 func (fileDirEntry FileDirEntry) ShowRunList() {
 	for _, extent := range fileDirEntry.GetExtents() {
-		fmt.Printf("%s \t", extent.GetInfo())
+		fmt.Printf("%s \n", extent.GetInfo())
 	}
 }
 
