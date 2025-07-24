@@ -3,6 +3,7 @@ package metadata
 import (
 	"bytes"
 	"fmt"
+	"sort"
 
 	fstree "github.com/aarsakian/FileSystemForensics/FS/BTRFS"
 	attr "github.com/aarsakian/FileSystemForensics/FS/BTRFS/attributes"
@@ -56,7 +57,6 @@ func (ntfsRecord NTFSRecord) FindAttribute(attrName string) Attribute {
 
 func (record BTRFSRecord) LocateData(hD readers.DiskReader, partitionOffsetB int64, blockSizeB int, results chan<- utils.AskedFile,
 	physicalToLogicalMap map[uint64]Chunk) {
-	p := message.NewPrinter(language.Greek)
 
 	var buf bytes.Buffer
 
@@ -71,14 +71,26 @@ func (record BTRFSRecord) LocateData(hD readers.DiskReader, partitionOffsetB int
 	diskSize := hD.GetDiskSize()
 	var volumeOffset uint64
 
-	for _, extent := range record.GetExtents() {
+	//random map
+	extentsMap := record.GetExtents()
+	logicalOffsetsInfile := make([]int, 0, len(extentsMap))
+
+	for logicalOffsetInFile := range extentsMap {
+		logicalOffsetsInfile = append(logicalOffsetsInfile, int(logicalOffsetInFile))
+	}
+	sort.Ints(logicalOffsetsInfile)
+
+	for _, logicalOffsetInFile := range logicalOffsetsInfile {
+		extent := extentsMap[uint64(logicalOffsetInFile)]
 
 		for keyOffset, chunk := range physicalToLogicalMap {
 			chunkItem := chunk.(BTRFSChunk)
-			if extent.ExtentDataRem.LogicaAddress >= keyOffset &&
-				extent.ExtentDataRem.LogicaAddress-keyOffset < chunkItem.Size {
-				blockGroupOffset := extent.ExtentDataRem.LogicaAddress - keyOffset
+			if extent.ExtentDataRem.LogicalAddress >= keyOffset &&
+				extent.ExtentDataRem.LogicalAddress-keyOffset < chunkItem.Size {
+				blockGroupOffset := extent.ExtentDataRem.LogicalAddress - keyOffset
 				volumeOffset = chunkItem.Stripes[0].Offset + blockGroupOffset
+				msg := fmt.Sprintf("block group offset %d chunk offset %d", blockGroupOffset, chunkItem.Stripes[0].Offset)
+				logger.FSLogger.Info(msg)
 				break
 			}
 		}
@@ -89,13 +101,13 @@ func (record BTRFSRecord) LocateData(hD readers.DiskReader, partitionOffsetB int
 			break
 		}
 
-		if extent.ExtentDataRem.LogicaAddress != 0 && extent.ExtentDataRem.LSize > 0 {
+		if extent.ExtentDataRem.LogicalAddress != 0 && extent.ExtentDataRem.LSize > 0 {
 			buf.Write(hD.ReadFile(offset, int(extent.ExtentDataRem.LSize)))
-			res := p.Sprintf("%d", (offset-partitionOffsetB)/int64(blockSizeB))
 
-			msg := fmt.Sprintf("offset %s cl len %d cl.", res, extent.ExtentDataRem.LSize/uint64(blockSizeB))
+			msg := fmt.Sprintf("Read %d bytes from physical offset %d (sectors) logical %d (sectors)",
+				extent.ExtentDataRem.LSize, offset/512, (offset-partitionOffsetB)/512)
 			logger.FSLogger.Info(msg)
-		} else if extent.ExtentDataRem.LogicaAddress == 0 && extent.ExtentDataRem.LSize > 0 {
+		} else if extent.ExtentDataRem.LogicalAddress == 0 && extent.ExtentDataRem.LSize > 0 {
 			//sparse not allocated generate zeros
 
 			buf.Write(make([]byte, extent.ExtentDataRem.LSize))
