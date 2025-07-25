@@ -19,7 +19,7 @@ func (imgreader *EWFReader) CreateHandler() {
 		var ewf_image ewfLib.EWF_Image
 		filenames := ewfutils.FindEvidenceFiles(imgreader.PathToEvidenceFiles)
 
-		ewf_image.ParseEvidence(filenames)
+		ewf_image.ParseEvidenceCH(filenames)
 
 		imgreader.fd = ewf_image
 	}
