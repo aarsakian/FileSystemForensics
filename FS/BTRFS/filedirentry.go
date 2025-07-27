@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/aarsakian/FileSystemForensics/FS/BTRFS/attributes"
@@ -33,7 +34,7 @@ func (fileDirEntry FileDirEntry) GetParentId() (int, error) {
 	}
 }
 
-func (fileDirEntry *FileDirEntry) GetExtents() map[uint64]*attributes.ExtentData {
+func (fileDirEntry FileDirEntry) GetExtentsMap() map[uint64]*attributes.ExtentData {
 	//Map of logical offset in the file to extent
 	extentsMap := make(map[uint64]*attributes.ExtentData)
 	for idx, item := range fileDirEntry.Items {
@@ -48,6 +49,56 @@ func (fileDirEntry *FileDirEntry) GetExtents() map[uint64]*attributes.ExtentData
 		extentsMap[item.Key.Offset] = extData
 	}
 	return extentsMap
+
+}
+
+func (fileDirEntry FileDirEntry) GetExtents() []*attributes.ExtentData {
+	var extents []*attributes.ExtentData
+	for idx, item := range fileDirEntry.Items {
+		if !item.IsExtentData() {
+			continue
+		}
+		extData, ok := fileDirEntry.DataItems[idx].(*attributes.ExtentData)
+		if !ok {
+			continue
+		}
+		extents = append(extents, extData)
+	}
+	return extents
+}
+
+func (fileDirEntry FileDirEntry) GetGroupedExtents() [][]*attributes.ExtentData {
+	var groupedExtents [][]*attributes.ExtentData
+	var extents []*attributes.ExtentData
+
+	extentsMap := fileDirEntry.GetExtentsMap()
+	logicalOffsetsInfile := make([]int, 0, len(extentsMap))
+
+	for logicalOffsetInFile := range extentsMap {
+		logicalOffsetsInfile = append(logicalOffsetsInfile, int(logicalOffsetInFile))
+	}
+	sort.Ints(logicalOffsetsInfile)
+
+	for idx := range logicalOffsetsInfile {
+
+		if idx == 0 || extentsMap[uint64(logicalOffsetsInfile[idx-1])].ExtentDataRem.LogicalAddress+
+			extentsMap[uint64(logicalOffsetsInfile[idx-1])].ExtentDataRem.LSize ==
+			extentsMap[uint64(logicalOffsetsInfile[idx])].ExtentDataRem.LogicalAddress &&
+			extentsMap[uint64(logicalOffsetsInfile[idx])].ExtentDataRem.Offset == 0 &&
+			extentsMap[uint64(logicalOffsetsInfile[idx])].ExtentDataRem.LogicalAddress != 0 {
+
+			extents = append(extents, extentsMap[uint64(logicalOffsetsInfile[idx])])
+		} else {
+			groupedExtents = append(groupedExtents, extents)
+			extents = []*attributes.ExtentData{extentsMap[uint64(logicalOffsetsInfile[idx])]}
+		}
+	}
+
+	//case for one item
+	if len(extents) > 0 {
+		groupedExtents = append(groupedExtents, extents)
+	}
+	return groupedExtents
 
 }
 
@@ -172,7 +223,7 @@ func (fileDirEntry FileDirEntry) ShowPath(pathtype int) {
 }
 
 func (fileDirEntry FileDirEntry) ShowRunList() {
-	for _, extent := range fileDirEntry.GetExtents() {
+	for _, extent := range fileDirEntry.GetExtentsMap() {
 		fmt.Printf("%s \n", extent.GetInfo())
 	}
 }
@@ -196,10 +247,10 @@ func (fileDirEntry FileDirEntry) GetInfo() string {
 	return ""
 }
 
-func (fileDirEntry FileDirEntry) GetExtentsInfo() []string {
+func (fileDirEntry FileDirEntry) GetExtentsMapInfo() []string {
 
 	var extentsInfo []string
-	for _, extent := range fileDirEntry.GetExtents() {
+	for _, extent := range fileDirEntry.GetExtentsMap() {
 		extent.GetInfo()
 	}
 	return extentsInfo
