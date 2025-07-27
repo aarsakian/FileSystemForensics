@@ -198,7 +198,8 @@ func (fileDirEntry FileDirEntry) ShowFileName() {
 }
 
 func (fileDirEntry FileDirEntry) ShowFileSize() {
-	fmt.Printf("%d\n", fileDirEntry.GetLogicalFileSize())
+	fmt.Printf("logical size %.1f KB\n",
+		float64(fileDirEntry.GetLogicalFileSize()/1024))
 }
 
 func (fileDirEntry FileDirEntry) ShowIndex() {
@@ -219,7 +220,7 @@ func (fileDirEntry FileDirEntry) ShowParentRecordInfo() {
 }
 
 func (fileDirEntry FileDirEntry) ShowPath(pathtype int) {
-	fmt.Printf("%s ", filepath.Join(fileDirEntry.Path, fileDirEntry.GetFname()))
+	fmt.Printf("%s \n", filepath.Join(fileDirEntry.Path, fileDirEntry.GetFname()))
 }
 
 func (fileDirEntry FileDirEntry) ShowRunList() {
