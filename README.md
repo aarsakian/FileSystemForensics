@@ -1,7 +1,7 @@
 FileSystemForensics
 ============
 
-### a tool to inspect, extract, files and file system metadata. It currently supports NTFS,  BTRFS. Exporting files in BTRFS volumes is being tested.
+### a tool to inspect, extract, files and file system metadata. It currently supports NTFS,  BTRFS. 
 
 
 
