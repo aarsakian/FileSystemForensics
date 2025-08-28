@@ -357,9 +357,12 @@ func (disk Disk) ListUnallocated() {
 			continue
 		}
 		unallocatedClusters := vol.GetUnallocatedClusters()
+
 		for _, unallocatedCluster := range unallocatedClusters {
 			fmt.Printf("%d \t", unallocatedCluster)
 		}
+
+		fmt.Printf("Total unallocated clusters %d", len(unallocatedClusters))
 	}
 }
 
@@ -383,8 +386,11 @@ func (disk Disk) CollectedUnallocated(blocks chan<- []byte) {
 		for idx, unallocatedCluster := range unallocatedClusters {
 			if idx == 0 {
 				continue
+			} else if idx == len(unallocatedClusters)-1 {
+				blockSize += 1
 			}
-			if unallocatedCluster-prevClusterOffset <= 1 {
+
+			if unallocatedCluster-prevClusterOffset <= 1 && idx != len(unallocatedClusters)-1 { //last one break
 				blockSize += 1
 			} else {
 
