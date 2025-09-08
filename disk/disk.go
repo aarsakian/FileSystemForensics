@@ -8,8 +8,8 @@ import (
 	"sync"
 
 	metadata "github.com/aarsakian/FileSystemForensics/FS"
+	vssLib "github.com/aarsakian/FileSystemForensics/FS/NTFS/VSS"
 	UsnJrnl "github.com/aarsakian/FileSystemForensics/FS/NTFS/usnjrnl"
-	vssLib "github.com/aarsakian/FileSystemForensics/FS/NTFS/vss"
 	gptLib "github.com/aarsakian/FileSystemForensics/disk/partition/GPT"
 	mbrLib "github.com/aarsakian/FileSystemForensics/disk/partition/MBR"
 	"github.com/aarsakian/FileSystemForensics/disk/volume"
