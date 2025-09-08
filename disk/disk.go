@@ -9,7 +9,7 @@ import (
 
 	metadata "github.com/aarsakian/FileSystemForensics/FS"
 	UsnJrnl "github.com/aarsakian/FileSystemForensics/FS/NTFS/usnjrnl"
-	vss "github.com/aarsakian/FileSystemForensics/FS/NTFS/vss"
+	vssLib "github.com/aarsakian/FileSystemForensics/FS/NTFS/vss"
 	gptLib "github.com/aarsakian/FileSystemForensics/disk/partition/GPT"
 	mbrLib "github.com/aarsakian/FileSystemForensics/disk/partition/MBR"
 	"github.com/aarsakian/FileSystemForensics/disk/volume"
@@ -119,7 +119,7 @@ func (disk Disk) ProcessVSS(partitionID int) {
 		}
 		partitionOffsetB := int64(disk.Partitions[idx].GetOffset() * 512)
 
-		vss.ProcessVSS(disk.Handler, partitionOffsetB)
+		vssLib.ProcessVSS(disk.Handler, partitionOffsetB)
 	}
 }
 
