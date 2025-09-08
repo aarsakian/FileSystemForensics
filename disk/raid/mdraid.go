@@ -1,4 +1,4 @@
-package mdraid
+package raid
 
 type Superblock struct {
 	Magic             [4]byte //4bytes 0xa92b4efc (Hexify(Bytereverse
