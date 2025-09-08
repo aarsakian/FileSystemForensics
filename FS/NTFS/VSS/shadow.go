@@ -1,4 +1,4 @@
-package vss
+package VSS
 
 import (
 	"fmt"

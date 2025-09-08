@@ -1,4 +1,4 @@
-package vss
+package VSS
 
 var StoreBlockTypes = map[int]string{0x0001: "Volume Header", 0x0002: "Catalog Header", 0x0003: "Block Descriptor List",
 	0x0004: "Store Header", 0x0005: "Store Block Ranges list", 0x0006: "Store Bitmap"}
