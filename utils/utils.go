@@ -111,6 +111,12 @@ func ToUint32(data []byte) uint32 {
 	return temp
 }
 
+func ToUint16(data []byte) uint16 {
+	var temp uint16
+	binary.Read(bytes.NewBuffer(data), binary.LittleEndian, &temp)
+	return temp
+}
+
 func ReadFile(inputfile string) ([]byte, int, error) {
 	file, err := os.Open(inputfile)
 	if err != nil {
@@ -290,13 +296,17 @@ func Unmarshal(data []byte, v interface{}) (int, error) {
 			field.SetInt(temp)
 		case reflect.Uint64:
 			var temp uint64
+			if idx >= len(data) {
+				return idx, errors.New("exceeded available buffer")
+			}
 
-			if name == "ParRef" || name == "EntryRef" {
+			switch name {
+			case "ParRef", "EntryRef":
 				buf := make([]byte, 8)
 				copy(buf, data[idx:idx+6])
 				binary.Read(bytes.NewBuffer(buf), binary.LittleEndian, &temp)
 				idx += 6
-			} else if name == "ChildVCN" {
+			case "ChildVCN":
 				len := val.FieldByName("Len").Uint()
 				flags := val.FieldByName("Flags").Uint()
 				if flags == 1 {
@@ -304,7 +314,7 @@ func Unmarshal(data []byte, v interface{}) (int, error) {
 
 				}
 
-			} else {
+			default:
 				binary.Read(bytes.NewBuffer(data[idx:idx+8]), binary.LittleEndian, &temp)
 				idx += 8
 			}
@@ -321,8 +331,8 @@ func Unmarshal(data []byte, v interface{}) (int, error) {
 			} else {
 				end = idx + field.Len()
 			}
-			if idx > end {
-				return idx, errors.New("exceede available buffer")
+			if idx >= end {
+				return idx, errors.New("exceeded available buffer")
 			}
 			for idx, val := range data[idx:end] {
 
