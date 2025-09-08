@@ -7,7 +7,7 @@ import (
 	"github.com/aarsakian/FileSystemForensics/utils"
 )
 
-type VSS struct {
+type ShadowVolume struct {
 	Catalog *Catalog
 }
 
@@ -71,7 +71,7 @@ func ProcessVSS(handler readers.DiskReader, partitionOffsetB int64) {
 	var entries1 []CatalogEntry1
 	var entries2 []CatalogEntry2
 	var entries3 []CatalogEntry3
-	_vss := VSS{}
+	_vss := ShadowVolume{}
 	data := handler.ReadFile(partitionOffsetB+7680, 512)
 	header := new(Header)
 	utils.Unmarshal(data, header)
