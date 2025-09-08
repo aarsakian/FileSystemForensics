@@ -74,7 +74,7 @@ func main() {
 
 	orphans := flag.Bool("orphans", false, "show information only for orphan records")
 	deleted := flag.Bool("deleted", false, "show deleted records")
-
+	vss := flag.Bool("vss", false, "process shadow volume copies")
 	listPartitions := flag.Bool("listpartitions", false, "list partitions")
 	listUnallocated := flag.Bool("listunallocated", false, "list unallocated clusters")
 	fileExtensions := flag.String("extensions", "", "search file system records by extensions use comma as a seperator")
@@ -163,6 +163,10 @@ func main() {
 			usnjrnlRecords = disk.ProcessJrnl(recordsPerPartition, *partitionNum-1)
 		}
 
+		if *vss {
+			disk.ProcessVSS(*partitionNum - 1)
+		}
+
 		if *listPartitions {
 			disk.ListPartitions()
 		}
@@ -209,9 +213,9 @@ func main() {
 		disk.Initialize(*evidencefile, *physicalDrive, *vmdkfile)
 
 		lvm2 := new(lvmlib.LVM2)
-		err := lvm2.ProcessHeader(disk.Handler, int64(*physicalOffset*512+512))
+		err := lvm2.ProcessHeader(disk.Handler, int64(*physicalOffset*512))
 		if err == nil {
-			lvm2.Process(disk.Handler, int64(*physicalOffset*512+512), entries, *fromMFTEntry, *toMFTEntry)
+			lvm2.Process(disk.Handler, int64(*physicalOffset*512), entries, *fromMFTEntry, *toMFTEntry)
 		}
 
 	}
