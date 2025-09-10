@@ -9,6 +9,7 @@ import (
 
 type ShadowVolume struct {
 	Catalog *Catalog
+	Stores  []Store
 }
 
 type Header struct {
@@ -67,11 +68,11 @@ type CatalogEntry3 struct {
 	Uknown                    [48]byte
 }
 
-func ProcessVSS(handler readers.DiskReader, partitionOffsetB int64) {
+func (shadowVol *ShadowVolume) Process(handler readers.DiskReader, partitionOffsetB int64) {
 	var entries1 []CatalogEntry1
 	var entries2 []CatalogEntry2
 	var entries3 []CatalogEntry3
-	_vss := ShadowVolume{}
+
 	data := handler.ReadFile(partitionOffsetB+7680, 512)
 	header := new(Header)
 	utils.Unmarshal(data, header)
@@ -106,44 +107,43 @@ func ProcessVSS(handler readers.DiskReader, partitionOffsetB int64) {
 
 	}
 
-	cat := Catalog{Header: catalogHeader, EntriesType1: entries1,
+	shadowVol.Catalog = &Catalog{Header: catalogHeader, EntriesType1: entries1,
 		EntriesType2: entries2, EntriesType3: entries3}
-	_vss.Catalog = &cat
-	for _, entry3 := range cat.EntriesType3 {
+	shadowVol.ProcessStores(handler, partitionOffsetB)
+
+}
+
+func (shadowVol *ShadowVolume) ProcessStores(handler readers.DiskReader, partitionOffsetB int64) {
+	var stores []Store
+	for _, entry3 := range shadowVol.Catalog.EntriesType3 {
 		stor := new(Store)
 
-		storeHeader := new(StoreHeader)
-		data = handler.ReadFile(partitionOffsetB+int64(entry3.StoreHeaderOffset), 16384)
-		readBytes, _ := utils.Unmarshal(data, storeHeader)
-		offset = readBytes
+		data := handler.ReadFile(partitionOffsetB+int64(entry3.StoreHeaderOffset), 16384)
 
-		storeInfo := new(StoreInfo)
-		readBytes, _ = utils.Unmarshal(data[offset:], storeInfo)
-		offset += readBytes - 2 //workaround it counts ServiceMachineNameSize
+		stor.Process(data)
 
-		storeInfo.OperatingMachineName = utils.DecodeUTF16(data[offset : offset+int(storeInfo.OperatingMachineNameSize)])
-		offset += int(storeInfo.OperatingMachineNameSize)
+		storeList := new(StoreList)
+		storeList.Header = new(StoreHeader)
 
-		storeInfo.ServiceMachineNameSize = utils.ToUint16(data[offset:])
-		offset += 2
-		storeInfo.ServiceMachineName = utils.DecodeUTF16(data[offset : offset+int(storeInfo.ServiceMachineNameSize)])
-
-		storeListHeader := new(StoreHeader)
 		data = handler.ReadFile(partitionOffsetB+int64(entry3.StoreBlockListOffset), 16384)
-		readBytes, _ = utils.Unmarshal(data, storeListHeader)
-		offset = readBytes
+		readBytes, _ := utils.Unmarshal(data, storeList.Header)
+		offset := readBytes
 
 		for offset < len(data) {
-			storeList := new(StoreList)
+			storeBlockDescriptor := new(StoreBlockDescriptor)
 
-			readBytes, _ := utils.Unmarshal(data[offset:], storeList)
+			readBytes, _ := utils.Unmarshal(data[offset:], storeBlockDescriptor)
 			offset += readBytes
-			stor.BlockLists = append(stor.BlockLists, *storeList)
+			storeList.BlockDescriptors = append(storeList.BlockDescriptors, *storeBlockDescriptor)
 		}
 
-		storeRangeHeader := new(StoreHeader)
+		stor.StoresList = storeList
+
+		storeBlockRange := new(StoreBlockRange)
+		storeBlockRange.Header = new(StoreHeader)
+
 		data = handler.ReadFile(partitionOffsetB+int64(entry3.StoreBlockRangeListOffset), 16384)
-		readBytes, _ = utils.Unmarshal(data, storeRangeHeader)
+		readBytes, _ = utils.Unmarshal(data, storeBlockRange.Header)
 		offset = readBytes
 
 		for offset < len(data) {
@@ -157,16 +157,27 @@ func ProcessVSS(handler readers.DiskReader, partitionOffsetB int64) {
 				break
 			}
 			offset += readBytes
-			stor.BlockRangeLists = append(stor.BlockRangeLists, *storeRangeEntry)
+			storeBlockRange.BlockRangeLists = append(storeBlockRange.BlockRangeLists, *storeRangeEntry)
 		}
+
+		stor.StoreBlockRange = storeBlockRange
 
 		storeBitmapHeader := new(StoreHeader)
 		data = handler.ReadFile(partitionOffsetB+int64(entry3.StoreBitmapOffset), 16384)
 		utils.Unmarshal(data, storeBitmapHeader)
 
+		stor.BitmapData = make([]byte, len(data[128:]))
+		copy(stor.BitmapData, data[128:])
+
 		storePrevBitmapHeader := new(StoreHeader)
 		data = handler.ReadFile(partitionOffsetB+int64(entry3.StorePrevBitmapOffset), 16384)
 		utils.Unmarshal(data, storePrevBitmapHeader)
+
+		stor.PrevBitmapData = make([]byte, len(data[128:]))
+		copy(stor.PrevBitmapData, data[128:])
+
+		stores = append(stores, *stor)
 	}
+	shadowVol.Stores = stores
 
 }

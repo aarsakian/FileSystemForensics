@@ -1,26 +1,38 @@
 package VSS
 
+import (
+	"github.com/aarsakian/FileSystemForensics/utils"
+)
+
 var StoreBlockTypes = map[int]string{0x0001: "Volume Header", 0x0002: "Catalog Header", 0x0003: "Block Descriptor List",
 	0x0004: "Store Header", 0x0005: "Store Block Ranges list", 0x0006: "Store Bitmap"}
 
 type Store struct {
 	Header          *StoreHeader
-	BlockLists      []StoreList
-	BlockRangeLists []StoreBlockRangeEntry
+	Info            *StoreInfo
+	StoresList      *StoreList
+	StoreBlockRange *StoreBlockRange
+	BitmapData      []byte
+	PrevBitmapData  []byte
 }
 
 type StoreHeader struct {
 	VssGUID        [16]byte
 	Version        uint32
 	RecordType     uint32
-	RelativeOffset uint64
-	CurrentOffset  uint64
-	NextOffset     uint64
-	StoreSize      uint64
+	RelativeOffset uint64 //from start of store
+	CurrentOffset  uint64 //from start of store
+	NextOffset     uint64 //from start of volume 0-> last block
+	StoreSize      uint64 //0 except first block header
 	Uknown         [72]byte
 }
 
 type StoreList struct {
+	Header           *StoreHeader
+	BlockDescriptors []StoreBlockDescriptor
+}
+
+type StoreBlockDescriptor struct {
 	OriginalDataBlockOffset      uint64
 	RelativeStoreDataBlockOffset uint64
 	StoreDataBlockOffset         uint64
@@ -41,6 +53,35 @@ type StoreInfo struct {
 	ServiceMachineNameSize   uint16
 	ServiceMachineName       string
 }
+
+func (store *Store) Process(data []byte) int {
+
+	storeInfoHeader := new(StoreHeader)
+
+	readBytes, _ := utils.Unmarshal(data, storeInfoHeader)
+	offset := readBytes
+
+	storeInfo := new(StoreInfo)
+	readBytes, _ = utils.Unmarshal(data[offset:], storeInfo)
+	offset = readBytes - 2 //workaround it counts ServiceMachineNameSize
+
+	storeInfo.OperatingMachineName = utils.DecodeUTF16(data[offset : offset+int(storeInfo.OperatingMachineNameSize)])
+	offset += int(storeInfo.OperatingMachineNameSize)
+
+	storeInfo.ServiceMachineNameSize = utils.ToUint16(data[offset:])
+	offset += 2
+	storeInfo.ServiceMachineName = utils.DecodeUTF16(data[offset : offset+int(storeInfo.ServiceMachineNameSize)])
+
+	store.Header = storeInfoHeader
+	store.Info = storeInfo
+	return offset
+}
+
+type StoreBlockRange struct {
+	Header          *StoreHeader
+	BlockRangeLists []StoreBlockRangeEntry
+}
+
 type StoreBlockRangeEntry struct {
 	StartOffset    uint64
 	RelativeOffset uint64

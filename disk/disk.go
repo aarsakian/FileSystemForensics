@@ -119,7 +119,8 @@ func (disk Disk) ProcessVSS(partitionID int) {
 		}
 		partitionOffsetB := int64(disk.Partitions[idx].GetOffset() * 512)
 
-		vssLib.ProcessVSS(disk.Handler, partitionOffsetB)
+		shadowVol := new(vssLib.ShadowVolume)
+		shadowVol.Process(disk.Handler, partitionOffsetB)
 	}
 }
 
