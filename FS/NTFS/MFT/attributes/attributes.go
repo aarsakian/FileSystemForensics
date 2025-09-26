@@ -19,7 +19,7 @@ var AttrTypes = map[string]string{
 	"000000b0": "BitMap", "000000c0": "Reparse Point",
 	"000000d0": "Extended Attribute Information",
 	"000000e0": "Extended Attribute", "000000f0": "Extended Attribute Information",
-	"00000100": "Logged Utility Stream",
+	"00000100": "Logged Utility Stream", "00000110": "$TXF_Data",
 	"ffffffff": "Last",
 }
 
