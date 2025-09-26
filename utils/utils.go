@@ -26,6 +26,11 @@ type LargeInteger struct {
 	LowPart  int32
 }
 
+type CandidateRecord struct {
+	Data           []byte
+	PhysicalOffset int
+}
+
 type AskedFile struct {
 	Fname   string
 	Id      int
