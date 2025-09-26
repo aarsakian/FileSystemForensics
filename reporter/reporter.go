@@ -7,20 +7,21 @@ import (
 )
 
 type Reporter struct {
-	ShowFileName   string
-	ShowAttributes string
-	ShowTimestamps bool
-	IsResident     bool
-	ShowFull       bool
-	ShowRunList    bool
-	ShowFileSize   bool
-	ShowVCNs       bool
-	ShowIndex      bool
-	ShowParent     bool
-	ShowPath       bool
-	ShowUSNJRNL    bool
-	ShowReparse    bool
-	ShowTree       bool
+	ShowFileName    string
+	ShowAttributes  string
+	ShowTimestamps  bool
+	IsResident      bool
+	ShowFull        bool
+	ShowRunList     bool
+	ShowFileSize    bool
+	ShowVCNs        bool
+	ShowIndex       bool
+	ShowParent      bool
+	ShowPath        bool
+	ShowUSNJRNL     bool
+	ShowReparse     bool
+	ShowTree        bool
+	ShowVSSClusters bool
 }
 
 func (rp Reporter) Show(records []metadata.Record, usnjrnlRecords UsnJrnl.Records, partitionId int, tree tree.Tree) {
