@@ -606,11 +606,11 @@ func (record Record) GetSignature() string {
 	return string(record.Signature[:])
 }
 
-func (record *Record) ProcessFixUpArrays(data []byte) {
+func (record *Record) ProcessFixUpArrays(data []byte) error {
 	if len(data) < int(2*record.UpdateFixUpArrSize) {
 		msg := fmt.Sprintf("Data not enough to parse fixup array by %d", int(2*record.UpdateFixUpArrSize)-len(data))
 		logger.FSLogger.Warning(msg)
-		return
+		return errors.New(msg)
 	}
 	fixuparray := data[record.UpdateFixUpArrOffset : record.UpdateFixUpArrOffset+2*record.UpdateFixUpArrSize]
 	var fixupvals [][]byte
@@ -622,6 +622,7 @@ func (record *Record) ProcessFixUpArrays(data []byte) {
 	}
 	//2bytes for USN update Sequence Number, rest is USA Update Sequence Array 4 byte
 	record.FixUp = &FixUp{Signature: fixuparray[:2], OriginalValues: fixupvals}
+	return nil
 
 }
 
@@ -634,7 +635,10 @@ func (record *Record) Process(bs []byte) error {
 	} else if record.GetSignature() != "FILE" {
 		return fmt.Errorf("Record has non valid signature %x", record.GetSignature())
 	}
-	record.ProcessFixUpArrays(bs)
+	err := record.ProcessFixUpArrays(bs)
+	if err != nil {
+		return err
+	}
 	record.I30Size = 0 //default value
 
 	ReadPtr := record.AttrOff //offset to first attribute
@@ -741,6 +745,7 @@ func (record *Record) Process(bs []byte) error {
 				msg := fmt.Sprintf("uknown resident attribute %s at record %d",
 					attrHeader.GetType(), record.Entry)
 				logger.FSLogger.Warning(msg)
+				break
 			}
 			if attr != nil {
 				attr.SetHeader(&attrHeader)
@@ -789,9 +794,11 @@ func (record *Record) Process(bs []byte) error {
 			} else {
 				msg := fmt.Sprintf("unknown non resident attr %s", attrHeader.GetType())
 				logger.FSLogger.Warning(msg)
+				break
 			}
 
 		} //ends non Resident
+		logger.FSLogger.Info(fmt.Sprintf("processed attribute %s at %d", attrHeader.GetType(), ReadPtr))
 		ReadPtr = ReadPtr + uint16(attrHeader.AttrLen)
 
 	} //ends while
