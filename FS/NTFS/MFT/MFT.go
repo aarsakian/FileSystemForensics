@@ -99,6 +99,30 @@ func (record Record) IsFolder() bool {
 	return recordType == "Folder Unallocated" || recordType == "Folder Allocated"
 }
 
+func ProcessRecord(ch <-chan utils.CandidateRecord, processedRecord chan<- Record, wg *sync.WaitGroup) {
+
+	magic := []byte{0x46, 0x49, 0x4c, 0x45}
+	for candidateRecord := range ch {
+
+		if bytes.Equal(candidateRecord.Data[:4], magic) {
+			var record Record
+
+			err := record.Process(candidateRecord.Data)
+			if err != nil {
+				logger.FSLogger.Error(err)
+				continue
+			}
+
+			processedRecord <- record
+
+		}
+
+	}
+
+	wg.Done()
+
+}
+
 func (record *Record) ProcessNoNResidentAttributes(hD readers.DiskReader, partitionOffsetB int64, clusterSizeB int, buf *bytes.Buffer) int {
 
 	totalReadBytes := 0

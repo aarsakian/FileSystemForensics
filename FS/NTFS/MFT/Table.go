@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	MFTAttributes "github.com/aarsakian/FileSystemForensics/FS/NTFS/MFT/attributes"
 	"github.com/aarsakian/FileSystemForensics/logger"
@@ -22,8 +23,81 @@ func (e *ParentReallocatedError) Error() string {
 
 // $MFT table points either to its file path or the buffer containing $MFT
 type MFTTable struct {
-	Records []Record
-	Size    int
+	Records       []Record
+	CarvedRecords []Record
+	Size          int
+}
+
+func (mftTable *MFTTable) CarveRecords(hD readers.DiskReader) {
+	Chunk_size := 256 * 1024 * 1024
+	magic := []byte{0x46, 0x49, 0x4c, 0x45}
+	diskSize := hD.GetDiskSize()
+	now := time.Now()
+	processedData := Chunk_size
+
+	for offset := 0; offset < int(diskSize); offset += Chunk_size {
+		data := hD.ReadFile(int64(offset), Chunk_size)
+
+		for sectorOffset := 0; sectorOffset < len(data); sectorOffset += 1024 {
+			if bytes.Equal(data[sectorOffset:sectorOffset+4], magic) {
+				var record Record
+				now = time.Now()
+				err := record.Process(data[sectorOffset : sectorOffset+1024])
+				if err != nil {
+					logger.FSLogger.Error(err)
+					continue
+				}
+				mftTable.CarvedRecords = append(mftTable.CarvedRecords, record)
+			}
+		}
+		processedData += Chunk_size
+		fmt.Printf("%d %f secs\n", processedData, time.Since(now).Seconds())
+
+	}
+
+}
+
+func (mftTable *MFTTable) CarveRecordsCH(hD readers.DiskReader) {
+
+	Chunk_size := 256 * 1024 * 1024
+	processedData := Chunk_size
+	diskSize := hD.GetDiskSize()
+	now := time.Now()
+
+	var wg sync.WaitGroup
+	ch := make(chan utils.CandidateRecord, 100)
+
+	processedRecordsCH := make(chan Record, 10000)
+
+	go func(ch chan<- utils.CandidateRecord, wg *sync.WaitGroup) {
+		for offset := 0; offset < int(diskSize); offset += Chunk_size {
+
+			data := hD.ReadFile(int64(offset), Chunk_size)
+			fmt.Printf("%d MB %f secs\n", processedData/1024/1024, time.Since(now).Seconds())
+			processedData += Chunk_size
+
+			for sectorOffset := 0; sectorOffset < len(data); sectorOffset += 1024 {
+				wg.Add(1)
+				ch <- utils.CandidateRecord{Data: data[sectorOffset : sectorOffset+1024], PhysicalOffset: offset + sectorOffset}
+			}
+
+		}
+		close(ch)
+	}(ch, &wg)
+	wg.Add(1)
+	go func(wg *sync.WaitGroup) {
+		defer wg.Done()
+		for processedRecord := range processedRecordsCH {
+
+			mftTable.CarvedRecords = append(mftTable.CarvedRecords, processedRecord)
+		}
+
+	}(&wg)
+
+	ProcessRecord(ch, processedRecordsCH, &wg)
+
+	close(processedRecordsCH)
+	wg.Wait()
 }
 
 func (mfttable *MFTTable) ProcessRecordsAsync(data []byte) {
@@ -53,8 +127,9 @@ func (mfttable *MFTTable) ProcessRecords(data []byte) {
 	logger.FSLogger.Info(msg)
 
 	var record Record
+
 	for i := 0; i < len(data); i += RecordSize {
-		if utils.Hexify(data[i:i+4]) == "00000000" { //zero area skip
+		if bytes.Equal(data[i:i+4], []byte{0x00, 0x00, 0x00, 0x00}) { //zero area skip
 			continue
 		}
 

@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	metadata "github.com/aarsakian/FileSystemForensics/FS"
+	"github.com/aarsakian/FileSystemForensics/FS/NTFS/MFT"
 	vssLib "github.com/aarsakian/FileSystemForensics/FS/NTFS/VSS"
 	UsnJrnl "github.com/aarsakian/FileSystemForensics/FS/NTFS/usnjrnl"
 	gptLib "github.com/aarsakian/FileSystemForensics/disk/partition/GPT"
@@ -57,6 +58,32 @@ func (disk *Disk) Initialize(evidencefile string, physicaldrive int, vmdkfile st
 	disk.Handler = hD
 }
 
+func (disk *Disk) SearchFileSystem(fstype string) []MFT.Record {
+
+	if fstype == "NTFS" {
+		mft := new(MFT.MFTTable)
+		mft.CarveRecords(disk.Handler)
+		return mft.CarvedRecords
+
+	} else {
+		panic(fmt.Errorf("only NTFS is supported %s", fstype))
+	}
+
+}
+
+func (disk *Disk) SearchFileSystemCH(fstype string) []MFT.Record {
+
+	if fstype == "NTFS" {
+		mft := new(MFT.MFTTable)
+
+		mft.CarveRecordsCH(disk.Handler)
+		return mft.CarvedRecords
+	} else {
+		panic(fmt.Errorf("only NTFS is supported %s", fstype))
+	}
+
+}
+
 func (disk *Disk) Process(partitionNum int, MFTentries []int, fromMFTEntry int, toMFTEntry int) (map[int][]metadata.Record, error) {
 
 	err := disk.DiscoverPartitions()
@@ -83,6 +110,16 @@ func (disk Disk) GetLogicalToPhysicalMap(partitioNum int) (map[uint64]metadata.C
 		return nil, errors.New(msg)
 	}
 	return vol.GetLogicalToPhysicalMap(), nil
+}
+
+func (disk Disk) GetClustersInfo(partitionID int, clusters []int) {
+	for idx, partition := range disk.Partitions {
+		if idx != partitionID {
+			continue
+		}
+		partition.GetVolume().GetFS()
+
+	}
 }
 
 func (disk Disk) ProcessJrnl(recordsPerPartition map[int][]metadata.Record, partitionNum int) []UsnJrnl.Record {
@@ -112,16 +149,18 @@ func (disk Disk) ProcessJrnl(recordsPerPartition map[int][]metadata.Record, part
 
 }
 
-func (disk Disk) ProcessVSS(partitionID int) {
+func (disk Disk) ProcessVSS(partitionID int) vssLib.ShadowVolume {
+	shadowVol := new(vssLib.ShadowVolume)
 	for idx := range disk.Partitions {
 		if idx != partitionID {
 			continue
 		}
 		partitionOffsetB := int64(disk.Partitions[idx].GetOffset() * 512)
 
-		shadowVol := new(vssLib.ShadowVolume)
 		shadowVol.Process(disk.Handler, partitionOffsetB)
+
 	}
+	return *shadowVol
 }
 
 func (disk Disk) Close() {
