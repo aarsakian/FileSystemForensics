@@ -7,6 +7,8 @@ import (
 var StoreBlockTypes = map[int]string{0x0001: "Volume Header", 0x0002: "Catalog Header", 0x0003: "Block Descriptor List",
 	0x0004: "Store Header", 0x0005: "Store Block Ranges list", 0x0006: "Store Bitmap"}
 
+var DataBlockTypes = map[int]string{0x00000001: "Forwarder", 0x00000002: "Overlay", 0x00000004: "Not Used"}
+
 type Store struct {
 	Header          *StoreHeader
 	Info            *StoreInfo
@@ -14,6 +16,13 @@ type Store struct {
 	StoreBlockRange *StoreBlockRange
 	BitmapData      []byte
 	PrevBitmapData  []byte
+}
+
+// System Restore Metadata
+type RSTR struct {
+	Signature [4]byte
+	Version   uint32
+	GUID      [16]byte
 }
 
 type StoreHeader struct {
@@ -33,9 +42,9 @@ type StoreList struct {
 }
 
 type StoreBlockDescriptor struct {
-	OriginalDataBlockOffset      uint64
+	OriginalDataBlockOffset      uint64 //from volume
 	RelativeStoreDataBlockOffset uint64
-	StoreDataBlockOffset         uint64
+	StoreDataBlockOffset         uint64 //from volume
 	Flags                        [4]byte
 	AllocationBitmap             [4]byte
 }
@@ -83,7 +92,11 @@ type StoreBlockRange struct {
 }
 
 type StoreBlockRangeEntry struct {
-	StartOffset    uint64
-	RelativeOffset uint64
+	StartOffset    uint64 //from the start of volume
+	RelativeOffset uint64 //from the start of store
 	RangeSize      uint64
+}
+
+func (storeBlockRangeEntry StoreBlockRangeEntry) LocateClusters(clusters []int) {
+
 }

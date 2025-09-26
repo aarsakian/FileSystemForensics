@@ -181,3 +181,12 @@ func (shadowVol *ShadowVolume) ProcessStores(handler readers.DiskReader, partiti
 	shadowVol.Stores = stores
 
 }
+
+func (shadow ShadowVolume) GetClustersInfo(clusters []int) {
+	for _, store := range shadow.Stores {
+		for _, blockrangeList := range store.StoreBlockRange.BlockRangeLists {
+			blockrangeList.LocateClusters(clusters)
+		}
+	}
+
+}
