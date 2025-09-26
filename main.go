@@ -9,14 +9,15 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"strconv"
 	"strings"
 	"time"
 
 	EWFLogger "github.com/aarsakian/EWF_Reader/logger"
-
+	vssLib "github.com/aarsakian/FileSystemForensics/FS/NTFS/VSS"
 	UsnJrnl "github.com/aarsakian/FileSystemForensics/FS/NTFS/usnjrnl"
 	"github.com/aarsakian/FileSystemForensics/disk"
-	lvmlib "github.com/aarsakian/FileSystemForensics/disk/volume"
+	Vol "github.com/aarsakian/FileSystemForensics/disk/volume"
 	"github.com/aarsakian/FileSystemForensics/exporter"
 	"github.com/aarsakian/FileSystemForensics/filtermanager"
 	"github.com/aarsakian/FileSystemForensics/filters"
@@ -39,7 +40,7 @@ func main() {
 
 	//	save2DB := flag.Bool("db", false, "bool if set an sqlite file will be created, each table will corresponed to an MFT attribute")
 	var location string
-	//inputfile := flag.String("MFT", "", "absolute path to the MFT file")
+	mftOffset := flag.Int("mftoffset", 0, "physical offset to the  $MFT file")
 	evidencefile := flag.String("evidence", "", "path to image file (EWF/Raw formats are supported)")
 	vmdkfile := flag.String("vmdk", "", "path to vmdk file (Sparse formats are supported)")
 
@@ -63,7 +64,7 @@ func main() {
 	partitionNum := flag.Int("partition", 0, "select partition number")
 	physicalOffset := flag.Int("physicaloffset", -1, "offset to volume (sectors)")
 	logical := flag.String("volume", "", "select directly the volume requires offset in bytes, (ntfs, lvm2)")
-
+	searchFS := flag.String("searchfs", "", "look for traces of the file system (NTFS is supported)")
 	buildtree := flag.Bool("tree", false, "reconstrut file system tree")
 
 	showtree := flag.Bool("showtree", false, "show file system tree")
@@ -71,6 +72,10 @@ func main() {
 	showUsnjrnl := flag.Bool("showusn", false, "show information about NTFS usnjrnl records")
 	showFull := flag.Bool("showfull", false, "show full information about record")
 	showreparse := flag.Bool("showreparse", false, "show information about reparse points")
+
+	clusters := flag.String("clusters", "", "clusters to look for")
+
+	showVSSClusters := flag.Bool("showvssclusters", false, "show volume shadow releveat information for selected clusters")
 
 	orphans := flag.Bool("orphans", false, "show information only for orphan records")
 	deleted := flag.Bool("deleted", false, "show deleted records")
@@ -90,6 +95,7 @@ func main() {
 
 	//var records MFT.Records
 	var usnjrnlRecords UsnJrnl.Records
+	var shadowVolume vssLib.ShadowVolume
 	var fileNamesToExport []string
 
 	entries := utils.GetEntriesInt(*MFTSelectedEntries)
@@ -97,20 +103,21 @@ func main() {
 	recordsTree := tree.Tree{}
 
 	rp := reporter.Reporter{
-		ShowFileName:   *showFileName,
-		ShowAttributes: *showAttributes,
-		ShowTimestamps: *showTimestamps,
-		IsResident:     *isResident,
-		ShowFull:       *showFull,
-		ShowRunList:    *showRunList,
-		ShowFileSize:   *showFileSize,
-		ShowVCNs:       *showVCNs,
-		ShowIndex:      *showIndex,
-		ShowParent:     *showParent,
-		ShowPath:       *showPath,
-		ShowUSNJRNL:    *showUsnjrnl,
-		ShowReparse:    *showreparse,
-		ShowTree:       *showtree,
+		ShowFileName:    *showFileName,
+		ShowAttributes:  *showAttributes,
+		ShowTimestamps:  *showTimestamps,
+		IsResident:      *isResident,
+		ShowFull:        *showFull,
+		ShowRunList:     *showRunList,
+		ShowFileSize:    *showFileSize,
+		ShowVCNs:        *showVCNs,
+		ShowIndex:       *showIndex,
+		ShowParent:      *showParent,
+		ShowPath:        *showPath,
+		ShowUSNJRNL:     *showUsnjrnl,
+		ShowReparse:     *showreparse,
+		ShowTree:        *showtree,
+		ShowVSSClusters: *showVSSClusters,
 	}
 
 	if *logactive {
@@ -151,6 +158,17 @@ func main() {
 		disk := new(disk.Disk)
 		disk.Initialize(*evidencefile, *physicalDrive, *vmdkfile)
 
+		if *mftOffset != 0 {
+			vol := Vol.NTFS{}
+			vol.VBR = &Vol.VBR{BytesPerSector: 512, SectorsPerCluster: uint8(4)}
+			vol.Process(disk.Handler, int64(*mftOffset), entries, *fromMFTEntry, *toMFTEntry)
+
+		}
+
+		if *searchFS != "" {
+			disk.SearchFileSystemCH(*searchFS)
+		}
+
 		recordsPerPartition, err := disk.Process(*partitionNum-1, entries, *fromMFTEntry, *toMFTEntry)
 
 		defer disk.Close()
@@ -164,7 +182,7 @@ func main() {
 		}
 
 		if *vss {
-			disk.ProcessVSS(*partitionNum - 1)
+			shadowVolume = disk.ProcessVSS(*partitionNum - 1)
 		}
 
 		if *listPartitions {
@@ -181,6 +199,15 @@ func main() {
 
 		if *collectUnallocated {
 			exp.ExportUnallocated(*disk)
+		}
+
+		if *clusters != "" {
+			var _clusters []int
+			for _, cluster := range strings.Split(*clusters, ",") {
+				val, _ := strconv.ParseUint(cluster, 10, 64)
+				_clusters = append(_clusters, int(val))
+			}
+			shadowVolume.GetClustersInfo(_clusters)
 		}
 
 		for partitionId, records := range recordsPerPartition {
@@ -212,33 +239,12 @@ func main() {
 		disk := new(disk.Disk)
 		disk.Initialize(*evidencefile, *physicalDrive, *vmdkfile)
 
-		lvm2 := new(lvmlib.LVM2)
+		lvm2 := new(Vol.LVM2)
 		err := lvm2.ProcessHeader(disk.Handler, int64(*physicalOffset*512))
 		if err == nil {
 			lvm2.Process(disk.Handler, int64(*physicalOffset*512), entries, *fromMFTEntry, *toMFTEntry)
 		}
 
 	}
-	/* else if *inputfile != "Disk MFT" {
 
-		data, fsize, err := utils.ReadFile(*inputfile)
-		if err != nil {
-			return
-		}
-		var ntfs volume.NTFS
-
-		ntfs.MFT = &MFT.MFTTable{Size: fsize}
-		ntfs.ProcessMFT(data, entries, *fromMFTEntry, *toMFTEntry)
-
-		records = flm.ApplyFilters(ntfs.MFT.Records)
-
-		if *buildtree {
-			recordsTree.Build(records)
-
-		}
-
-		rp.Show(records, usnjrnlRecords, 0, recordsTree)
-
-	}
-	*/
-} //ends for
+}
