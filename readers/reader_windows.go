@@ -77,7 +77,7 @@ func (winreader WindowsReader) ReadFile(startOffset int64, totalSize int) []byte
 		err := setFilePointerEx(winreader.fd, offset+startOffset, windows.FILE_BEGIN)
 
 		if err != nil {
-			panic(fmt.Sprintf("Seek failed at offset %d: %v", offset, err))
+			panic(fmt.Sprintf("Seek failed at offset %d: %v", offset+startOffset, err))
 		}
 
 		toRead := chunkSize
@@ -89,12 +89,12 @@ func (winreader WindowsReader) ReadFile(startOffset int64, totalSize int) []byte
 
 		err = windows.ReadFile(winreader.fd, buffer[:toRead], &bytesRead, nil)
 		if err != nil {
-			panic(fmt.Sprintf("Read failed at offset %d: %v", offset, err))
+			panic(fmt.Sprintf("Read failed at offset %d: %v", offset+startOffset, err))
 		}
 
 		w.Write(buffer)
 
-		logger.FSLogger.Info(fmt.Sprintf("Read %d bytes at offset %d\n", bytesRead, offset))
+		logger.FSLogger.Info(fmt.Sprintf("Read %d bytes at offset %d\n", bytesRead, offset+startOffset))
 		offset += int64(bytesRead)
 
 		if bytesRead == 0 {
