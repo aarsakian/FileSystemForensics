@@ -115,6 +115,10 @@ func Parse(data []byte) IndexEntries {
 		idxEntry.Parse(data[idxEntryOffset:])
 
 		idxEntryOffset += idxEntry.Len
+		if idxEntry.Len == 0 {
+			logger.FSLogger.Warning("zero len index entry")
+			break
+		}
 		idxEntries = append(idxEntries, *idxEntry)
 	}
 	return idxEntries
