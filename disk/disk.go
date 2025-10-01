@@ -58,12 +58,12 @@ func (disk *Disk) Initialize(evidencefile string, physicaldrive int, vmdkfile st
 	disk.Handler = hD
 }
 
-func (disk *Disk) SearchFileSystem(fstype string) []MFT.Record {
+func (disk *Disk) SearchFileSystem(fstype string) []MFT.CarvedRecord {
 
 	if fstype == "NTFS" {
-		mft := new(MFT.MFTTable)
-		mft.CarveRecords(disk.Handler)
-		return mft.CarvedRecords
+		ntfs := new(volume.NTFS)
+		ntfs.CarveRecords(disk.Handler)
+		return ntfs.CarvedRecords
 
 	} else {
 		panic(fmt.Errorf("only NTFS is supported %s", fstype))
@@ -71,13 +71,45 @@ func (disk *Disk) SearchFileSystem(fstype string) []MFT.Record {
 
 }
 
-func (disk *Disk) SearchFileSystemCH(fstype string) []MFT.Record {
+func (disk *Disk) SearchFileSystemCH(fstype string) []MFT.CarvedRecord {
 
 	if fstype == "NTFS" {
-		mft := new(MFT.MFTTable)
+		//educated guess
+		//	sectorsPerCluster := 8
+		//bytesPerSector := 512
+		//	magic := []byte{0x46, 0x49, 0x4c, 0x45}
 
-		mft.CarveRecordsCH(disk.Handler)
-		return mft.CarvedRecords
+		//diskSize := disk.Handler.GetDiskSize()
+
+		ntfs := new(volume.NTFS)
+
+		ntfs.CarveRecordsCH(disk.Handler)
+
+		//bufferSize := int64(64 * 2 * 1024 * bytesPerSector)
+		for _, carvedRecord := range ntfs.CarvedRecords {
+			if carvedRecord.Record.GetFname() != "$MFT" {
+				continue
+			}
+			carvedRecord.Record.ShowFNACreationTime()
+			fmt.Printf("attempting to determine volume offset of candidate $MFT Record with creation date  physical Offset  %d\n",
+				carvedRecord.PhysicalOffset)
+
+			runlist := carvedRecord.Record.GetRunList("DATA") // first record $MFT
+			offset := int64(0)
+
+			for runlist != nil {
+				offset += int64(runlist.Offset)
+
+				clusters := int(runlist.Length)
+				fmt.Println(offset, clusters)
+				if runlist.Next == nil {
+					break
+				}
+
+				runlist = runlist.Next
+			}
+		}
+		return ntfs.CarvedRecords
 	} else {
 		panic(fmt.Errorf("only NTFS is supported %s", fstype))
 	}
