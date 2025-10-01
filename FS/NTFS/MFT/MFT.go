@@ -55,6 +55,10 @@ type LinkedRecordInfo struct {
 	RefSeq   uint16
 	StartVCN uint64
 }
+type CarvedRecord struct {
+	Record         *Record
+	PhysicalOffset int64
+}
 
 // MFT Record
 type Record struct {
@@ -79,6 +83,7 @@ type Record struct {
 	OriginLinkedRecord   *Record            // points to the original record that contaisn the attr list
 	I30Size              uint64
 	Parent               *Record
+	FixupMismatch        bool
 	// fixupArray add the        UpdateSeqArrOffset to find is location
 
 }
@@ -97,30 +102,6 @@ func (mfttable *MFTTable) DetermineClusterOffsetLength() {
 func (record Record) IsFolder() bool {
 	recordType := record.getType()
 	return recordType == "Folder Unallocated" || recordType == "Folder Allocated"
-}
-
-func ProcessRecord(ch <-chan utils.CandidateRecord, processedRecord chan<- Record, wg *sync.WaitGroup) {
-
-	magic := []byte{0x46, 0x49, 0x4c, 0x45}
-	for candidateRecord := range ch {
-
-		if bytes.Equal(candidateRecord.Data[:4], magic) {
-			var record Record
-
-			err := record.Process(candidateRecord.Data)
-			if err != nil {
-				logger.FSLogger.Error(err)
-				continue
-			}
-
-			processedRecord <- record
-
-		}
-
-	}
-
-	wg.Done()
-
 }
 
 func (record *Record) ProcessNoNResidentAttributes(hD readers.DiskReader, partitionOffsetB int64, clusterSizeB int, buf *bytes.Buffer) int {
@@ -645,29 +626,41 @@ func (record *Record) ProcessFixUpArrays(data []byte) error {
 		val += 2
 	}
 	//2bytes for USN update Sequence Number, rest is USA Update Sequence Array 4 byte
-	record.FixUp = &FixUp{Signature: fixuparray[:2], OriginalValues: fixupvals}
-	return nil
+	if len(fixuparray) > 2 {
+		record.FixUp = &FixUp{Signature: fixuparray[:2], OriginalValues: fixupvals}
+		return nil
+	} else {
+		msg := fmt.Sprintf("fixup array len smaller than 2 %d", len(fixuparray))
+		logger.FSLogger.Warning(msg)
+		return errors.New(msg)
+	}
 
 }
 
 func (record *Record) Process(bs []byte) error {
+	var msg string
+	if bytes.Equal(bs[:4], []byte{0x00, 0x00, 0x00, 0x00}) { //zero area skip
+		msg = "Record is zero"
+		logger.FSLogger.Warning(msg)
+		return errors.New(msg)
+
+	} else if bytes.Equal(bs[:4], []byte{0x62, 0x61, 0x61, 0x64}) { //BAAD
+		msg = "Record is corrupt"
+		logger.FSLogger.Warning(msg)
+		return errors.New(msg)
+
+	} else if !bytes.Equal(bs[:4], []byte{0x46, 0x49, 0x4c, 0x45}) { //FILE
+		msg = fmt.Sprintf("Record has non valid signature %x", bs[:4])
+		logger.FSLogger.Warning(msg)
+		return errors.New(msg)
+	}
 
 	utils.Unmarshal(bs, record)
 
-	if record.GetSignature() == "BAAD" { //skip bad entry
-		return errors.New("Record is corrupt")
-	} else if record.GetSignature() != "FILE" {
-		return fmt.Errorf("Record has non valid signature %x", record.GetSignature())
-	}
 	err := record.ProcessFixUpArrays(bs)
 	if err != nil {
 		return err
 	}
-	record.I30Size = 0 //default value
-
-	ReadPtr := record.AttrOff //offset to first attribute
-	var linkedRecordsInfo []LinkedRecordInfo
-	var attributes []Attribute
 
 	//fixup check
 	if record.FixUp.Signature[0] == bs[510] && record.FixUp.Signature[1] == bs[511] {
@@ -675,12 +668,20 @@ func (record *Record) Process(bs []byte) error {
 		bs[511] = record.FixUp.OriginalValues[0][1]
 
 	} else {
-		logger.FSLogger.Warning(fmt.Sprintf("Record %d fixup mismatch ", record.Entry))
+		msg := fmt.Sprintf("Record %d fixup mismatch ", record.Entry)
+		logger.FSLogger.Warning(msg)
+		record.FixupMismatch = true
 	}
+
+	record.I30Size = 0 //default value
+
+	ReadPtr := record.AttrOff //offset to first attribute
+	var linkedRecordsInfo []LinkedRecordInfo
+	var attributes []Attribute
 
 	for ReadPtr < 1024 {
 
-		if utils.Hexify(bs[ReadPtr:ReadPtr+4]) == "ffffffff" { //End of attributes
+		if bytes.Equal(bs[ReadPtr:ReadPtr+4], []byte{0xff, 0xff, 0xff, 0xff}) { //End of attributes
 			break
 		}
 
