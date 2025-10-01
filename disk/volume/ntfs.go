@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"math"
+	"sync"
 	"time"
 
 	metadata "github.com/aarsakian/FileSystemForensics/FS"
@@ -14,8 +15,9 @@ import (
 )
 
 type NTFS struct {
-	VBR *VBR
-	MFT *MFT.MFTTable
+	VBR           *VBR
+	MFT           *MFT.MFTTable
+	CarvedRecords []MFT.CarvedRecord
 }
 
 type VBR struct { //Volume Boot Record
@@ -96,6 +98,100 @@ func (ntfs *NTFS) Process(hD readers.DiskReader, partitionOffsetB int64, MFTSele
 		ntfs.MFT.CalculateFileSizes()
 
 		fmt.Println("completed at ", time.Since(start).Seconds())
+
+	}
+
+}
+
+func (ntfs *NTFS) CarveRecordsCH(hD readers.DiskReader) {
+
+	Chunk_size := 256 * 1024 * 1024
+	processedData := Chunk_size
+	diskSize := hD.GetDiskSize()
+	now := time.Now()
+
+	var wg sync.WaitGroup
+	ch := make(chan utils.CandidateRecord, 10)
+
+	processedRecordsCH := make(chan MFT.CarvedRecord, 100)
+
+	go func(ch chan<- utils.CandidateRecord) {
+
+		for offset := 0; offset < int(diskSize); offset += Chunk_size {
+
+			data := hD.ReadFile(int64(offset), Chunk_size)
+			fmt.Printf("%d MB %.2f mins\n", processedData/1024/1024, time.Since(now).Minutes())
+			processedData += Chunk_size
+
+			for sectorOffset := 0; sectorOffset < len(data); sectorOffset += 1024 {
+
+				ch <- utils.CandidateRecord{Data: data[sectorOffset : sectorOffset+1024], PhysicalOffset: offset + sectorOffset}
+			}
+
+		}
+		close(ch)
+	}(ch)
+
+	numWorks := 8
+	for i := 0; i < numWorks; i++ {
+		wg.Add(1)
+		go ProcessRecord(ch, processedRecordsCH, &wg)
+	}
+
+	go func() {
+
+		wg.Wait()
+		close(processedRecordsCH)
+	}()
+	for processedRecord := range processedRecordsCH {
+
+		ntfs.CarvedRecords = append(ntfs.CarvedRecords, processedRecord)
+	}
+}
+
+func (ntfs *NTFS) CarveRecords(hD readers.DiskReader) {
+	Chunk_size := 256 * 1024 * 1024
+
+	diskSize := hD.GetDiskSize()
+	now := time.Now()
+	processedData := Chunk_size
+
+	for offset := 0; offset < int(diskSize); offset += Chunk_size {
+		data := hD.ReadFile(int64(offset), Chunk_size)
+
+		for sectorOffset := 0; sectorOffset < len(data); sectorOffset += 1024 {
+
+			record := new(MFT.Record)
+			now = time.Now()
+			err := record.Process(data[sectorOffset : sectorOffset+1024])
+			if err != nil {
+				logger.FSLogger.Error(err)
+				continue
+			}
+			ntfs.CarvedRecords = append(ntfs.CarvedRecords, MFT.CarvedRecord{Record: record,
+				PhysicalOffset: int64(offset + sectorOffset)})
+
+		}
+		processedData += Chunk_size
+		fmt.Printf("%d %f secs\n", processedData, time.Since(now).Seconds())
+
+	}
+
+}
+
+func ProcessRecord(ch <-chan utils.CandidateRecord, processedRecord chan<- MFT.CarvedRecord, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	for candidateRecord := range ch {
+
+		record := new(MFT.Record)
+		err := record.Process(candidateRecord.Data)
+		if err != nil {
+			logger.FSLogger.Error(err)
+			continue
+		}
+
+		processedRecord <- MFT.CarvedRecord{Record: record, PhysicalOffset: int64(candidateRecord.PhysicalOffset)}
 
 	}
 
