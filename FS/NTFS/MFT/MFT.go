@@ -770,7 +770,7 @@ func (record *Record) Process(bs []byte) error {
 				msg := fmt.Sprintf("uknown resident attribute %s at record %d",
 					attrHeader.GetType(), record.Entry)
 				logger.FSLogger.Warning(msg)
-				break
+
 			}
 			if attr != nil {
 				attr.SetHeader(&attrHeader)
@@ -819,7 +819,7 @@ func (record *Record) Process(bs []byte) error {
 			} else {
 				msg := fmt.Sprintf("unknown non resident attr %s", attrHeader.GetType())
 				logger.FSLogger.Warning(msg)
-				break
+
 			}
 
 		} //ends non Resident
