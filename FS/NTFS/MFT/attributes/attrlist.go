@@ -4,8 +4,15 @@ import (
 	"fmt"
 	"math"
 
+	"github.com/aarsakian/FileSystemForensics/logger"
 	"github.com/aarsakian/FileSystemForensics/utils"
 )
+
+type LinkedRecordInfo struct {
+	RefEntry uint32
+	RefSeq   uint16
+	StartVCN uint64
+}
 
 type AttributeListEntries struct {
 	Entries []AttributeList
@@ -53,6 +60,20 @@ func (attrListEntries *AttributeListEntries) Parse(data []byte) {
 		}
 
 	}
+}
+
+func (attrListEntries AttributeListEntries) GetLinkedRecordsInfo(entryID uint32) []LinkedRecordInfo {
+	var linkedRecordsInfo []LinkedRecordInfo
+	for _, entry := range attrListEntries.Entries {
+		// attribute is stored in the same base record
+		if entry.ParRef == uint64(entryID) {
+			continue
+		}
+		logger.FSLogger.Info(fmt.Sprintf("appended linked record %d to %d", entry.ParRef, entryID))
+		linkedRecordsInfo = append(linkedRecordsInfo,
+			LinkedRecordInfo{RefEntry: uint32(entry.ParRef), StartVCN: entry.StartVcn, RefSeq: entry.ParSeq})
+	}
+	return linkedRecordsInfo
 }
 
 func (attrListEntries AttributeListEntries) FindType() string {
