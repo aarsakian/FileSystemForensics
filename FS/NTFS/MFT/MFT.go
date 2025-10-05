@@ -496,6 +496,13 @@ func (record Record) ShowIndexTimestamps(attrName string) {
 
 func (record Record) ShowInfo() {
 	fmt.Printf("record %d type %s\n", record.Entry, record.getType())
+	for _, attribute := range record.Attributes {
+		attribute.ShowInfo()
+	}
+	fmt.Printf("================Runlists=============\n")
+	record.ShowRunList()
+	fmt.Printf("=================VCNs===============\n")
+	record.ShowVCNs()
 }
 
 func (record Record) GetResidentData() []byte {
