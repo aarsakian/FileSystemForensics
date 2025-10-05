@@ -1,7 +1,6 @@
 package MFT
 
 import (
-	"bufio"
 	"bytes"
 	"errors"
 	"fmt"
@@ -50,11 +49,7 @@ type Attribute interface {
 }
 
 // when attributes span over a record entry
-type LinkedRecordInfo struct {
-	RefEntry uint32
-	RefSeq   uint16
-	StartVCN uint64
-}
+
 type CarvedRecord struct {
 	Record         *Record
 	PhysicalOffset int64
@@ -78,9 +73,9 @@ type Record struct {
 	Entry                uint32  //44-48                  ??
 	FixUp                *FixUp
 	Attributes           []Attribute
-	LinkedRecordsInfo    []LinkedRecordInfo //holds attrs list entries
-	LinkedRecords        []*Record          // when attribute is too long to fit in one MFT record
-	OriginLinkedRecord   *Record            // points to the original record that contaisn the attr list
+	LinkedRecordsInfo    []MFTAttributes.LinkedRecordInfo //holds attrs list entries
+	LinkedRecords        []*Record                        // when attribute is too long to fit in one MFT record
+	OriginLinkedRecord   *Record                          // points to the original record that contaisn the attr list
 	I30Size              uint64
 	Parent               *Record
 	FixupMismatch        bool
@@ -140,7 +135,10 @@ func (record *Record) ProcessNoNResidentAttributes(hD readers.DiskReader, partit
 
 		} else {
 			record.Attributes[idx].Parse(buf.Bytes()[:actualLen])
-
+			if record.Attributes[idx].GetHeader().IsAttrList() {
+				attrList := record.Attributes[idx].(*MFTAttributes.AttributeListEntries)
+				record.LinkedRecordsInfo = append(record.LinkedRecordsInfo, attrList.GetLinkedRecordsInfo(record.Entry)...)
+			}
 		}
 		totalReadBytes += actualLen
 		buf.Reset()
@@ -150,10 +148,10 @@ func (record *Record) ProcessNoNResidentAttributes(hD readers.DiskReader, partit
 	return totalReadBytes
 }
 
-func ProcessNoNResidentAttributesWorker(records chan Record, hD readers.DiskReader, partitionOffsetB int64,
+func ProcessNoNResidentAttributesWorker(records chan *Record, hD readers.DiskReader, partitionOffsetB int64,
 	clusterSizeB int, wg *sync.WaitGroup) {
 	var buf bytes.Buffer
-	w := bufio.NewWriter(&buf)
+	buf.Grow(16 * clusterSizeB) //experience
 
 	defer wg.Done()
 
@@ -191,11 +189,15 @@ func ProcessNoNResidentAttributesWorker(records chan Record, hD readers.DiskRead
 
 			} else {
 				record.Attributes[idx].Parse(buf.Bytes()[:actualLen])
+				if record.Attributes[idx].GetHeader().IsAttrList() {
+					attrList := record.Attributes[idx].(*MFTAttributes.AttributeListEntries)
+					record.LinkedRecordsInfo = append(record.LinkedRecordsInfo, attrList.GetLinkedRecordsInfo(record.Entry)...)
+				}
 
 			}
 
 			logger.FSLogger.Info(fmt.Sprintf("Processed non resident attribute record %d at pos %d", record.Entry, idx))
-			w.Flush()
+			buf.Reset()
 		}
 
 	}
@@ -349,13 +351,9 @@ func (record Record) IsDeleted() bool {
 }
 
 func (record Record) GetRunList(attrType string) *MFTAttributes.RunList {
-	if len(record.LinkedRecords) == 0 {
-		attr := record.FindAttribute(attrType)
-		return attr.GetHeader().ATRrecordNoNResident.RunList
-	} else {
-		attr := record.LinkedRecords[0].FindAttribute(attrType)
-		return attr.GetHeader().ATRrecordNoNResident.RunList
-	}
+
+	attr := record.FindAttribute(attrType)
+	return attr.GetHeader().ATRrecordNoNResident.RunList
 
 }
 
@@ -676,7 +674,7 @@ func (record *Record) Process(bs []byte) error {
 	record.I30Size = 0 //default value
 
 	ReadPtr := record.AttrOff //offset to first attribute
-	var linkedRecordsInfo []LinkedRecordInfo
+	var linkedRecordsInfo []MFTAttributes.LinkedRecordInfo
 	var attributes []Attribute
 
 	for ReadPtr < 1024 {
@@ -723,17 +721,8 @@ func (record *Record) Process(bs []byte) error {
 				attr = &MFTAttributes.AttributeListEntries{}
 
 				attr.Parse(bs[attrStartOffset:attrEndOffset])
-				attrListEntries := attr.(*MFTAttributes.AttributeListEntries) //dereference
-
-				for _, entry := range attrListEntries.Entries {
-					// attribute is stored in the same base record
-					if entry.ParRef == uint64(record.Entry) {
-						continue
-					}
-					logger.FSLogger.Info(fmt.Sprintf("appended linked record %d to %d", entry.ParRef, record.Entry))
-					linkedRecordsInfo = append(linkedRecordsInfo,
-						LinkedRecordInfo{RefEntry: uint32(entry.ParRef), StartVCN: entry.StartVcn, RefSeq: entry.ParSeq})
-				}
+				attrList := attr.(*MFTAttributes.AttributeListEntries)
+				linkedRecordsInfo = append(linkedRecordsInfo, attrList.GetLinkedRecordsInfo(record.Entry)...)
 
 			} else if attrHeader.IsBitmap() { //BITMAP
 				attr = &MFTAttributes.BitMap{}
@@ -823,6 +812,11 @@ func (record *Record) Process(bs []byte) error {
 			}
 
 		} //ends non Resident
+
+		if attrHeader.AttrLen == 0 {
+			logger.FSLogger.Warning(fmt.Sprintf("Record %d has zero length attribute stopping processing\n", record.Entry))
+			break
+		}
 		logger.FSLogger.Info(fmt.Sprintf("processed attribute %s at %d", attrHeader.GetType(), ReadPtr))
 		ReadPtr = ReadPtr + uint16(attrHeader.AttrLen)
 
@@ -852,9 +846,7 @@ func (record Record) GetPhysicalSize() int64 {
 }
 
 func (record Record) GetLogicalFileSize() int64 {
-	if record.OriginLinkedRecord != nil {
-		return record.OriginLinkedRecord.GetLogicalFileSize()
-	}
+
 	attr := record.FindAttribute("FileName")
 	if attr != nil {
 		fnattr := attr.(*MFTAttributes.FNAttribute)
@@ -883,9 +875,7 @@ func (record Record) GetFnames() map[string]string {
 }
 
 func (record Record) GetFname() string {
-	if record.OriginLinkedRecord != nil {
-		return record.OriginLinkedRecord.GetFname()
-	}
+
 	fnames := record.GetFnames()
 	for _, namescheme := range []string{"Win32", "Win32 & Dos", "POSIX", "Dos"} {
 		name, ok := fnames[namescheme]
