@@ -65,19 +65,17 @@ func (ntfs *NTFS) Process(hD readers.DiskReader, partitionOffsetB int64, MFTSele
 	fmt.Println("completed at ", time.Since(start))
 
 	start = time.Now()
-	msg = "Linking $MFT record non resident $MFT entries"
-	fmt.Printf("%s\n", msg)
-	logger.FSLogger.Info(msg)
-
-	ntfs.MFT.CreateLinkedRecords()
-	fmt.Printf("completed at %f secs \n", time.Since(start).Seconds())
-
-	start = time.Now()
 	fmt.Printf("Processing NoN resident attributes of %d records.\n", len(ntfs.MFT.Records))
 	ntfs.MFT.ProcessNonResidentRecords(hD, partitionOffsetB, int(ntfs.VBR.SectorsPerCluster)*int(ntfs.VBR.BytesPerSector))
 	elapsed := time.Since(start)
-
 	fmt.Printf("completed at %fsecs \n", elapsed.Seconds())
+
+	start = time.Now()
+	msg = "Linking $MFT record non resident $MFT entries"
+	fmt.Printf("%s\n", msg)
+	logger.FSLogger.Info(msg)
+	ntfs.MFT.CreateLinkedRecords()
+	fmt.Printf("completed at %f secs \n", time.Since(start).Seconds())
 
 	if len(MFTSelectedEntries) == 0 && fromMFTEntry == -1 && toMFTEntry == math.MaxUint32 { // additional processing only when user has not selected entries
 
