@@ -66,7 +66,8 @@ func (atrRecordResident *ATRrecordResident) Parse(data []byte) {
 	utils.Unmarshal(data[:8], atrRecordResident)
 }
 
-func (atrRecordNoNResident ATRrecordNoNResident) GetContent(hD readers.DiskReader, partitionOffsetB int64, clusterSizeB int, buf *bytes.Buffer) error {
+func (atrRecordNoNResident ATRrecordNoNResident) GetContent(hD readers.DiskReader, partitionOffsetB int64, clusterSizeB int,
+	buf *bytes.Buffer) error {
 
 	if atrRecordNoNResident.RunList == nil {
 		msg := "non resident attribute has no runlists"
