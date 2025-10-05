@@ -88,7 +88,7 @@ func (mfttable *MFTTable) ProcessNonResidentRecords(hD readers.DiskReader, parti
 	//2 * runtime.NumCPU()
 	numWorker := 4
 
-	records := make(chan Record, len(mfttable.Records))
+	records := make(chan *Record, len(mfttable.Records))
 
 	var wg sync.WaitGroup
 	for w := 1; w <= numWorker; w++ {
@@ -96,7 +96,7 @@ func (mfttable *MFTTable) ProcessNonResidentRecords(hD readers.DiskReader, parti
 		go ProcessNoNResidentAttributesWorker(records, hD, partitionOffsetB, clusterSizeB, &wg)
 	}
 	for idx := range mfttable.Records {
-		records <- mfttable.Records[idx]
+		records <- &mfttable.Records[idx]
 	}
 
 	close(records)
@@ -237,12 +237,7 @@ func (mfttable *MFTTable) SetI30Size(recordId int, attrType string) {
 
 		logger.FSLogger.Info(fmt.Sprintf("updated I30 size of ref Entry %d", referencedEntry.Entry))
 
-		if idxEntry.Fnattr.RealFsize > idxEntry.Fnattr.AllocFsize {
-
-			referencedEntry.I30Size = idxEntry.Fnattr.AllocFsize
-		} else {
-			referencedEntry.I30Size = idxEntry.Fnattr.RealFsize
-		}
+		referencedEntry.I30Size = idxEntry.Fnattr.RealFsize
 
 	}
 
