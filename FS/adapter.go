@@ -196,6 +196,11 @@ func (record NTFSRecord) LocateData(hD readers.DiskReader, partitionOffset int64
 
 				msg := fmt.Sprintf("offset %s cl len %d cl. write offset %d", res, runlist.Length, writeOffset)
 				logger.FSLogger.Info(msg)
+			} else if runlist.Offset == 0 && runlist.Length > 0 {
+				//sparse not allocated generate zeros
+				buf.Write(make([]byte, int(runlist.Length)*clusterSizeB))
+				msg := fmt.Sprintf("sparse  len %d cl.", runlist.Length)
+				logger.FSLogger.Info(msg)
 			}
 
 			if runlist.Next == nil {
