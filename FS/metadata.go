@@ -1,6 +1,8 @@
 package metadata
 
 import (
+	"bytes"
+
 	"github.com/aarsakian/FileSystemForensics/readers"
 	"github.com/aarsakian/FileSystemForensics/utils"
 )
@@ -37,7 +39,7 @@ type Record interface {
 	ShowParentRecordInfo()
 	ShowPath(int)
 
-	LocateData(readers.DiskReader, int64, int, chan<- utils.AskedFile, map[uint64]Chunk)
+	LocateData(readers.DiskReader, int64, int, *bytes.Buffer, map[uint64]Chunk)
 	LocateDataAsync(readers.DiskReader, int64, int, chan<- []byte)
 }
 
