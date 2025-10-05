@@ -1,6 +1,7 @@
 package disk
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"path"
@@ -349,7 +350,7 @@ func (disk Disk) AsyncWorker(wg *sync.WaitGroup, record metadata.Record, dataClu
 		close(dataClusters)
 		return
 	}
-	fmt.Printf("pulling data file %s Id %d\n", record.GetFname(), record.GetID())
+	fmt.Printf("extract data file %s Id %d\n", record.GetFname(), record.GetID())
 	linkedRecords := record.GetLinkedRecords()
 	if len(linkedRecords) == 0 {
 		record.LocateDataAsync(disk.Handler, partitionOffsetB, sectorsPerCluster*bytesPerSector, dataClusters)
@@ -368,6 +369,7 @@ func (disk Disk) AsyncWorker(wg *sync.WaitGroup, record metadata.Record, dataClu
 func (disk Disk) Worker(wg *sync.WaitGroup, records []metadata.Record, results chan<- utils.AskedFile, partitionNum int) {
 	defer wg.Done()
 	partition := disk.Partitions[partitionNum]
+	var buf bytes.Buffer
 
 	vol := partition.GetVolume()
 	sectorsPerCluster := int(vol.GetSectorsPerCluster())
@@ -387,19 +389,24 @@ func (disk Disk) Worker(wg *sync.WaitGroup, records []metadata.Record, results c
 			continue
 		}
 
-		fmt.Printf("pulling data file %s Id %d\n", record.GetFname(), record.GetID())
 		linkedRecords := record.GetLinkedRecords()
+
+		lSize := int(record.GetLogicalFileSize())
+		buf.Grow(lSize)
+
+		fmt.Printf("extracting data file %s Id %d %d MB\n", record.GetFname(), record.GetID(), lSize/1024/1024)
+
 		if len(linkedRecords) == 0 {
-			record.LocateData(disk.Handler, partitionOffsetB, sectorsPerCluster*bytesPerSector, results, physicalToLogicalMap)
+			record.LocateData(disk.Handler, partitionOffsetB, sectorsPerCluster*bytesPerSector, &buf, physicalToLogicalMap)
 		} else { // attribute runlist
 
 			for _, linkedRecord := range linkedRecords {
-				linkedRecord.LocateData(disk.Handler, partitionOffsetB, sectorsPerCluster*bytesPerSector, results, physicalToLogicalMap)
+				linkedRecord.LocateData(disk.Handler, partitionOffsetB, sectorsPerCluster*bytesPerSector, &buf, physicalToLogicalMap)
 
 			}
 		}
 		// use lsize to make sure that we cannot exceed the logical size
-
+		results <- utils.AskedFile{Fname: record.GetFname(), Content: buf.Bytes()[:lSize], Id: int(record.GetID())}
 	}
 	close(results)
 
