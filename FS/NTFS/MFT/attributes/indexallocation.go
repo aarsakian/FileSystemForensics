@@ -1,6 +1,7 @@
 package attributes
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 
@@ -90,9 +91,11 @@ func (idxAllocation *IndexAllocationRecords) Parse(data []byte) {
 func (idxAllocation *IndexAllocation) Parse(data []byte) {
 	utils.Unmarshal(data[:24], idxAllocation)
 
-	idxAllocation.ProcessFixUpArrays(data)
-
 	if idxAllocation.GetSignature() == "INDX" {
+		err := idxAllocation.ProcessFixUpArrays(data)
+		if err != nil {
+			return
+		}
 		var nodeheader *NodeHeader = new(NodeHeader)
 		utils.Unmarshal(data[24:24+16], nodeheader)
 		idxAllocation.Nodeheader = nodeheader
@@ -124,17 +127,17 @@ func (idxAllocation *IndexAllocation) Parse(data []byte) {
 
 }
 
-func (idxAllocation *IndexAllocation) ProcessFixUpArrays(data []byte) {
+func (idxAllocation *IndexAllocation) ProcessFixUpArrays(data []byte) error {
 	if len(data) < int(idxAllocation.FixupArrayOffset) ||
 		len(data) < int(idxAllocation.FixupArrayOffset+2*idxAllocation.NumFixupEntries) {
 
 		msg := fmt.Sprintf("Data not enough to parse fixup array by %d", int(2*idxAllocation.NumFixupEntries)-len(data))
 		logger.FSLogger.Warning(msg)
-		return
+		return errors.New(msg)
 	} else if idxAllocation.FixupArrayOffset > idxAllocation.FixupArrayOffset+2*idxAllocation.NumFixupEntries {
 		msg := fmt.Sprintf("fixup array offset issue %d vs %d", idxAllocation.FixupArrayOffset, int(2*idxAllocation.NumFixupEntries)-len(data))
 		logger.FSLogger.Warning(msg)
-		return
+		return errors.New(msg)
 	}
 
 	fixuparray := data[idxAllocation.FixupArrayOffset : idxAllocation.FixupArrayOffset+2*idxAllocation.NumFixupEntries]
@@ -150,7 +153,7 @@ func (idxAllocation *IndexAllocation) ProcessFixUpArrays(data []byte) {
 
 	//2 byte USN 8 byte USA
 	idxAllocation.FixUp = &FixUp{Signature: fixuparray[:2], OriginalValues: fixupvals}
-
+	return nil
 }
 
 func (idxAllocation IndexAllocation) GetIndexEntriesSortedByMFTEntry() IndexEntries {
