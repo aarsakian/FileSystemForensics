@@ -39,56 +39,56 @@ func (rp Reporter) Show(records []metadata.Record, usnjrnlRecords UsnJrnl.Record
 
 		}
 
-		if rp.ShowFileName != "" || rp.ShowFull {
+		if rp.ShowFileName != "" {
 			record.ShowAttributes("FileName")
 
 		}
 
-		if rp.ShowAttributes != "" || rp.ShowFull {
+		if rp.ShowAttributes != "" {
 			record.ShowAttributes(rp.ShowAttributes)
 
 		}
 
-		if rp.ShowTimestamps || rp.ShowFull {
+		if rp.ShowTimestamps {
 			record.ShowTimestamps()
 
 		}
 
-		if rp.IsResident || rp.ShowFull {
+		if rp.IsResident {
 			record.ShowIsResident()
 
 		}
 
-		if rp.ShowRunList || rp.ShowFull {
+		if rp.ShowRunList {
 			record.ShowRunList()
 
 		}
 
-		if rp.ShowFileSize || rp.ShowFull {
+		if rp.ShowFileSize {
 			record.ShowFileSize()
 
 		}
 
-		if rp.ShowVCNs || rp.ShowFull {
+		if rp.ShowVCNs {
 			record.ShowVCNs()
 
 		}
 
-		if rp.ShowIndex || rp.ShowFull {
+		if rp.ShowIndex {
 
 			record.ShowIndex()
 
 		}
 
-		if rp.ShowParent || rp.ShowFull {
+		if rp.ShowParent {
 			record.ShowParentRecordInfo()
 		}
 
-		if rp.ShowPath || rp.ShowFull {
+		if rp.ShowPath {
 			record.ShowPath(partitionId)
 		}
 
-		if rp.ShowReparse || rp.ShowFull {
+		if rp.ShowReparse {
 			record.ShowAttributes("Reparse Point")
 		}
 	}
