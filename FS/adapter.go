@@ -107,13 +107,8 @@ func (record BTRFSRecord) LocateDataORG(hD readers.DiskReader, partitionOffsetB 
 }
 
 func (record BTRFSRecord) LocateData(hD readers.DiskReader, partitionOffsetB int64,
-	blockSizeB int, results chan<- utils.AskedFile,
+	blockSizeB int, buf *bytes.Buffer,
 	physicalToLogicalMap map[uint64]Chunk) {
-
-	var buf bytes.Buffer
-
-	lSize := int(record.GetLogicalFileSize())
-	buf.Grow(lSize)
 
 	/*if fileDirEntry.HasResidentDataAttr() {
 		buf.Write(fileDirEntry.GetResidentData())
@@ -154,7 +149,7 @@ func (record BTRFSRecord) LocateData(hD readers.DiskReader, partitionOffsetB int
 			buf.Write(hD.ReadFile(offset, int(toRead)))
 
 			msg := fmt.Sprintf("Read %d bytes from physical offset %d (sectors) logical %d (sectors) total bytes read %d out of %d",
-				toRead, offset/512, (offset-partitionOffsetB)/512, totalReadBytes, lSize)
+				toRead, offset/512, (offset-partitionOffsetB)/512, totalReadBytes, buf.Cap())
 			logger.FSLogger.Info(msg)
 		} else if startFrom == 0 && toRead > 0 {
 			//sparse not allocated generate zeros
@@ -167,19 +162,14 @@ func (record BTRFSRecord) LocateData(hD readers.DiskReader, partitionOffsetB int
 	}
 
 	//truncate buf grows over len?
-	results <- utils.AskedFile{Fname: record.GetFname(), Content: buf.Bytes()[:lSize], Id: int(record.Id)}
+	//results <- utils.AskedFile{Fname: record.GetFname(), Content: buf.Bytes()[:lSize], Id: int(record.Id)}
 }
 
-func (record NTFSRecord) LocateData(hD readers.DiskReader, partitionOffset int64, clusterSizeB int, results chan<- utils.AskedFile,
+func (record NTFSRecord) LocateData(hD readers.DiskReader, partitionOffset int64, clusterSizeB int, buf *bytes.Buffer,
 	physicalToLogicalMap map[uint64]Chunk) {
 	p := message.NewPrinter(language.Greek)
 
 	writeOffset := 0
-
-	var buf bytes.Buffer
-
-	lSize := int(record.GetLogicalFileSize())
-	buf.Grow(lSize)
 
 	if record.HasResidentDataAttr() {
 		buf.Write(record.GetResidentData())
@@ -204,7 +194,7 @@ func (record NTFSRecord) LocateData(hD readers.DiskReader, partitionOffset int64
 				buf.Write(hD.ReadFile(offset, int(runlist.Length)*clusterSizeB))
 				res := p.Sprintf("%d", (offset-partitionOffset)/int64(clusterSizeB))
 
-				msg := fmt.Sprintf("offset %s cl len %d cl.", res, runlist.Length)
+				msg := fmt.Sprintf("offset %s cl len %d cl. write offset %d", res, runlist.Length, writeOffset)
 				logger.FSLogger.Info(msg)
 			}
 
@@ -218,5 +208,5 @@ func (record NTFSRecord) LocateData(hD readers.DiskReader, partitionOffset int64
 
 	}
 	//truncate buf grows over len?
-	results <- utils.AskedFile{Fname: record.GetFname(), Content: buf.Bytes()[:lSize], Id: int(record.Entry)}
+
 }
