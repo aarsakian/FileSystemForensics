@@ -7,7 +7,7 @@ FileSystemForensics
 
 By using this tool, you can explore NTFS and its file system attributes. You can selectively extract filesystem information of a record, or for a range of records. In addition, you can export the contents of files. 
 
-Exporting files can be achieved either by mounting the evidence and providing its physical drive order and partition number or by using the acquired forensic image (Expert Witness Format), or a virtual machine disk format (VMDK). 
+Exporting files can be achieved either by mounting the evidence and providing its physical drive order and partition number or by using the acquired forensic image (Expert Witness Format), or a virtual machine disk format (VMDK) as input.
 
 #### Examples #####
 you can explore NTFS or BTRFS by providing physical drive number and partition number 
@@ -24,6 +24,9 @@ e.g. *-evidence path_to_evidence -partition 1*.
  
   -attributes string
         show file system attributes (write any for all attributes)
+
+  -clusters string
+        clusters to look for
  
   -deleted
         show deleted records
@@ -82,6 +85,9 @@ e.g. *-evidence path_to_evidence -partition 1*.
   -resident
         check whether entry is resident
 
+  -searchfs string
+      look for traces of the file system (NTFS is supported)
+
   -showfilename string
         show the name of the filename attribute of MFT records: enter (Any, Win32, Dos)
 
@@ -134,3 +140,6 @@ e.g. *-evidence path_to_evidence -partition 1*.
 
   -volume string
         select directly the volume requires offset in bytes, (ntfs, lvm2)
+
+-vss (support experimental)
+        process shadow volume copies
