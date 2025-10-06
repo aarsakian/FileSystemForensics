@@ -94,7 +94,7 @@ func (winreader WindowsReader) ReadFile(startOffset int64, totalSize int) []byte
 
 		w.Write(buffer)
 
-		logger.FSLogger.Info(fmt.Sprintf("Read %d bytes at offset %d\n", bytesRead, offset+startOffset))
+		logger.FSLogger.Info(fmt.Sprintf("Read %d bytes at offset %d", bytesRead, offset+startOffset))
 		offset += int64(bytesRead)
 
 		if bytesRead == 0 {
