@@ -503,6 +503,11 @@ func (record Record) ShowInfo() {
 	record.ShowRunList()
 	fmt.Printf("=================VCNs===============\n")
 	record.ShowVCNs()
+	fmt.Printf("=================Linked Records (Attribute lists)============\n")
+	for _, linkedRecord := range record.LinkedRecords {
+		linkedRecord.ShowInfo()
+	}
+
 }
 
 func (record Record) GetResidentData() []byte {
@@ -693,6 +698,15 @@ func (record *Record) Process(bs []byte) error {
 		var attrHeader MFTAttributes.AttributeHeader
 		utils.Unmarshal(bs[ReadPtr:ReadPtr+16], &attrHeader)
 
+		if attrHeader.AttrLen == 0 {
+			logger.FSLogger.Warning(fmt.Sprintf("Record %d has zero length attribute stopping processing\n", record.Entry))
+			break
+		} else if int(ReadPtr+attrHeader.AttrLen) > len(bs) {
+			msg = fmt.Sprintf("excedeed buffer by %d", int(ReadPtr+attrHeader.AttrLen)-len(bs))
+			logger.FSLogger.Warning(msg)
+			break
+		}
+
 		if attrHeader.IsLast() { // End of attributes
 			break
 		}
@@ -820,10 +834,6 @@ func (record *Record) Process(bs []byte) error {
 
 		} //ends non Resident
 
-		if attrHeader.AttrLen == 0 {
-			logger.FSLogger.Warning(fmt.Sprintf("Record %d has zero length attribute stopping processing\n", record.Entry))
-			break
-		}
 		logger.FSLogger.Info(fmt.Sprintf("processed attribute %s at %d", attrHeader.GetType(), ReadPtr))
 		ReadPtr = ReadPtr + uint16(attrHeader.AttrLen)
 
