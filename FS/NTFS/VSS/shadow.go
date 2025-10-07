@@ -8,8 +8,9 @@ import (
 )
 
 type ShadowVolume struct {
-	Catalog *Catalog
-	Stores  []Store
+	Header   *Header
+	Catalogs []Catalog
+	Stores   []Store
 }
 
 type Header struct {
@@ -25,12 +26,12 @@ type Header struct {
 }
 
 type CatalogHeader struct {
-	VssGUID        [16]byte
-	Version        uint32
-	RecordType     uint32
-	RelativeOffset int64
-	CurrentOffset  int64
-	NextOffset     int64
+	VssGUID       [16]byte
+	Version       uint32
+	RecordType    uint32
+	ShadowOffset  int64
+	CurrentOffset int64 //from start of volume block catalog
+	NextOffset    int64 //next catalog block
 }
 
 type Catalog struct {
@@ -74,119 +75,179 @@ func (shadowVol *ShadowVolume) Process(handler readers.DiskReader, partitionOffs
 	var entries3 []CatalogEntry3
 
 	data := handler.ReadFile(partitionOffsetB+7680, 512)
-	header := new(Header)
-	utils.Unmarshal(data, header)
 
-	data = handler.ReadFile(partitionOffsetB+header.CatalogOffset, 16384)
-	catalogHeader := new(CatalogHeader)
-	utils.Unmarshal(data[:128], catalogHeader)
-	offset := 128
+	shadowVol.Header = new(Header)
+	utils.Unmarshal(data, shadowVol.Header)
 
-	for offset < len(data) {
-		if data[offset] == 0x01 {
-			entry1 := new(CatalogEntry1)
-			readBytes, _ := utils.Unmarshal(data[offset:], entry1)
-			offset += readBytes
+	data = handler.ReadFile(partitionOffsetB+shadowVol.Header.CatalogOffset, 16384)
 
-			entries1 = append(entries1, *entry1)
-		} else if data[offset] == 0x02 {
-			entry2 := new(CatalogEntry2)
-			readBytes, _ := utils.Unmarshal(data[offset:], entry2)
-			offset += readBytes
+	for {
 
-			entries2 = append(entries2, *entry2)
-		} else if data[offset] == 0x03 {
-			entry3 := new(CatalogEntry3)
-			readBytes, _ := utils.Unmarshal(data[offset:], entry3)
-			offset += readBytes
+		catalogHeader := new(CatalogHeader)
+		utils.Unmarshal(data[:128], catalogHeader)
+		offset := 128
+	loop:
+		for offset < len(data) {
+			switch data[offset] {
+			case 0x01:
+				entry1 := new(CatalogEntry1)
+				readBytes, _ := utils.Unmarshal(data[offset:], entry1)
+				offset += readBytes
 
-			entries3 = append(entries3, *entry3)
-		} else {
+				entries1 = append(entries1, *entry1)
+			case 0x02:
+				entry2 := new(CatalogEntry2)
+				readBytes, _ := utils.Unmarshal(data[offset:], entry2)
+				offset += readBytes
+
+				entries2 = append(entries2, *entry2)
+			case 0x03:
+				entry3 := new(CatalogEntry3)
+				readBytes, _ := utils.Unmarshal(data[offset:], entry3)
+				offset += readBytes
+
+				entries3 = append(entries3, *entry3)
+			default:
+				break loop
+			}
+
+		}
+		if catalogHeader.NextOffset == 0 {
 			break
 		}
+		data = handler.ReadFile(partitionOffsetB+catalogHeader.NextOffset, 16384)
+		shadowVol.Catalogs = append(shadowVol.Catalogs, Catalog{Header: catalogHeader, EntriesType1: entries1,
+			EntriesType2: entries2, EntriesType3: entries3})
 
 	}
 
-	shadowVol.Catalog = &Catalog{Header: catalogHeader, EntriesType1: entries1,
-		EntriesType2: entries2, EntriesType3: entries3}
 	shadowVol.ProcessStores(handler, partitionOffsetB)
 
 }
 
 func (shadowVol *ShadowVolume) ProcessStores(handler readers.DiskReader, partitionOffsetB int64) {
 	var stores []Store
-	for _, entry3 := range shadowVol.Catalog.EntriesType3 {
-		stor := new(Store)
+	for _, catalog := range shadowVol.Catalogs {
+		for _, entry3 := range catalog.EntriesType3 {
+			stor := new(Store)
 
-		data := handler.ReadFile(partitionOffsetB+int64(entry3.StoreHeaderOffset), 16384)
+			data := handler.ReadFile(partitionOffsetB+int64(entry3.StoreHeaderOffset), 16384)
 
-		stor.Process(data)
+			stor.Process(data)
 
-		storeList := new(StoreList)
-		storeList.Header = new(StoreHeader)
+			storeList := new(StoreList)
+			storeList.Header = new(StoreHeader)
 
-		data = handler.ReadFile(partitionOffsetB+int64(entry3.StoreBlockListOffset), 16384)
-		readBytes, _ := utils.Unmarshal(data, storeList.Header)
-		offset := readBytes
+			data = handler.ReadFile(partitionOffsetB+int64(entry3.StoreBlockListOffset), 16384)
+			readBytes, _ := utils.Unmarshal(data, storeList.Header)
+			offset := readBytes
 
-		for offset < len(data) {
-			storeBlockDescriptor := new(StoreBlockDescriptor)
+			for offset < len(data) {
+				storeBlockDescriptor := new(StoreBlockDescriptor)
 
-			readBytes, _ := utils.Unmarshal(data[offset:], storeBlockDescriptor)
-			offset += readBytes
-			storeList.BlockDescriptors = append(storeList.BlockDescriptors, *storeBlockDescriptor)
-		}
-
-		stor.StoresList = storeList
-
-		storeBlockRange := new(StoreBlockRange)
-		storeBlockRange.Header = new(StoreHeader)
-
-		data = handler.ReadFile(partitionOffsetB+int64(entry3.StoreBlockRangeListOffset), 16384)
-		readBytes, _ = utils.Unmarshal(data, storeBlockRange.Header)
-		offset = readBytes
-
-		for offset < len(data) {
-			storeRangeEntry := new(StoreBlockRangeEntry)
-			readBytes, err := utils.Unmarshal(data[offset:], storeRangeEntry)
-			if storeRangeEntry.StartOffset == 0 {
-				break
+				readBytes, _ := utils.Unmarshal(data[offset:], storeBlockDescriptor)
+				offset += readBytes
+				storeList.BlockDescriptors = append(storeList.BlockDescriptors, *storeBlockDescriptor)
 			}
-			if err != nil {
-				fmt.Println(err)
-				break
+
+			stor.StoresList = storeList
+
+			storeBlockRange := new(StoreBlockRange)
+			storeBlockRange.Header = new(StoreHeader)
+
+			data = handler.ReadFile(partitionOffsetB+int64(entry3.StoreBlockRangeListOffset), 16384)
+			readBytes, _ = utils.Unmarshal(data, storeBlockRange.Header)
+			offset = readBytes
+
+			for offset < len(data) {
+				storeRangeEntry := new(StoreBlockRangeEntry)
+				readBytes, err := utils.Unmarshal(data[offset:], storeRangeEntry)
+				if storeRangeEntry.StartOffset == 0 {
+					break
+				}
+				if err != nil {
+					fmt.Println(err)
+					break
+				}
+				offset += readBytes
+				storeBlockRange.BlockRangeLists = append(storeBlockRange.BlockRangeLists, *storeRangeEntry)
 			}
-			offset += readBytes
-			storeBlockRange.BlockRangeLists = append(storeBlockRange.BlockRangeLists, *storeRangeEntry)
+
+			stor.StoreBlockRange = storeBlockRange
+
+			storeBitmapHeader := new(StoreHeader)
+			data = handler.ReadFile(partitionOffsetB+int64(entry3.StoreBitmapOffset), 16384)
+			utils.Unmarshal(data, storeBitmapHeader)
+
+			stor.BitmapData = make([]byte, len(data[128:]))
+			copy(stor.BitmapData, data[128:])
+
+			storePrevBitmapHeader := new(StoreHeader)
+			data = handler.ReadFile(partitionOffsetB+int64(entry3.StorePrevBitmapOffset), 16384)
+			utils.Unmarshal(data, storePrevBitmapHeader)
+
+			stor.PrevBitmapData = make([]byte, len(data[128:]))
+			copy(stor.PrevBitmapData, data[128:])
+
+			stores = append(stores, *stor)
 		}
-
-		stor.StoreBlockRange = storeBlockRange
-
-		storeBitmapHeader := new(StoreHeader)
-		data = handler.ReadFile(partitionOffsetB+int64(entry3.StoreBitmapOffset), 16384)
-		utils.Unmarshal(data, storeBitmapHeader)
-
-		stor.BitmapData = make([]byte, len(data[128:]))
-		copy(stor.BitmapData, data[128:])
-
-		storePrevBitmapHeader := new(StoreHeader)
-		data = handler.ReadFile(partitionOffsetB+int64(entry3.StorePrevBitmapOffset), 16384)
-		utils.Unmarshal(data, storePrevBitmapHeader)
-
-		stor.PrevBitmapData = make([]byte, len(data[128:]))
-		copy(stor.PrevBitmapData, data[128:])
-
-		stores = append(stores, *stor)
 	}
 	shadowVol.Stores = stores
 
 }
 
-func (shadow ShadowVolume) GetClustersInfo(clusters []int) {
+func (shadow ShadowVolume) GetClustersInfo(clusters []int) []int {
+	shadowClusterOffsets := make([]int, 2)
+	for idx, cluster := range clusters {
+		shadowClusterOffsets[idx] = shadow.GetShadowClusterOffset([]int{cluster})
+
+	}
+	return shadowClusterOffsets
+}
+
+func (shadow ShadowVolume) GetShadowClusterOffset(clusters []int) int {
 	for _, store := range shadow.Stores {
 		for _, blockrangeList := range store.StoreBlockRange.BlockRangeLists {
-			blockrangeList.LocateClusters(clusters)
+			if blockrangeList.HasClusters(clusters[0]) {
+				return int(blockrangeList.ShadowOffset)/4096 + clusters[0] - int(blockrangeList.StartOffset/4096)
+			}
 		}
+
+		for _, blockDescriptor := range store.StoresList.BlockDescriptors {
+			if int(blockDescriptor.OriginalDataBlockOffset) == clusters[0]*4096 {
+				return int(blockDescriptor.ShadowDataBlockOffset)
+			}
+		}
+	}
+	return -1
+
+}
+
+func (shadow ShadowVolume) ListVSS() {
+	for _, store := range shadow.Stores {
+		fmt.Printf("%s \n", store.Header.GetInfo())
+		if store.Info != nil {
+			fmt.Printf(" %s Machine ID %s Service ID %s\n", store.Info.DecodeStoreAttributeFlags(),
+				store.Info.OperatingMachineName, store.Info.ServiceMachineName)
+		}
+		fmt.Printf("Block Ranges %s\n", store.StoreBlockRange.Header.GetInfo())
+
+		for _, blockrangeList := range store.StoreBlockRange.BlockRangeLists {
+			fmt.Printf("%d -> %d\n",
+				blockrangeList.StartOffset/4096,
+				blockrangeList.StartOffset/4096+blockrangeList.RangeSize/4096)
+		}
+		fmt.Printf("Store Blocks: %s\n", store.StoresList.Header.GetInfo())
+		for _, blockDescriptor := range store.StoresList.BlockDescriptors {
+			if blockDescriptor.OriginalDataBlockOffset == 0 {
+				continue
+			}
+			fmt.Printf("%s : %d -> %d \t",
+				blockDescriptor.DecodeStoreBlockFlags(),
+				blockDescriptor.OriginalDataBlockOffset/4096,
+				blockDescriptor.StoreDataBlockOffset/4096)
+		}
+		fmt.Printf("\n")
 	}
 
 }
