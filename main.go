@@ -74,6 +74,7 @@ func main() {
 	showreparse := flag.Bool("showreparse", false, "show information about reparse points")
 
 	clusters := flag.String("clusters", "", "clusters to look for")
+	listvss := flag.Bool("listvss", false, "list vss copied clusters")
 
 	showVSSClusters := flag.Bool("showvssclusters", false, "show volume shadow releveat information for selected clusters")
 
@@ -207,7 +208,19 @@ func main() {
 				val, _ := strconv.ParseUint(cluster, 10, 64)
 				_clusters = append(_clusters, int(val))
 			}
-			shadowVolume.GetClustersInfo(_clusters)
+			offsets := shadowVolume.GetClustersInfo(_clusters)
+			for idx, offset := range offsets {
+				if offset == -1 {
+					fmt.Printf("%d cl shadow offset not found\n", _clusters[idx])
+				} else {
+					fmt.Printf("%d cl shadow offset cl %d\n", _clusters[idx], offset)
+				}
+			}
+
+		}
+
+		if *listvss {
+			shadowVolume.ListVSS()
 		}
 
 		for partitionId, records := range recordsPerPartition {
