@@ -34,11 +34,6 @@ var MFTflags = map[uint16]string{
 
 type Records []Record
 
-type FixUp struct {
-	Signature      []byte
-	OriginalValues [][]byte
-}
-
 type Attribute interface {
 	FindType() string
 	SetHeader(header *MFTAttributes.AttributeHeader)
@@ -71,7 +66,7 @@ type Record struct {
 	NextAttrID           uint16  //40-41 e.g. if it is 6 then there are attributes with 1 to 5
 	F1                   uint16  //42-43
 	Entry                uint32  //44-48                  ??
-	FixUp                *FixUp
+	FixUp                *utils.FixUp
 	Attributes           []Attribute
 	LinkedRecordsInfo    []MFTAttributes.LinkedRecordInfo //holds attrs list entries
 	LinkedRecords        []*Record                        // when attribute is too long to fit in one MFT record
@@ -637,7 +632,7 @@ func (record *Record) ProcessFixUpArrays(data []byte) error {
 	}
 	//2bytes for USN update Sequence Number, rest is USA Update Sequence Array 4 byte
 	if len(fixuparray) > 2 {
-		record.FixUp = &FixUp{Signature: fixuparray[:2], OriginalValues: fixupvals}
+		record.FixUp = &utils.FixUp{Signature: fixuparray[:2], OriginalValues: fixupvals}
 		return nil
 	} else {
 		msg := fmt.Sprintf("fixup array len smaller than 2 %d", len(fixuparray))
