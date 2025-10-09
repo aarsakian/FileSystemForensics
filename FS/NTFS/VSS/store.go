@@ -43,13 +43,6 @@ type Store struct {
 	PrevBitmapData  []byte
 }
 
-// System Restore Metadata
-type RSTR struct {
-	Signature [4]byte
-	Version   uint32
-	GUID      [16]byte
-}
-
 type StoreHeader struct {
 	VssGUID       [16]byte
 	Version       uint32
