@@ -20,6 +20,11 @@ import (
 
 type NoNull string
 
+type FixUp struct {
+	Signature      []byte
+	OriginalValues [][]byte
+}
+
 type LargeInteger struct {
 	QuadPart int64
 	HighPart int32
