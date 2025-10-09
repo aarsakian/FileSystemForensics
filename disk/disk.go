@@ -11,6 +11,7 @@ import (
 	metadata "github.com/aarsakian/FileSystemForensics/FS"
 	"github.com/aarsakian/FileSystemForensics/FS/NTFS/MFT"
 	vssLib "github.com/aarsakian/FileSystemForensics/FS/NTFS/VSS"
+	logfileLib "github.com/aarsakian/FileSystemForensics/FS/NTFS/logfile"
 	UsnJrnl "github.com/aarsakian/FileSystemForensics/FS/NTFS/usnjrnl"
 	gptLib "github.com/aarsakian/FileSystemForensics/disk/partition/GPT"
 	mbrLib "github.com/aarsakian/FileSystemForensics/disk/partition/MBR"
@@ -180,6 +181,28 @@ func (disk Disk) ProcessJrnl(recordsPerPartition map[int][]metadata.Record, part
 
 	return usnrecords
 
+}
+
+func (disk Disk) ProcessLogFile(recordsPerPartition map[int][]metadata.Record, partitionNum int) {
+	buf := new(bytes.Buffer)
+	physicalToLogicalMap, _ := disk.GetLogicalToPhysicalMap(partitionNum)
+	partition := disk.Partitions[partitionNum]
+
+	clusterSizeB := int(partition.GetVolume().GetBytesPerSector() * uint64(partition.GetVolume().GetSectorsPerCluster()))
+
+	for partitionID, records := range recordsPerPartition {
+		if partitionNum != -1 && partitionID != partitionNum {
+			continue
+		}
+		for _, record := range metadata.FilterByName(records, "$LogFile") {
+			lsize := int(record.GetLogicalFileSize())
+			buf.Grow(lsize)
+			record.LocateData(disk.Handler, int64(partition.GetOffset()*512), clusterSizeB, buf, physicalToLogicalMap)
+			logfile := logfileLib.LogFile{}
+			logfile.Parse(buf.Bytes())
+		}
+
+	}
 }
 
 func (disk Disk) ProcessVSS(partitionID int) vssLib.ShadowVolume {
