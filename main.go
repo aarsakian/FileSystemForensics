@@ -91,6 +91,7 @@ func main() {
 	showPath := flag.Bool("showpath", false, "show the full path of the selected files")
 	strategy := flag.String("strategy", "overwrite", "what strategy will be used for files sharing the same name, default is ovewrite, or use Id")
 	usnjrnl := flag.Bool("usnjrnl", false, "show usnjrnl information about changes to files and folders")
+	logfile := flag.Bool("logfile", false, "parse and show $logfile")
 
 	flag.Parse() //ready to parse
 
@@ -180,6 +181,10 @@ func main() {
 
 		if *usnjrnl {
 			usnjrnlRecords = disk.ProcessJrnl(recordsPerPartition, *partitionNum-1)
+		}
+
+		if *logfile {
+			disk.ProcessLogFile(recordsPerPartition, *partitionNum-1)
 		}
 
 		if *vss {
