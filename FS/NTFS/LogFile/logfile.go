@@ -11,29 +11,6 @@ type LogFile struct {
 	RSTRRecords RSTRRecords
 }
 
-type ClientRecord struct {
-	OldestLSN        uint64
-	LSNClientRestart uint64
-	PrevClient       uint16
-	NextClient       uint16
-	SeqNum           uint16
-	ClientNameLen    uint16
-	ClientNameOffset uint16
-	Flags            uint16
-	ClientName       string
-}
-
-type LogRecordHeader struct {
-	OldestLSN        uint64
-	LSNClientRestart uint64
-	PrevLSN          uint64
-	UndoNextLSN      uint64
-	SeqNum           uint16
-	Reserved         [6]byte
-	ClientNameLen    uint32
-	ClientName       string
-}
-
 type UpdateSequenceArray struct { //USA
 	SequenceNumber  uint16
 	ReplacementData []uint16
@@ -54,6 +31,14 @@ func (logfile *LogFile) Parse(data []byte) {
 				restartArea := new(RestartAreaHeader)
 				restartArea.Parse(data[offset+int(rcrs.UpdateFixUpArrOffset)+int(rcrs.UpdateFixUpArrSize*2):])
 
+				restartAreaOffset := offset + int(rcrs.UpdateFixUpArrOffset) + int(rcrs.UpdateFixUpArrSize*2)
+
+				clientRecord := new(ClientRecord)
+				clientRecord.Parse(data[restartAreaOffset+
+					int(restartArea.ClientArrayOffset) : restartAreaOffset+int(restartArea.ClientArrayOffset)+
+					int(restartArea.ClientArrayLength)])
+
+				restartArea.ClientRecords = append(restartArea.ClientRecords, *clientRecord)
 				logfile.RSTRRecords = append(logfile.RSTRRecords, *rcrs)
 			}
 		} else if bytes.Equal(data[offset:offset+4], []byte{0x52, 0x43, 0x52, 0x44}) {
@@ -95,7 +80,7 @@ func (restartArea *RestartAreaHeader) Parse(data []byte) {
 	utils.Unmarshal(data, restartArea)
 
 	for curClient := 0; curClient < int(restartArea.LogClientCount); curClient++ {
-		clientRecord := new(ClientRecord)
+		clientRecord := new(LogRecordHeader)
 		utils.Unmarshal(data[restartArea.ClientArrayOffset:], clientRecord)
 	}
 
