@@ -30,7 +30,7 @@ type RestartAreaHeader struct {
 	ClientInUseList     uint16
 	Flags               uint16
 	SeqNumberBits       uint32
-	Length              uint16
+	ClientArrayLength   uint16
 	ClientArrayOffset   uint16
 	FileSize            uint64
 	LastLSNDataLen      uint32
@@ -38,6 +38,20 @@ type RestartAreaHeader struct {
 	LogPageDataOffset   uint16
 	RestartLogOpenCount uint32
 	ClientRecords       []ClientRecord
+}
+
+type ClientRecord struct {
+	OldestLSN        uint64 // 0x0C: Oldest LSN still needed by this client
+	RestartLSN       uint64 // 0x14: LSN used for restart recovery
+	PrevClient       uint16 // 0x04: Offset to the next client record in the client list
+	NextClient       uint16 // 0x08: Offset to the previous client record
+	SeqNumber        uint16
+	ALign1           uint16 // 0x1A: Padding or alignment
+	Align2           uint32 // 0x20: Padding or alignment
+	ClientNameLength uint32 // 0x1C: Offset to the client name string
+
+	// Followed by variable-length client name and client-specific data
+	ClientName string
 }
 
 func (rcrs *RSTR) ProcessFixUpArrays(data []byte) error {
@@ -79,4 +93,11 @@ func (rcrs RSTR) ReplaceFixupValues(data []byte) {
 		}
 
 	}
+}
+
+func (ClientRecord *ClientRecord) Parse(data []byte) {
+	utils.Unmarshal(data, ClientRecord)
+	ClientRecord.ClientName = utils.DecodeUTF16(data[32 : 32+
+		uint32(ClientRecord.ClientNameLength)])
+
 }
