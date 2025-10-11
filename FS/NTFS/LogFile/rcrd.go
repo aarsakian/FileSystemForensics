@@ -8,6 +8,13 @@ import (
 	"github.com/aarsakian/FileSystemForensics/utils"
 )
 
+var flagNameMap = map[uint32]string{
+	0x00000001: "VALID",
+	0x00000002: "DIRTY",
+	0x00000004: "END",
+	0x00000008: "MULTI_SECTOR_HEADER",
+}
+
 type RCRDRecords []RCRD
 
 type RCRD struct {
@@ -64,4 +71,14 @@ func (rcrd RCRD) ReplaceFixupValues(data []byte) {
 		}
 
 	}
+}
+
+func (rcrd RCRD) DecodeFlags() []string {
+	decoded := []string{}
+	for bit, name := range flagNameMap {
+		if rcrd.Flags&bit != 0 {
+			decoded = append(decoded, name)
+		}
+	}
+	return decoded
 }
