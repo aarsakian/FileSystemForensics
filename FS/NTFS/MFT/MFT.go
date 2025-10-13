@@ -154,13 +154,9 @@ func ProcessNoNResidentAttributesWorker(records chan *Record, hD readers.DiskRea
 		logger.FSLogger.Info(fmt.Sprintf("Record %d has %d attributes", record.Entry, len(record.Attributes)))
 		for idx := range record.Attributes {
 			//all non resident attrs except DATA
-			//process bitmap
-			if !record.Attributes[idx].IsNoNResident() || record.Attributes[idx].FindType() == "DATA" && record.Entry != 6 {
-				continue
-			}
-
+			//process $bitmap
 			attrHeader := record.Attributes[idx].GetHeader()
-			if attrHeader.ATRrecordNoNResident == nil {
+			if !attrHeader.IsNoNResident() || record.Attributes[idx].FindType() == "DATA" && record.Entry != 6 {
 				continue
 			}
 
@@ -184,7 +180,7 @@ func ProcessNoNResidentAttributesWorker(records chan *Record, hD readers.DiskRea
 
 			} else {
 				record.Attributes[idx].Parse(buf.Bytes()[:actualLen])
-				if record.Attributes[idx].GetHeader().IsAttrList() {
+				if attrHeader.IsAttrList() {
 					attrList := record.Attributes[idx].(*MFTAttributes.AttributeListEntries)
 					record.LinkedRecordsInfo = append(record.LinkedRecordsInfo, attrList.GetLinkedRecordsInfo(record.Entry)...)
 				}
