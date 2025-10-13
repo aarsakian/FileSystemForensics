@@ -14,7 +14,7 @@ type RSTR struct {
 	Signature            [4]byte
 	UpdateFixUpArrOffset uint16 //4-5      offset values are relative to the start of the entry.
 	UpdateFixUpArrSize   uint16 //6-7
-	CheckDiskLSN         uint64
+	CheckDiskLSN         uint64 //from this LSN it will start if shut down abnormally
 	SystemPageSize       uint32
 	LogPageSize          uint32
 	RestartAreaOffset    uint16
@@ -24,7 +24,7 @@ type RSTR struct {
 }
 
 type RestartAreaHeader struct {
-	CurrentLSN          uint64
+	CurrentLSN          uint64 //last transaction LSN
 	LogClientCount      uint16
 	ClientFreeList      uint16
 	ClientInUseList     uint16
@@ -46,8 +46,7 @@ type ClientRecord struct {
 	PrevClient       uint16 // 0x04: Offset to the next client record in the client list
 	NextClient       uint16 // 0x08: Offset to the previous client record
 	SeqNumber        uint16
-	ALign1           uint16 // 0x1A: Padding or alignment
-	Align2           uint32 // 0x20: Padding or alignment
+	Reserved         [6]byte
 	ClientNameLength uint32 // 0x1C: Offset to the client name string
 
 	// Followed by variable-length client name and client-specific data
