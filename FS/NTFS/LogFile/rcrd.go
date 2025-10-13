@@ -17,19 +17,20 @@ var flagNameMap = map[uint32]string{
 
 type RCRDRecords []RCRD
 
+// 64B size
 type RCRD struct {
 	Signature            [4]byte
 	UpdateFixUpArrOffset uint16 //4-5      offset values are relative to the start of the entry.
 	UpdateFixUpArrSize   uint16 //6-7
-	LastLSN              uint64
+	LastLSNORFileOffset  uint64 //
 	Flags                uint32
 	PageCount            uint16
 	PagePosition         uint16
-	NextRecordOffset     uint32 //26 offset
-	Reserved1            [4]byte
-	LastEndLSN           uint64
+	NextRecordOffset     uint16 //26 offset to the free space of the page
+	Reserved1            [6]byte
+	LastEndLSN           uint64 // last LSN of the page 0x28 offset+
 	LogRecordHeaders     []LogRecordHeader
-	FixUp                *utils.FixUp
+	FixUp                *utils.FixUp // 2x9
 }
 
 func (rcrd *RCRD) ProcessFixUpArrays(data []byte) error {
