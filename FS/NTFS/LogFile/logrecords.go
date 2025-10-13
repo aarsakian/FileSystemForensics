@@ -1,6 +1,10 @@
 package logfile
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/aarsakian/FileSystemForensics/utils"
+)
 
 var logRecordFlagsMap = map[uint16]string{
 	0x0001: "MULTI_PAGE",   // Record spans multiple pages
@@ -26,39 +30,59 @@ var logRecordTypeMap = map[uint16]string{
 	0x07: "UPDATE_RESIDENT_VALUE",
 	0x08: "UPDATE_NONRESIDENT_VALUE",
 	0x09: "UPDATE_MAPPING_PAIRS",
-	0x0A: "UPDATE_FILE_NAME",
-	0x0B: "SET_NEW_PARENT_DIRECTORY",
-	0x0C: "UPDATE_SECURITY_DESCRIPTOR",
-	0x0D: "UPDATE_INDEX_ROOT",
-	0x0E: "UPDATE_INDEX_ALLOCATION",
-	0x0F: "UPDATE_BITMAP",
-	0x10: "UPDATE_VOLUME_BITMAP",
-	0x11: "UPDATE_BOOT_SECTOR",
-	0x12: "UPDATE_LOG_FILE",
+	0x0A: "DELETE_DIRTY_CLUSTERS",
+	0x0B: "SET_NEW_ATTRIBUTE_SIZES",
+	0x0C: "ADD_INDEX_ENTRY_ROOT",
+	0x0D: "DELETE_INDEX_ENTRY_ROOT",
+	0x0E: "ADD_INDEX_ENTRY_ALLOCATION",
+	0x0F: "DELETE_INDEX_ENTRY_ALLOCATION",
+	0x10: "WRITE_END_OF_INDEX_BUFFER",
+	0x11: "SET_INDEX_ENTRY_VCN_ROOT",
+	0x12: "SET_INDEX_ENTRY_VCN_ALLOCATION",
+	0x13: "UPDATE_FILENAME_ROOT",
+	0x14: "UPDATE_FILENAME_ALLOCATION",
+	0x15: "SET_BITS_IN_NONRESIDENT_BITMAP",
+	0x16: "CLEAR_BITS_IN_NONRESIDENT_BITMAP",
 }
 
+// 32 bytes
 type LogRecordHeader struct {
-	RecordType       uint16 // 0x00: Type of log record (e.g., 0x01 = CLR)
-	ClientSeqNumber  uint16 // 0x02: Sequence number for the client
-	LSN              uint64 // 0x04: Log Sequence Number (8 bytes)
-	PreviousLSN      uint64 // 0x0C: Link to previous log record
-	UndoNextLSN      uint64 // 0x14: For rollback operations
-	ClientID         uint32 // 0x1C: Identifies the client (e.g., NTFS)
-	RecordLength     uint16 // 0x20: Total length of this log record
-	Flags            uint16 // 0x22: Bitmask (e.g., dirty, committed)
-	RedoOperation    uint16 // 0x24: Operation code for redo
-	UndoOperation    uint16 // 0x26: Operation code for undo
-	RedoOffset       uint16 // 0x28: Offset to redo data
-	RedoLength       uint16 // 0x2A: Length of redo data
-	UndoOffset       uint16 // 0x2C: Offset to undo data
-	UndoLength       uint16 // 0x2E: Length of undo data
-	TargetVCN        uint64 // 0x30: Target VCN (for nonresident updates)
-	TargetAttribute  uint16 // 0x38: Attribute type code
-	LCNSegmentOffset uint16 // 0x3A: Offset to LCN segment (if applicable)
-	TargetFileRef    uint64 // 0x3C: File reference number (MFT entry)
-	TargetAttrID     uint16 // 0x44: Attribute ID
-	Alignment        uint16 // 0x46: Padding/alignment
+	LSN             uint64 // 0x04: Log Sequence Number (8 bytes)
+	PreviousLSN     uint64 // 0x0C: Link to previous log record
+	UndoNextLSN     uint64 // 0x14: For rollback operations
+	DataLength      uint32
+	ClientSeqNumber uint16
+	ClientID        uint16 // 0x1C: Identifies the client (e.g., NTFS)
+	RecordType      uint32 // 1 = Transaction record 2 = Checkpoint record
+	TranscationID   uint32
+	Flags           uint16 // 1 = extents to next log log record page
+	Reserved        [6]byte
+}
+
+type LogRecord struct {
+	RedoOperation         uint16 // 0x24: Operation code for redo
+	UndoOperation         uint16 // 0x26: Operation code for undo
+	RedoOffset            uint16 // 0x28: Offset to redo data
+	RedoLength            uint16 // 0x2A: Length of redo data
+	UndoOffset            uint16 // 0x2C: Offset to undo data >0x28
+	UndoLength            uint16 // 0x2E: Length of undo data
+	TargetAttributeOffset uint16 //
+	LCNsTOFollow          uint16
+	RecordOffset          uint16
+	AttributeOffset       uint16
+	ClusterBlockOffset    uint16
+	Reserved              [2]byte
+	TargetVCN             uint64
 	// Followed by variable-length redo/undo data
+}
+
+func (logRecordHeader *LogRecordHeader) Parse(data []byte) {
+	utils.Unmarshal(data, logRecordHeader)
+
+}
+
+func (logRecord *LogRecord) Parse(data []byte) {
+	utils.Unmarshal(data, logRecord)
 }
 
 func DecodeLogRecordType(code uint16) string {
