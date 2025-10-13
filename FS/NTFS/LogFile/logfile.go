@@ -50,13 +50,15 @@ func (logfile *LogFile) Parse(data []byte) {
 				rcrd.ReplaceFixupValues(data[offset:])
 
 				//is enough for the header
-				if 4096-rcrd.NextRecordOffset >= 48 {
-					logRecordHeader := new(LogRecordHeader)
-					logRecordHeader.Parse(data[offset+int(rcrd.NextRecordOffset):])
 
-					rcrd.LogRecordHeaders = append(rcrd.LogRecordHeaders, *logRecordHeader)
+				logRecordHeader := new(LogRecordHeader)
+				logRecordHeader.Parse(data[offset+64:])
 
-				}
+				logRecord := new(LogRecord)
+				logRecord.Parse(data[offset+64+32 : offset+64+32+int(logRecordHeader.DataLength)])
+
+				rcrd.LogRecordHeaders = append(rcrd.LogRecordHeaders, *logRecordHeader)
+
 				logfile.RCRDRecords = append(logfile.RCRDRecords, *rcrd)
 
 			}
@@ -64,11 +66,6 @@ func (logfile *LogFile) Parse(data []byte) {
 		}
 		offset += 4096 // page size
 	}
-
-}
-
-func (logRecordHeader *LogRecordHeader) Parse(data []byte) {
-	utils.Unmarshal(data, logRecordHeader)
 
 }
 
