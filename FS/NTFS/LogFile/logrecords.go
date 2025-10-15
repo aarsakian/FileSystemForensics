@@ -46,17 +46,20 @@ var logRecordTypeMap = map[uint16]string{
 }
 
 // 32 bytes
+// offsetbits = 64 -seqnumbits
+// LSN &((1<<offsetBits)-1)
+// offset * 8 = recordoffset from the start of $LogFile sequence number + offset (Sequence number=SeqNumBits from restart area header)
 type LogRecordHeader struct {
-	LSN             uint64 // 0x04: Log Sequence Number (8 bytes)
-	PreviousLSN     uint64 // 0x0C: Link to previous log record
-	UndoNextLSN     uint64 // 0x14: For rollback operations
-	DataLength      uint32
-	ClientSeqNumber uint16
-	ClientID        uint16 // 0x1C: Identifies the client (e.g., NTFS)
-	RecordType      uint32 // 1 = Transaction record 2 = Checkpoint record
-	TranscationID   uint32
-	Flags           uint16 // 1 = extents to next log log record page
-	Reserved        [6]byte
+	LSN              uint64 // upper bits defined by SeqNumBits, lower bits =offset
+	PreviousLSN      uint64 // 0x0C: Link to previous log record,
+	UndoNextLSN      uint64 // 0x14: For rollback operations
+	ClientDataLength uint32
+	ClientSeqNumber  uint16
+	ClientID         uint16 // 0x1C: Identifies the client (e.g., NTFS)
+	RecordType       uint32 // 1 = Transaction record 2 = Checkpoint record
+	TranscationID    uint32
+	Flags            uint16 // 1 = extents to next log log record page
+	Reserved         [6]byte
 }
 
 type LogRecord struct {
@@ -70,9 +73,12 @@ type LogRecord struct {
 	LCNsTOFollow          uint16
 	RecordOffset          uint16
 	AttributeOffset       uint16
-	ClusterBlockOffset    uint16
-	Reserved              [2]byte
-	TargetVCN             uint64
+	MFTClusterIndex       uint16
+	Reserved1             [2]byte
+	TargetVCN             uint32
+	Reserved2             [4]byte
+	TargetLCN             uint32
+	Reserved3             [4]byte
 	// Followed by variable-length redo/undo data
 }
 
@@ -83,6 +89,11 @@ func (logRecordHeader *LogRecordHeader) Parse(data []byte) {
 
 func (logRecord *LogRecord) Parse(data []byte) {
 	utils.Unmarshal(data, logRecord)
+}
+
+func (logRecordHeader LogRecordHeader) GetOffset(seqnumbits uint32) uint64 {
+	offsetBits := 64 - seqnumbits
+	return logRecordHeader.LSN & ((1 << offsetBits) - 1)
 }
 
 func DecodeLogRecordType(code uint16) string {
