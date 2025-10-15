@@ -1,6 +1,7 @@
 package logfile
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 
@@ -8,6 +9,7 @@ import (
 	"github.com/aarsakian/FileSystemForensics/utils"
 )
 
+// buffer area temp storafge first two pages LFS 1.1, 32 pages in case of LFS 2.0
 type RSTRRecords []RSTR
 
 type RSTR struct {
@@ -18,9 +20,10 @@ type RSTR struct {
 	SystemPageSize       uint32
 	LogPageSize          uint32
 	RestartAreaOffset    uint16
-	MinorVersion         uint16
-	MajorVersion         uint16
+	MinorVersion         uint16 // 1 or 2  1.1 old LFS 2.0 new LFS
+	MajorVersion         uint16 // 1 or 0
 	FixUp                *utils.FixUp
+	RestartAreas         []RestartAreaHeader
 }
 
 type RestartAreaHeader struct {
@@ -29,12 +32,12 @@ type RestartAreaHeader struct {
 	ClientFreeList      uint16
 	ClientInUseList     uint16
 	Flags               uint16
-	SeqNumberBits       uint32
+	SeqNumberBits       uint32 //determines the number of bits used for sequence number in logrecord header
 	ClientArrayLength   uint16
 	ClientArrayOffset   uint16
-	FileSize            uint64
+	FileSize            uint64 //$LogFile size
 	LastLSNDataLen      uint32
-	LogRecordHDLen      uint16
+	LogRecordHeaderLen  uint16 //36-38
 	LogPageDataOffset   uint16
 	RestartLogOpenCount uint32
 	ClientRecords       []ClientRecord
@@ -51,6 +54,26 @@ type ClientRecord struct {
 
 	// Followed by variable-length client name and client-specific data
 	ClientName string
+}
+
+func (rcrs *RSTR) Parse(data []byte) error {
+
+	if !bytes.Equal(data[:4], []byte{0x52, 0x53, 0x54, 0x52}) {
+		return errors.New("not RCRD record")
+	}
+	utils.Unmarshal(data, rcrs)
+
+	err := rcrs.ProcessFixUpArrays(data)
+	if err != nil {
+		return err
+	}
+	rcrs.ReplaceFixupValues(data)
+
+	restartArea := new(RestartAreaHeader)
+	restartArea.Parse(data[int(rcrs.UpdateFixUpArrOffset)+int(rcrs.UpdateFixUpArrSize*2):])
+
+	rcrs.RestartAreas = append(rcrs.RestartAreas, *restartArea)
+	return nil
 }
 
 func (rcrs *RSTR) ProcessFixUpArrays(data []byte) error {
@@ -94,9 +117,24 @@ func (rcrs RSTR) ReplaceFixupValues(data []byte) {
 	}
 }
 
+func (rcrs RSTR) GetVersion() string {
+	return fmt.Sprintf("%d.%d", rcrs.MajorVersion, rcrs.MinorVersion)
+}
+
 func (ClientRecord *ClientRecord) Parse(data []byte) {
 	utils.Unmarshal(data, ClientRecord)
 	ClientRecord.ClientName = utils.DecodeUTF16(data[32 : 32+
 		uint32(ClientRecord.ClientNameLength)])
+
+}
+
+func (restartArea *RestartAreaHeader) Parse(data []byte) {
+	utils.Unmarshal(data, restartArea)
+
+	for curClient := 0; curClient < int(restartArea.LogClientCount); curClient++ {
+		clientRecord := new(ClientRecord)
+		clientRecord.Parse(data[restartArea.ClientArrayOffset:])
+		restartArea.ClientRecords = append(restartArea.ClientRecords, *clientRecord)
+	}
 
 }
