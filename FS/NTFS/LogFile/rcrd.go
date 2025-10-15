@@ -8,6 +8,9 @@ import (
 	"github.com/aarsakian/FileSystemForensics/utils"
 )
 
+const LOG_RECORD_HEADER_SIZE = 32
+const RCRD_HEADER_SIZE = 64
+
 var flagNameMap = map[uint32]string{
 	0x00000001: "VALID",
 	0x00000002: "DIRTY",
@@ -31,6 +34,29 @@ type RCRD struct {
 	LastEndLSN           uint64 // last LSN of the page 0x28 offset+
 	LogRecordHeaders     []LogRecordHeader
 	FixUp                *utils.FixUp // 2x9
+}
+
+func (rcrd *RCRD) Parse(data []byte) error {
+	utils.Unmarshal(data, rcrd)
+	err := rcrd.ProcessFixUpArrays(data)
+	if err != nil {
+		return err
+	}
+
+	rcrd.ReplaceFixupValues(data)
+
+	//is enough for the header
+
+	logRecordHeader := new(LogRecordHeader)
+	logRecordHeader.Parse(data[RCRD_HEADER_SIZE:])
+	//logRecordHeader.GetOffset(logfile.RSTRRecords[0].RestartAreas[0].SeqNumberBits)
+
+	logRecord := new(LogRecord)
+	logRecord.Parse(data[RCRD_HEADER_SIZE+LOG_RECORD_HEADER_SIZE : RCRD_HEADER_SIZE+LOG_RECORD_HEADER_SIZE+
+		int(logRecordHeader.ClientDataLength)])
+
+	rcrd.LogRecordHeaders = append(rcrd.LogRecordHeaders, *logRecordHeader)
+	return nil
 }
 
 func (rcrd *RCRD) ProcessFixUpArrays(data []byte) error {
