@@ -260,7 +260,8 @@ func (record Record) LocateDataAsync(hD readers.DiskReader, partitionOffset int6
 			msg := fmt.Sprintf("offset %s cl len %d cl.", res, runlist.Length)
 			logger.FSLogger.Info(msg)
 			if runlist.Offset != 0 && runlist.Length > 0 {
-				dataFragments <- hD.ReadFile(offset, int(runlist.Length)*clusterSizeB)
+				data, _ := hD.ReadFile(offset, int(runlist.Length)*clusterSizeB)
+				dataFragments <- data
 			}
 
 			if runlist.Next == nil {
