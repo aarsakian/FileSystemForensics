@@ -81,8 +81,9 @@ func (atrRecordNoNResident ATRrecordNoNResident) GetContent(hD readers.DiskReade
 	for runlist != nil {
 
 		offset += int64(runlist.Offset)
-
-		buf.Write(hD.ReadFile(partitionOffsetB+offset*int64(clusterSizeB), int(runlist.Length)*clusterSizeB))
+		data, _ := hD.ReadFile(partitionOffsetB+offset*int64(clusterSizeB),
+			int(runlist.Length)*clusterSizeB)
+		buf.Write(data)
 
 		if runlist.Next == nil {
 			break
