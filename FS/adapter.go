@@ -91,7 +91,8 @@ func (record BTRFSRecord) LocateDataORG(hD readers.DiskReader, partitionOffsetB 
 		}
 		totalReadBytes += int(extent.ExtentDataRem.LSize)
 		if extent.ExtentDataRem.LogicalAddress != 0 && extent.ExtentDataRem.LSize > 0 {
-			buf.Write(hD.ReadFile(offset, int(extent.ExtentDataRem.LSize)))
+			data, _ := hD.ReadFile(offset, int(extent.ExtentDataRem.LSize))
+			buf.Write(data)
 
 			msg := fmt.Sprintf("Read %d bytes from physical offset %d (sectors) logical %d (sectors) total bytes read %d out of %d",
 				extent.ExtentDataRem.LSize, offset/512, (offset-partitionOffsetB)/512, totalReadBytes, lSize)
@@ -146,7 +147,8 @@ func (record BTRFSRecord) LocateData(hD readers.DiskReader, partitionOffsetB int
 		}
 		totalReadBytes += int(toRead)
 		if startFrom != 0 && toRead > 0 {
-			buf.Write(hD.ReadFile(offset, int(toRead)))
+			data, _ := hD.ReadFile(offset, int(toRead))
+			buf.Write(data)
 
 			msg := fmt.Sprintf("Read %d bytes from physical offset %d (sectors) logical %d (sectors) total bytes read %d out of %d",
 				toRead, offset/512, (offset-partitionOffsetB)/512, totalReadBytes, buf.Cap())
@@ -191,7 +193,8 @@ func (record NTFSRecord) LocateData(hD readers.DiskReader, partitionOffset int64
 			}
 
 			if runlist.Offset != 0 && runlist.Length > 0 {
-				buf.Write(hD.ReadFile(offset, int(runlist.Length)*clusterSizeB))
+				data, _ := hD.ReadFile(offset, int(runlist.Length)*clusterSizeB)
+				buf.Write(data)
 				res := p.Sprintf("%d", (offset-partitionOffset)/int64(clusterSizeB))
 
 				msg := fmt.Sprintf("offset %s cl len %d cl. write offset %d", res, runlist.Length, writeOffset)
