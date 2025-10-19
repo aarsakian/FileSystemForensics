@@ -74,12 +74,12 @@ func (shadowVol *ShadowVolume) Process(handler readers.DiskReader, partitionOffs
 	var entries2 []CatalogEntry2
 	var entries3 []CatalogEntry3
 
-	data := handler.ReadFile(partitionOffsetB+7680, 512)
+	data, _ := handler.ReadFile(partitionOffsetB+7680, 512)
 
 	shadowVol.Header = new(Header)
 	utils.Unmarshal(data, shadowVol.Header)
 
-	data = handler.ReadFile(partitionOffsetB+shadowVol.Header.CatalogOffset, 16384)
+	data, _ = handler.ReadFile(partitionOffsetB+shadowVol.Header.CatalogOffset, 16384)
 
 	for {
 
@@ -115,7 +115,7 @@ func (shadowVol *ShadowVolume) Process(handler readers.DiskReader, partitionOffs
 		if catalogHeader.NextOffset == 0 {
 			break
 		}
-		data = handler.ReadFile(partitionOffsetB+catalogHeader.NextOffset, 16384)
+		data, _ = handler.ReadFile(partitionOffsetB+catalogHeader.NextOffset, 16384)
 		shadowVol.Catalogs = append(shadowVol.Catalogs, Catalog{Header: catalogHeader, EntriesType1: entries1,
 			EntriesType2: entries2, EntriesType3: entries3})
 
@@ -131,14 +131,14 @@ func (shadowVol *ShadowVolume) ProcessStores(handler readers.DiskReader, partiti
 		for _, entry3 := range catalog.EntriesType3 {
 			stor := new(Store)
 
-			data := handler.ReadFile(partitionOffsetB+int64(entry3.StoreHeaderOffset), 16384)
+			data, _ := handler.ReadFile(partitionOffsetB+int64(entry3.StoreHeaderOffset), 16384)
 
 			stor.Process(data)
 
 			storeList := new(StoreList)
 			storeList.Header = new(StoreHeader)
 
-			data = handler.ReadFile(partitionOffsetB+int64(entry3.StoreBlockListOffset), 16384)
+			data, _ = handler.ReadFile(partitionOffsetB+int64(entry3.StoreBlockListOffset), 16384)
 			readBytes, _ := utils.Unmarshal(data, storeList.Header)
 			offset := readBytes
 
@@ -155,7 +155,7 @@ func (shadowVol *ShadowVolume) ProcessStores(handler readers.DiskReader, partiti
 			storeBlockRange := new(StoreBlockRange)
 			storeBlockRange.Header = new(StoreHeader)
 
-			data = handler.ReadFile(partitionOffsetB+int64(entry3.StoreBlockRangeListOffset), 16384)
+			data, _ = handler.ReadFile(partitionOffsetB+int64(entry3.StoreBlockRangeListOffset), 16384)
 			readBytes, _ = utils.Unmarshal(data, storeBlockRange.Header)
 			offset = readBytes
 
@@ -176,14 +176,14 @@ func (shadowVol *ShadowVolume) ProcessStores(handler readers.DiskReader, partiti
 			stor.StoreBlockRange = storeBlockRange
 
 			storeBitmapHeader := new(StoreHeader)
-			data = handler.ReadFile(partitionOffsetB+int64(entry3.StoreBitmapOffset), 16384)
+			data, _ = handler.ReadFile(partitionOffsetB+int64(entry3.StoreBitmapOffset), 16384)
 			utils.Unmarshal(data, storeBitmapHeader)
 
 			stor.BitmapData = make([]byte, len(data[128:]))
 			copy(stor.BitmapData, data[128:])
 
 			storePrevBitmapHeader := new(StoreHeader)
-			data = handler.ReadFile(partitionOffsetB+int64(entry3.StorePrevBitmapOffset), 16384)
+			data, _ = handler.ReadFile(partitionOffsetB+int64(entry3.StorePrevBitmapOffset), 16384)
 			utils.Unmarshal(data, storePrevBitmapHeader)
 
 			stor.PrevBitmapData = make([]byte, len(data[128:]))
