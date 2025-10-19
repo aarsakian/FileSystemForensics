@@ -157,54 +157,54 @@ func main() {
 	}
 
 	if (*evidencefile != "" || *physicalDrive != -1 || *vmdkfile != "") && *logical == "" {
-		disk := new(disk.Disk)
-		disk.Initialize(*evidencefile, *physicalDrive, *vmdkfile)
+		dsk := new(disk.Disk)
+		dsk.Initialize(*evidencefile, *physicalDrive, *vmdkfile)
 
 		if *mftOffset != 0 {
 			vol := Vol.NTFS{}
 			vol.VBR = &Vol.VBR{BytesPerSector: 512, SectorsPerCluster: uint8(4)}
-			vol.Process(disk.Handler, int64(*mftOffset), entries, *fromMFTEntry, *toMFTEntry)
+			vol.Process(dsk.Handler, int64(*mftOffset), entries, *fromMFTEntry, *toMFTEntry)
 
 		}
 
 		if *searchFS != "" {
-			disk.SearchFileSystemCH(*searchFS)
+			dsk.SearchFileSystemCH(*searchFS)
 		}
 
-		recordsPerPartition, err := disk.Process(*partitionNum-1, entries, *fromMFTEntry, *toMFTEntry)
+		recordsPerPartition, err := dsk.Process(*partitionNum-1, entries, *fromMFTEntry, *toMFTEntry)
 
-		defer disk.Close()
+		defer dsk.Close()
 		if err != nil {
 			fmt.Println(err)
 			return
 		}
 
 		if *usnjrnl {
-			usnjrnlRecords = disk.ProcessJrnl(recordsPerPartition, *partitionNum-1)
+			usnjrnlRecords = dsk.ProcessJrnl(recordsPerPartition, *partitionNum-1)
 		}
 
 		if *logfile {
-			disk.ProcessLogFile(recordsPerPartition, *partitionNum-1)
+			dsk.ProcessLogFile(recordsPerPartition, *partitionNum-1)
 		}
 
 		if *vss {
-			shadowVolume = disk.ProcessVSS(*partitionNum - 1)
+			shadowVolume = dsk.ProcessVSS(*partitionNum - 1)
 		}
 
 		if *listPartitions {
-			disk.ListPartitions()
+			dsk.ListPartitions()
 		}
 
 		if *volinfo {
-			disk.ShowVolumeInfo()
+			dsk.ShowVolumeInfo()
 		}
 
 		if *listUnallocated {
-			disk.ListUnallocated()
+			dsk.ListUnallocated()
 		}
 
 		if *collectUnallocated {
-			exp.ExportUnallocated(*disk)
+			exp.ExportUnallocated(*dsk)
 		}
 
 		if *clusters != "" {
@@ -233,11 +233,11 @@ func main() {
 			records = flm.ApplyFilters(records)
 
 			if *usnjrnl {
-				disk.ProcessJrnl(recordsPerPartition, partitionId)
+				dsk.ProcessJrnl(recordsPerPartition, partitionId)
 			}
 
 			if location != "" {
-				exp.ExportRecords(records, *disk, partitionId)
+				exp.ExportRecords(records, *dsk, partitionId)
 				if *hashFiles != "" {
 					exp.HashFiles(records)
 				}
@@ -254,13 +254,13 @@ func main() {
 
 	} else if (*evidencefile != "" || *physicalDrive != -1 || *vmdkfile != "") && *logical == "lvm2" {
 
-		disk := new(disk.Disk)
-		disk.Initialize(*evidencefile, *physicalDrive, *vmdkfile)
+		dsk2 := new(disk.Disk)
+		dsk2.Initialize(*evidencefile, *physicalDrive, *vmdkfile)
 
 		lvm2 := new(Vol.LVM2)
-		err := lvm2.ProcessHeader(disk.Handler, int64(*physicalOffset*512))
+		err := lvm2.ProcessHeader(dsk2.Handler, int64(*physicalOffset*512))
 		if err == nil {
-			lvm2.Process(disk.Handler, int64(*physicalOffset*512), entries, *fromMFTEntry, *toMFTEntry)
+			lvm2.Process(dsk2.Handler, int64(*physicalOffset*512), entries, *fromMFTEntry, *toMFTEntry)
 		}
 
 	}

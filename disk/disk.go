@@ -11,9 +11,9 @@ import (
 	"time"
 
 	metadata "github.com/aarsakian/FileSystemForensics/FS"
+	logfileLib "github.com/aarsakian/FileSystemForensics/FS/NTFS/LogFile"
 	"github.com/aarsakian/FileSystemForensics/FS/NTFS/MFT"
 	vssLib "github.com/aarsakian/FileSystemForensics/FS/NTFS/VSS"
-	logfileLib "github.com/aarsakian/FileSystemForensics/FS/NTFS/logfile"
 	UsnJrnl "github.com/aarsakian/FileSystemForensics/FS/NTFS/usnjrnl"
 	gptLib "github.com/aarsakian/FileSystemForensics/disk/partition/GPT"
 	mbrLib "github.com/aarsakian/FileSystemForensics/disk/partition/MBR"
@@ -41,25 +41,25 @@ type Disk struct {
 }
 
 func (disk *Disk) Initialize(evidencefile string, physicaldrive int, vmdkfile string) {
-	var hD readers.DiskReader
+	var reader readers.DiskReader
 	if evidencefile != "" {
 		extension := path.Ext(evidencefile)
 		if strings.ToLower(extension) == ".e01" {
-			hD = readers.GetHandler(evidencefile, "ewf")
+			reader = readers.GetHandler(evidencefile, "ewf")
 		} else {
-			hD = readers.GetHandler(evidencefile, "raw")
+			reader = readers.GetHandler(evidencefile, "raw")
 		}
 
 	} else if physicaldrive != -1 {
 
-		hD = readers.GetHandler(fmt.Sprintf("\\\\.\\PHYSICALDRIVE%d", physicaldrive), "physicalDrive")
+		reader = readers.GetHandler(fmt.Sprintf("\\\\.\\PHYSICALDRIVE%d", physicaldrive), "physicalDrive")
 
 	} else {
 
-		hD = readers.GetHandler(vmdkfile, "vmdk")
+		reader = readers.GetHandler(vmdkfile, "vmdk")
 
 	}
-	disk.Handler = hD
+	disk.Handler = reader
 }
 
 func (disk *Disk) SearchFileSystem(fstype string) []MFT.CarvedRecord {
@@ -149,11 +149,11 @@ func (disk *Disk) Process(partitionNum int, MFTentries []int, fromMFTEntry int, 
 	return disk.GetFileSystemMetadata(), err
 }
 
-func (disk Disk) GetLogicalToPhysicalMap(partitioNum int) (map[uint64]metadata.Chunk, error) {
-	partition := disk.Partitions[partitioNum]
+func (disk Disk) GetLogicalToPhysicalMap(partitionNum int) (map[uint64]metadata.Chunk, error) {
+	partition := disk.Partitions[partitionNum]
 	vol := partition.GetVolume()
 	if vol == nil {
-		msg := fmt.Sprintf("No Volume found for partition %d", partitioNum)
+		msg := fmt.Sprintf("No Volume found for partition %d", partitionNum)
 		fmt.Printf("%s\n", msg)
 		logger.FSLogger.Error(msg)
 		return nil, errors.New(msg)
@@ -343,7 +343,7 @@ func (disk *Disk) ProcessPartitions(partitionNum int) {
 		}
 		disk.Partitions[idx].LocateVolume(disk.Handler)
 
-		parttionOffset := disk.Partitions[idx].GetOffset()
+		partitionOffset := disk.Partitions[idx].GetOffset()
 		vol := disk.Partitions[idx].GetVolume()
 		if vol == nil {
 			msg := "No Known Volume at partition %d (Currently supported NTFS BTRFS)."
@@ -351,8 +351,8 @@ func (disk *Disk) ProcessPartitions(partitionNum int) {
 			continue //fs not found
 		}
 		msg := "Partition %d  %s at %d sector"
-		fmt.Printf(msg+"\n", idx+1, vol.GetSignature(), parttionOffset)
-		logger.FSLogger.Info(fmt.Sprintf(msg, idx+1, vol.GetSignature(), parttionOffset))
+		fmt.Printf(msg+"\n", idx+1, vol.GetSignature(), partitionOffset)
+		logger.FSLogger.Info(fmt.Sprintf(msg, idx+1, vol.GetSignature(), partitionOffset))
 
 	}
 

@@ -6,10 +6,10 @@ import (
 )
 
 type Logger struct {
-	info    *log.Logger
-	warning *log.Logger
-	error_  *log.Logger
-	active  bool
+	info        *log.Logger
+	warning     *log.Logger
+	errorLogger *log.Logger
+	active      bool
 }
 
 var FSLogger Logger
@@ -24,8 +24,8 @@ func InitializeLogger(active bool, logfilename string) {
 
 		info := log.New(file, "FSForensics|INFO: ", log.Ldate|log.Ltime)
 		warning := log.New(file, "FSForensics|WARNING: ", log.Ldate|log.Ltime)
-		error_ := log.New(file, "FSForensics|ERROR: ", log.Ldate|log.Ltime)
-		FSLogger = Logger{info: info, warning: warning, error_: error_, active: active}
+		errorLogger := log.New(file, "FSForensics|ERROR: ", log.Ldate|log.Ltime)
+		FSLogger = Logger{info: info, warning: warning, errorLogger: errorLogger, active: active}
 	} else {
 		FSLogger = Logger{active: active}
 	}
@@ -40,7 +40,7 @@ func (logger Logger) Info(msg string) {
 
 func (logger Logger) Error(msg any) {
 	if logger.active {
-		logger.error_.Println(msg)
+		logger.errorLogger.Println(msg)
 	}
 }
 
