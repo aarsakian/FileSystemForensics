@@ -121,13 +121,13 @@ func (partition *Partition) LocateVolume(hD readers.DiskReader) {
 
 	if partition.GetPartitionType() == "Basic Data Partition" {
 
-		data := hD.ReadFile(int64(partitionOffetB), 512)
+		data, _ := hD.ReadFile(int64(partitionOffetB), 512)
 
 		ntfs := new(volume.NTFS)
 		ntfs.AddVolume(data)
 		partition.Volume = ntfs
 	} else if partition.GetPartitionType() == "Linux RAID" {
-		data := hD.ReadFile(int64(partitionOffetB+8*512), 512)       //8 sectors after superblock
+		data, _ := hD.ReadFile(int64(partitionOffetB+8*512), 512)    //8 sectors after superblock
 		if utils.Hexify(utils.Bytereverse(data[:4])) == "a92b4efc" { //valid ?
 			superblock := new(mdraid.Superblock)
 			utils.Unmarshal(data, superblock)

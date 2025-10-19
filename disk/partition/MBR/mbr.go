@@ -49,7 +49,7 @@ func (partition *Partition) LocateVolume(hD readers.DiskReader) {
 
 	if partition.Type == 0x07 || partition.Type == 0x17 {
 		partitionOffetB := uint64(partition.GetOffset() * 512)
-		data := hD.ReadFile(int64(partitionOffetB), 512)
+		data, _ := hD.ReadFile(int64(partitionOffetB), 512)
 		ntfs := new(volume.NTFS)
 		ntfs.AddVolume(data)
 
@@ -60,7 +60,7 @@ func (partition *Partition) LocateVolume(hD readers.DiskReader) {
 		btrfs := new(volume.BTRFS)
 
 		partitionOffsetB := int64(partition.GetOffset() * 512)
-		data := hD.ReadFile(partitionOffsetB+volume.OFFSET_TO_SUPERBLOCK, volume.SUPERBLOCKSIZE)
+		data, _ := hD.ReadFile(partitionOffsetB+volume.OFFSET_TO_SUPERBLOCK, volume.SUPERBLOCKSIZE)
 		msg := "Reading superblock at offset %d"
 		fmt.Printf(msg+"\n", partitionOffsetB)
 		logger.FSLogger.Info(fmt.Sprintf(msg, partitionOffsetB))
