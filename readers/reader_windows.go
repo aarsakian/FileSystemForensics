@@ -62,7 +62,7 @@ func (winreader WindowsReader) GetDiskSize() int64 {
 		int64(disk_geometry.SectorsPerTrack) * int64(disk_geometry.BytesPerSector)
 }
 
-func (winreader WindowsReader) ReadFile(startOffset int64, totalSize int) []byte {
+func (winreader WindowsReader) ReadFile(startOffset int64, totalSize int) ([]byte, error) {
 	var wholebuffer bytes.Buffer
 	w := bufio.NewWriter(&wholebuffer)
 
@@ -89,7 +89,8 @@ func (winreader WindowsReader) ReadFile(startOffset int64, totalSize int) []byte
 
 		err = windows.ReadFile(winreader.fd, buffer[:toRead], &bytesRead, nil)
 		if err != nil {
-			panic(fmt.Sprintf("Read failed at offset %d: %v", offset+startOffset, err))
+			logger.FSLogger.Error(fmt.Sprintf("Read failed at offset %d: %v", offset+startOffset, err))
+			return nil, err
 		}
 
 		w.Write(buffer)
@@ -102,7 +103,7 @@ func (winreader WindowsReader) ReadFile(startOffset int64, totalSize int) []byte
 		}
 	}
 	w.Flush()
-	return wholebuffer.Bytes()[:totalSize]
+	return wholebuffer.Bytes()[:totalSize], nil
 }
 
 func setFilePointerEx(handle windows.Handle, distance int64, moveMethod uint32) error {

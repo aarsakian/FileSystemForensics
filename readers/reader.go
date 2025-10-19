@@ -3,7 +3,7 @@ package readers
 type DiskReader interface {
 	CreateHandler()
 	CloseHandler()
-	ReadFile(int64, int) []byte
+	ReadFile(int64, int) ([]byte, error)
 	GetDiskSize() int64
 }
 

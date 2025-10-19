@@ -26,7 +26,7 @@ func (imgreader RawReader) CloseHandler() {
 	imgreader.fd.Close()
 }
 
-func (imgreader RawReader) ReadFile(physicalOffset int64, length int) []byte {
+func (imgreader RawReader) ReadFile(physicalOffset int64, length int) ([]byte, error) {
 
 	data := make([]byte, length)
 	_, err := imgreader.fd.ReadAt(data, int64(physicalOffset))
@@ -36,9 +36,9 @@ func (imgreader RawReader) ReadFile(physicalOffset int64, length int) []byte {
 		msg := fmt.Sprintf("error %s reading  file ", err)
 		logger.FSLogger.Error(msg)
 		fmt.Printf("%s\n", msg)
-		return nil
+		return nil, err
 	}
-	return data
+	return data, nil
 
 }
 

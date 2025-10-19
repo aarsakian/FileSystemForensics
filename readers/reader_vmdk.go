@@ -42,9 +42,9 @@ func (imgreader VMDKReader) CloseHandler() {
 
 }
 
-func (imgreader VMDKReader) ReadFile(physicalOffset int64, length int) []byte {
+func (imgreader VMDKReader) ReadFile(physicalOffset int64, length int) ([]byte, error) {
 	logger.VMDKlogger.Info(fmt.Sprintf("Read from %d len %d", physicalOffset, length))
-	return imgreader.fd.RetrieveData(physicalOffset, int64(length))
+	return imgreader.fd.RetrieveData(physicalOffset, int64(length)), nil
 }
 
 func (imgreader VMDKReader) GetDiskSize() int64 {

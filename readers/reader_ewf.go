@@ -30,8 +30,8 @@ func (imgreader EWFReader) CloseHandler() {
 
 }
 
-func (imgreader EWFReader) ReadFile(physicalOffset int64, length int) []byte {
-	return imgreader.fd.RetrieveData(physicalOffset, int64(length))
+func (imgreader EWFReader) ReadFile(physicalOffset int64, length int) ([]byte, error) {
+	return imgreader.fd.RetrieveData(physicalOffset, int64(length)), nil
 }
 
 func (imgreader EWFReader) GetDiskSize() int64 {
