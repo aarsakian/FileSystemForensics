@@ -61,7 +61,7 @@ type RawLocationDescriptor struct {
 }
 
 func (lvm2 *LVM2) ProcessHeader(hD readers.DiskReader, physicalOffsetB int64) error {
-	data := hD.ReadFile(physicalOffsetB, 4096)
+	data, _ := hD.ReadFile(physicalOffsetB, 4096)
 	lvm2.Parse(data)
 	if !lvm2.HasValidSignature() {
 		msg := "no lvm2 found"
@@ -69,10 +69,11 @@ func (lvm2 *LVM2) ProcessHeader(hD readers.DiskReader, physicalOffsetB int64) er
 		fmt.Printf("%s \n", msg)
 		return errors.New(msg)
 	}
-	data = hD.ReadFile(physicalOffsetB+4096, 512)
+	data, _ = hD.ReadFile(physicalOffsetB+4096, 512)
 	lvm2.ParseMetaHeader(data)
-	lvm2.ConfigurationInfo = string(hD.ReadFile(int64(physicalOffsetB)+4096+int64(lvm2.Header.MetadataAreaHeader.RawLocationDescriptors[0].Offset),
-		int(lvm2.Header.MetadataAreaHeader.RawLocationDescriptors[0].Len)))
+	data, _ = hD.ReadFile(physicalOffsetB+lvm2.Header.MetadataAreaHeader.Offset,
+		int(lvm2.Header.MetadataAreaHeader.Size))
+	lvm2.ConfigurationInfo = string(data)
 	return nil
 }
 
@@ -80,7 +81,7 @@ func (lvm2 *LVM2) Process(hD readers.DiskReader, physicalOffsetB int64, Selected
 	fromEntry int, toEntry int) {
 	btrfs := new(BTRFS)
 
-	data := hD.ReadFile(physicalOffsetB+lvm2.Header.PhysicalVolHeader.DataAreaDescriptors[0].OffsetB+OFFSET_TO_SUPERBLOCK,
+	data, _ := hD.ReadFile(physicalOffsetB+lvm2.Header.PhysicalVolHeader.DataAreaDescriptors[0].OffsetB+OFFSET_TO_SUPERBLOCK,
 		SUPERBLOCKSIZE)
 	err := btrfs.ParseSuperblock(data)
 	if err != nil {

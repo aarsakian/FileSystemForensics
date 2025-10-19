@@ -341,7 +341,7 @@ func (btrfs BTRFS) CreateNode(hD readers.DiskReader, logicalOffset int, partitio
 	if int(blockSize) < size {
 		size = int(blockSize)
 	}
-	data := hD.ReadFile(int64(physicalOffset)+partitionOffsetB, size)
+	data, _ := hD.ReadFile(int64(physicalOffset)+partitionOffsetB, size)
 
 	node := new(fstree.GenericNode)
 	_, err = node.Parse(data, int64(physicalOffset)+partitionOffsetB, verify, carve)

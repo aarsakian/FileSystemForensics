@@ -51,7 +51,7 @@ func (ntfs *NTFS) Process(hD readers.DiskReader, partitionOffsetB int64, MFTSele
 	fmt.Printf(msg+"\n", physicalOffset)
 	logger.FSLogger.Info(fmt.Sprintf(msg, physicalOffset))
 
-	data := hD.ReadFile(physicalOffset, length)
+	data, _ := hD.ReadFile(physicalOffset, length)
 
 	ntfs.MFT = new(MFT.MFTTable)
 	ntfs.MFT.ProcessRecords(data)
@@ -117,7 +117,7 @@ func (ntfs *NTFS) CarveRecordsCH(hD readers.DiskReader) {
 
 		for offset := 0; offset < int(diskSize); offset += Chunk_size {
 
-			data := hD.ReadFile(int64(offset), Chunk_size)
+			data, _ := hD.ReadFile(int64(offset), Chunk_size)
 			fmt.Printf("%d MB %.2f mins\n", processedData/1024/1024, time.Since(now).Minutes())
 			processedData += Chunk_size
 
@@ -155,7 +155,7 @@ func (ntfs *NTFS) CarveRecords(hD readers.DiskReader) {
 	processedData := Chunk_size
 
 	for offset := 0; offset < int(diskSize); offset += Chunk_size {
-		data := hD.ReadFile(int64(offset), Chunk_size)
+		data, _ := hD.ReadFile(int64(offset), Chunk_size)
 
 		for sectorOffset := 0; sectorOffset < len(data); sectorOffset += 1024 {
 
@@ -291,7 +291,7 @@ func (ntfs NTFS) CollectMFTArea(hD readers.DiskReader, partitionOffsetB int64) [
 
 		clusters := int(runlist.Length)
 
-		data := hD.ReadFile(partitionOffsetB+int64(offset)*int64(ntfs.VBR.SectorsPerCluster)*int64(ntfs.VBR.BytesPerSector), clusters*int(ntfs.VBR.BytesPerSector)*int(ntfs.VBR.SectorsPerCluster))
+		data, _ := hD.ReadFile(partitionOffsetB+int64(offset)*int64(ntfs.VBR.SectorsPerCluster)*int64(ntfs.VBR.BytesPerSector), clusters*int(ntfs.VBR.BytesPerSector)*int(ntfs.VBR.SectorsPerCluster))
 		buf.Write(data)
 
 		if runlist.Next == nil {
