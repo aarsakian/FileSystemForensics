@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"math"
 	"path"
 	"strings"
 	"sync"
+	"time"
 
 	metadata "github.com/aarsakian/FileSystemForensics/FS"
 	"github.com/aarsakian/FileSystemForensics/FS/NTFS/MFT"
@@ -86,30 +88,43 @@ func (disk *Disk) SearchFileSystemCH(fstype string) []MFT.CarvedRecord {
 		ntfs := new(volume.NTFS)
 
 		ntfs.CarveRecordsCH(disk.Handler)
+		ntfs.VBR = &volume.VBR{BytesPerSector: 512, SectorsPerCluster: 8}
 
 		//bufferSize := int64(64 * 2 * 1024 * bytesPerSector)
+		var carvedMFTRecords []MFT.CarvedRecord
 		for _, carvedRecord := range ntfs.CarvedRecords {
 			if carvedRecord.Record.GetFname() != "$MFT" {
 				continue
 			}
-			carvedRecord.Record.ShowFNACreationTime()
-			fmt.Printf("attempting to determine volume offset of candidate $MFT Record with creation date  physical Offset  %d\n",
-				carvedRecord.PhysicalOffset)
+			carvedMFTRecords = append(carvedMFTRecords, carvedRecord)
+		}
+
+		for _, carvedRecord := range carvedMFTRecords {
 
 			runlist := carvedRecord.Record.GetRunList("DATA") // first record $MFT
 			offset := int64(0)
 
 			for runlist != nil {
 				offset += int64(runlist.Offset)
+				break
 
-				clusters := int(runlist.Length)
-				fmt.Println(offset, clusters)
-				if runlist.Next == nil {
-					break
-				}
-
-				runlist = runlist.Next
 			}
+			partitionOffsetB := carvedRecord.PhysicalOffset - offset
+
+			carvedRecord.Record.ShowFNACreationTime()
+			fmt.Printf("attempting to reconstruct $MFT Table  %d possible partition offset %d\n",
+				carvedRecord.PhysicalOffset, partitionOffsetB)
+
+			ntfs.MFT = new(MFT.MFTTable)
+			ntfs.MFT.Records = make([]MFT.Record, 1)
+			ntfs.MFT.Records[carvedRecord.Record.Entry] = *carvedRecord.Record
+			ntfs.MFT.DetermineClusterOffsetLength()
+
+			MFTAreaBuf := ntfs.CollectMFTArea(disk.Handler, partitionOffsetB)
+			start := time.Now()
+			ntfs.ProcessMFT(MFTAreaBuf, []int{}, 0, math.MaxUint32)
+			fmt.Println("completed at ", time.Since(start))
+
 		}
 		return ntfs.CarvedRecords
 	} else {
@@ -247,7 +262,7 @@ func (disk *Disk) populateMBR() error {
 	physicalOffset := int64(0)
 	length := int(512) // MBR always at first sector
 
-	data := disk.Handler.ReadFile(physicalOffset, length) // read 1st sector
+	data, _ := disk.Handler.ReadFile(physicalOffset, length) // read 1st sector
 
 	if string(data[3:7]) == "NTFS" {
 		return ErrNTFSVol
@@ -256,7 +271,7 @@ func (disk *Disk) populateMBR() error {
 	mbr.Parse(data)
 	offset, err := mbr.GetExtendedPartitionOffset()
 	if err == nil {
-		data := disk.Handler.ReadFile(physicalOffset+int64(offset)*512, length)
+		data, _ := disk.Handler.ReadFile(physicalOffset+int64(offset)*512, length)
 		mbr.DiscoverExtendedPartitions(data, offset)
 
 	}
@@ -271,13 +286,13 @@ func (disk *Disk) populateGPT() {
 
 	physicalOffset := int64(512) // gpt always starts at 512
 
-	data := disk.Handler.ReadFile(physicalOffset, 512)
+	data, _ := disk.Handler.ReadFile(physicalOffset, 512)
 
 	var gpt gptLib.GPT
 	gpt.ParseHeader(data)
 	length := gpt.GetPartitionArraySize()
 
-	data = disk.Handler.ReadFile(int64(gpt.Header.PartitionsStartLBA*512), int(length))
+	data, _ = disk.Handler.ReadFile(int64(gpt.Header.PartitionsStartLBA*512), int(length))
 
 	gpt.ParsePartitions(data)
 
@@ -510,8 +525,8 @@ func (disk Disk) CollectedUnallocated(blocks chan<- []byte) {
 
 				firstBlockCluster := unallocatedClusters[idx-blockSize]
 				offset := partitionOffsetB + int64(firstBlockCluster)*int64(ntfs.VBR.SectorsPerCluster)*int64(ntfs.VBR.BytesPerSector)
-
-				blocks <- disk.Handler.ReadFile(offset, blockSize*int(ntfs.VBR.SectorsPerCluster)*int(ntfs.VBR.BytesPerSector))
+				data, _ := disk.Handler.ReadFile(offset, blockSize*int(ntfs.VBR.SectorsPerCluster)*int(ntfs.VBR.BytesPerSector))
+				blocks <- data
 				blockSize = 1
 
 			}
