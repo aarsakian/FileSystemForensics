@@ -397,7 +397,7 @@ func (record Record) ShowParentRecordInfo() {
 
 func (record Record) ShowPath(partitionId int) {
 	fullpath := record.GetFullPath()
-	fmt.Printf("Partition%d%s\\%s\n", partitionId, fullpath, record.GetFname())
+	fmt.Printf("Partition%d%s\\%s\n", partitionId+1, fullpath, record.GetFname())
 }
 
 func (record Record) ShowIndex() {
@@ -517,7 +517,7 @@ func (record Record) ShowRunList() {
 	}
 
 	for idx, nonResidentAttr := range nonResidentAttributes {
-		fmt.Printf("%s \n", nonResidentAttr.FindType())
+		fmt.Printf("%d - %s: \t", idx, nonResidentAttr.FindType())
 		runlist := runlists[idx]
 		logicalOffset := runlist.Offset
 		nofFragments := 0
@@ -784,7 +784,8 @@ func (record *Record) Process(bs []byte) error {
 			var atrNoNRecordResident *MFTAttributes.ATRrecordNoNResident = new(MFTAttributes.ATRrecordNoNResident)
 			utils.Unmarshal(bs[ReadPtr+16:ReadPtr+64], atrNoNRecordResident)
 
-			if int(ReadPtr+atrNoNRecordResident.RunOff+attrHeader.AttrLen) < len(bs) {
+			if int(ReadPtr+atrNoNRecordResident.RunOff+attrHeader.AttrLen) < len(bs) &&
+				ReadPtr+atrNoNRecordResident.RunOff < attrHeader.AttrLen {
 				var runlist *MFTAttributes.RunList = new(MFTAttributes.RunList)
 				lengthcl := runlist.Process(bs[ReadPtr+
 					atrNoNRecordResident.RunOff : ReadPtr+attrHeader.AttrLen])
@@ -792,8 +793,17 @@ func (record *Record) Process(bs []byte) error {
 				atrNoNRecordResident.RunListTotalLenCl = lengthcl
 
 			} else {
-				msg := fmt.Sprintf("attribute %s at record %d exceeded buffer by %d",
-					attrHeader.GetType(), record.Entry, int(ReadPtr+attrHeader.AttrLen)-len(bs))
+				var msg string
+				outOfBoundsData := int(ReadPtr+attrHeader.AttrLen) - len(bs)
+				outOfBoundsArray := atrNoNRecordResident.RunOff - attrHeader.AttrLen
+				if outOfBoundsData > 0 {
+					msg = fmt.Sprintf("attribute %s at record %d exceeded buffer by %d ",
+						attrHeader.GetType(), record.Entry, outOfBoundsData)
+				} else if outOfBoundsArray > 0 {
+					msg = fmt.Sprintf("attribute %s at record %d exceeded array bounds by %d ",
+						attrHeader.GetType(), record.Entry, outOfBoundsArray)
+				}
+
 				logger.FSLogger.Warning(msg)
 			}
 			attrHeader.ATRrecordNoNResident = atrNoNRecordResident
