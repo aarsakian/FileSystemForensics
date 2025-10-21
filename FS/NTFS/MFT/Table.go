@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"runtime"
 	"sync"
 
 	MFTAttributes "github.com/aarsakian/FileSystemForensics/FS/NTFS/MFT/attributes"
 	"github.com/aarsakian/FileSystemForensics/logger"
 	"github.com/aarsakian/FileSystemForensics/readers"
-	"github.com/aarsakian/FileSystemForensics/utils"
 )
 
 type ParentReallocatedError struct {
@@ -35,7 +35,7 @@ func (mfttable *MFTTable) ProcessRecordsAsync(data []byte) {
 	logger.FSLogger.Info(msg)
 
 	for i := 0; i < len(data); i += RecordSize {
-		if utils.Hexify(data[i:i+4]) == "00000000" { //zero area skip
+		if bytes.Equal(data[i:i+4], []byte{0x00, 0x00, 0x00, 0x00}) { //zero area skip
 			continue
 		}
 		wg.Add(1)
@@ -85,8 +85,8 @@ func (mfttable *MFTTable) MFTWorker(data []byte, pos int, wg *sync.WaitGroup) {
 }
 
 func (mfttable *MFTTable) ProcessNonResidentRecords(hD readers.DiskReader, partitionOffsetB int64, clusterSizeB int) {
-	//2 * runtime.NumCPU()
-	numWorker := 4
+
+	numWorker := 2 * runtime.NumCPU()
 
 	records := make(chan *Record, len(mfttable.Records))
 
