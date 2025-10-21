@@ -75,7 +75,7 @@ func (disk *Disk) SearchFileSystem(fstype string) []MFT.CarvedRecord {
 
 }
 
-func (disk *Disk) SearchFileSystemCH(fstype string) []MFT.CarvedRecord {
+func (disk *Disk) SearchFileSystemCH(fstype string, startOffset int) []MFT.CarvedRecord {
 
 	if fstype == "NTFS" {
 		//educated guess
@@ -83,23 +83,12 @@ func (disk *Disk) SearchFileSystemCH(fstype string) []MFT.CarvedRecord {
 		//bytesPerSector := 512
 		//	magic := []byte{0x46, 0x49, 0x4c, 0x45}
 
-		//diskSize := disk.Handler.GetDiskSize()
-
 		ntfs := new(volume.NTFS)
-
-		ntfs.CarveRecordsCH(disk.Handler)
 		ntfs.VBR = &volume.VBR{BytesPerSector: 512, SectorsPerCluster: 8}
+		sectorAlignedOffsetB := startOffset - startOffset%512
+		ntfs.CarveMFTRecordsCH(disk.Handler, sectorAlignedOffsetB)
 
-		//bufferSize := int64(64 * 2 * 1024 * bytesPerSector)
-		var carvedMFTRecords []MFT.CarvedRecord
 		for _, carvedRecord := range ntfs.CarvedRecords {
-			if carvedRecord.Record.GetFname() != "$MFT" {
-				continue
-			}
-			carvedMFTRecords = append(carvedMFTRecords, carvedRecord)
-		}
-
-		for _, carvedRecord := range carvedMFTRecords {
 
 			runlist := carvedRecord.Record.GetRunList("DATA") // first record $MFT
 			offset := int64(0)
@@ -276,7 +265,7 @@ func (disk *Disk) populateMBR() error {
 
 	}
 	disk.MBR = &mbr
-	if utils.Hexify(mbr.Signature[:]) != "55aa" {
+	if !bytes.Equal(mbr.Signature[:], []byte{0x55, 0xaa}) {
 		return errors.New("mbr not valid")
 	}
 	return nil
