@@ -15,11 +15,11 @@ import (
 28-16 reserverd zero
 16-0 uint16 uniquely identifies the owner of the reparse
 */
-var ReparseTagflags = map[string]string{"a000003": "MountPoint", "80000013": "dedup", "a00000c": "Symbolink",
-	"80000016": "dynamic file filter", "80000017": "Windows Overlay filter", "9000001a": "cloud", "9000101a": "cloud 1",
-	"9000201a": "cloud 2", "9000301a": "cloud 3", "9000401a": "cloud 4", "9000501a": "cloud 5", "9000601a": "cloud 6",
-	"9000701a": "cloud 7", "9000801a": "cloud 8", "9000901a": "cloud 9", "9000a01a": "cloud A", "9000b01a": "cloud B", "9000c01a": "cloud C",
-	"9000d01a": "cloud D", "9000e01a": "cloud E", "9000f01a": "cloud F"}
+var ReparseTagflags = map[uint32]string{0xa000003: "MountPoint", 0x80000013: "dedup", 0xa00000c: "Symbolink",
+	0x80000016: "dynamic file filter", 0x80000017: "Windows Overlay filter", 0x9000001a: "cloud", 0x9000101a: "cloud 1",
+	0x9000201a: "cloud 2", 0x9000301a: "cloud 3", 0x9000401a: "cloud 4", 0x9000501a: "cloud 5", 0x9000601a: "cloud 6",
+	0x9000701a: "cloud 7", 0x9000801a: "cloud 8", 0x9000901a: "cloud 9", 0x9000a01a: "cloud A", 0x9000b01a: "cloud B", 0x9000c01a: "cloud C",
+	0x9000d01a: "cloud D", 0x9000e01a: "cloud E", 0x9000f01a: "cloud F"}
 
 var SymbolikReparseFlags = map[int]string{0: "FullPathName", 1: "RelativePath"}
 
@@ -86,7 +86,7 @@ func (reparse Reparse) FindType() string {
 }
 
 func (reparse Reparse) GetFlagInfo() string {
-	return ReparseTagflags[utils.Hexify(utils.Bytereverse(reparse.Flags[:]))]
+	return ReparseTagflags[utils.ToUint32(reparse.Flags[:])]
 }
 
 func (reparse Reparse) ShowInfo() {

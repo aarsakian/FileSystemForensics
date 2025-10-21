@@ -32,7 +32,7 @@ type AttributeList struct { //more than one MFT entry to store a file/directory 
 }
 
 func (attrList AttributeList) GetType() string {
-	return AttrTypes[utils.Hexify(utils.Bytereverse(attrList.Type[:]))]
+	return AttrTypes[utils.ToUint32(attrList.Type[:])]
 }
 
 func (attrListEntries *AttributeListEntries) SetHeader(header *AttributeHeader) {

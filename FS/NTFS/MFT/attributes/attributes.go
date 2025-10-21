@@ -10,17 +10,17 @@ import (
 	"github.com/aarsakian/FileSystemForensics/utils"
 )
 
-var AttrTypes = map[string]string{
-	"00000010": "Standard Information", "00000020": "Attribute List",
-	"00000030": "FileName", "00000040": "Object ID",
-	"00000050": "Security Descriptor", "00000060": "Volume Name",
-	"00000070": "Volume Information", "00000080": "DATA",
-	"00000090": "Index Root", "000000a0": "Index Allocation",
-	"000000b0": "BitMap", "000000c0": "Reparse Point",
-	"000000d0": "Extended Attribute Information",
-	"000000e0": "Extended Attribute", "000000f0": "Extended Attribute Information",
-	"00000100": "Logged Utility Stream", "00000110": "$TXF_Data",
-	"ffffffff": "Last",
+var AttrTypes = map[uint32]string{
+	0x00000010: "Standard Information", 0x00000020: "Attribute List",
+	0x00000030: "FileName", 0x00000040: "Object ID",
+	0x00000050: "Security Descriptor", 0x00000060: "Volume Name",
+	0x00000070: "Volume Information", 0x00000080: "DATA",
+	0x00000090: "Index Root", 0x000000a0: "Index Allocation",
+	0x000000b0: "BitMap", 0x000000c0: "Reparse Point",
+	0x000000d0: "Extended Attribute Information",
+	0x000000e0: "Extended Attribute", 0x000000f0: "Extended Attribute Information",
+	0x00000100: "Logged Utility Stream", 0x00000110: "$TXF_Data",
+	0xffffffff: "Last",
 }
 
 type AttributeHeader struct {
@@ -96,7 +96,8 @@ func (atrRecordNoNResident ATRrecordNoNResident) GetContent(hD readers.DiskReade
 }
 
 func (attrHeader AttributeHeader) GetType() string {
-	attrType, ok := AttrTypes[utils.Hexify(utils.Bytereverse(attrHeader.Type[:]))]
+
+	attrType, ok := AttrTypes[utils.ToUint32(attrHeader.Type[:])]
 	if ok {
 		return attrType
 	} else {
