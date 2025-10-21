@@ -65,6 +65,7 @@ func main() {
 	physicalOffset := flag.Int("physicaloffset", -1, "offset to volume (sectors)")
 	logical := flag.String("volume", "", "select directly the volume requires offset in bytes, (ntfs, lvm2)")
 	searchFS := flag.String("searchfs", "", "look for traces of the file system (NTFS is supported)")
+	searchOffset := flag.Int("searchoffset", 0, "offset in bytes to search for file system structures")
 	buildtree := flag.Bool("tree", false, "reconstrut file system tree")
 
 	showtree := flag.Bool("showtree", false, "show file system tree")
@@ -168,7 +169,7 @@ func main() {
 		}
 
 		if *searchFS != "" {
-			dsk.SearchFileSystemCH(*searchFS)
+			dsk.SearchFileSystemCH(*searchFS, *searchOffset)
 		}
 
 		recordsPerPartition, err := dsk.Process(*partitionNum-1, entries, *fromMFTEntry, *toMFTEntry)
