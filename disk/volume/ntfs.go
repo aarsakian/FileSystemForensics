@@ -101,6 +101,61 @@ func (ntfs *NTFS) Process(hD readers.DiskReader, partitionOffsetB int64, MFTSele
 
 }
 
+func (ntfs *NTFS) CarveMFTRecordsCH(hD readers.DiskReader, startOffset int) {
+
+	Chunk_size := 512 * 1024 * 1024
+	processedData := Chunk_size
+	diskSize := hD.GetDiskSize()
+	now := time.Now()
+
+	var wg sync.WaitGroup
+	ch := make(chan utils.CandidateRecord, 100)
+
+	processedRecordsCH := make(chan MFT.CarvedRecord, 100)
+
+	go func(ch chan<- utils.CandidateRecord) {
+
+		for offset := startOffset; offset < int(diskSize); offset += Chunk_size {
+
+			data, _ := hD.ReadFile(int64(offset), Chunk_size)
+			msg := fmt.Sprintf("offs %d read %d MB at %.2f mins", offset, processedData/1024/1024, time.Since(now).Minutes())
+			fmt.Printf("%s\n", msg)
+			logger.FSLogger.Info(msg)
+			processedData += Chunk_size
+
+			for sectorOffset := 0; sectorOffset < len(data); sectorOffset += 1024 {
+
+				ch <- utils.CandidateRecord{Data: data[sectorOffset : sectorOffset+1024], PhysicalOffset: offset + sectorOffset}
+			}
+
+		}
+		close(ch)
+	}(ch)
+
+	numWorks := 8
+	for i := 0; i < numWorks; i++ {
+		wg.Add(1)
+		go ProcessRecord(ch, processedRecordsCH, &wg)
+	}
+
+	go func() {
+
+		wg.Wait()
+		close(processedRecordsCH)
+	}()
+	for processedRecord := range processedRecordsCH {
+		if processedRecord.Record.GetFname() != "$MFT" {
+			continue
+		}
+		msg := fmt.Sprintf("Recovered $MFT Record with LSN %d at %d", processedRecord.Record.Lsn, processedRecord.PhysicalOffset)
+
+		fmt.Printf("%s\n", msg)
+		logger.FSLogger.Info(msg)
+
+		ntfs.CarvedRecords = append(ntfs.CarvedRecords, processedRecord)
+	}
+}
+
 func (ntfs *NTFS) CarveRecordsCH(hD readers.DiskReader) {
 
 	Chunk_size := 256 * 1024 * 1024
