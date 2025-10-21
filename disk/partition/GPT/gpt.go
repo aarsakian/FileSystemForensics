@@ -1,6 +1,7 @@
 package gpt
 
 import (
+	"bytes"
 	"fmt"
 
 	mdraid "github.com/aarsakian/FileSystemForensics/disk/raid"
@@ -127,8 +128,8 @@ func (partition *Partition) LocateVolume(hD readers.DiskReader) {
 		ntfs.AddVolume(data)
 		partition.Volume = ntfs
 	} else if partition.GetPartitionType() == "Linux RAID" {
-		data, _ := hD.ReadFile(int64(partitionOffetB+8*512), 512)    //8 sectors after superblock
-		if utils.Hexify(utils.Bytereverse(data[:4])) == "a92b4efc" { //valid ?
+		data, _ := hD.ReadFile(int64(partitionOffetB+8*512), 512)  //8 sectors after superblock
+		if bytes.Equal(data[:4], []byte{0xfc, 0x4e, 0x2b, 0xa9}) { //valid ?
 			superblock := new(mdraid.Superblock)
 			utils.Unmarshal(data, superblock)
 			partition.Raid = superblock
