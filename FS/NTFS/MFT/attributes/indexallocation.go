@@ -174,3 +174,15 @@ func (idxAlloactionRecs IndexAllocationRecords) GetIndexEntriesSortedByMFTEntry(
 	}
 	return idxEntries
 }
+
+func (nodeheader *NodeHeader) Parse(data []byte) error {
+	utils.Unmarshal(data, nodeheader)
+
+	if nodeheader.OffsetEndUsedEntryList == 0 {
+		msg := "index root has zero used buffer as derived from nodeheader"
+		logger.FSLogger.Warning(msg)
+		return errors.New(msg)
+
+	}
+	return nil
+}

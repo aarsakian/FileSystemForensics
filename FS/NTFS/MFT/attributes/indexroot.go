@@ -68,7 +68,11 @@ func (idxRoot *IndexRoot) Parse(data []byte) {
 	utils.Unmarshal(data[:12], idxRoot)
 
 	var nodeheader *NodeHeader = new(NodeHeader)
-	utils.Unmarshal(data[16:32], nodeheader)
+	err := nodeheader.Parse(data[16:32])
+	if err != nil {
+		return
+	}
+
 	idxRoot.Nodeheader = nodeheader
 
 	idxEntryOffset := 16 + uint16(nodeheader.OffsetEntryList)
