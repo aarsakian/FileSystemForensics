@@ -714,6 +714,11 @@ func (record *Record) Process(bs []byte) error {
 			attrStartOffset := ReadPtr + atrRecordResident.OffsetContent
 			attrEndOffset := uint32(attrStartOffset) + atrRecordResident.ContentSize
 
+			if atrRecordResident.ContentSize > uint32(attrHeader.AttrLen)-16 {
+				logger.FSLogger.Warning("Resident record content size exceeds available attribute size")
+				break
+			}
+
 			if attrHeader.IsFileName() { // File name
 				attr = &MFTAttributes.FNAttribute{}
 				attr.Parse(bs[attrStartOffset:attrEndOffset])
@@ -785,7 +790,7 @@ func (record *Record) Process(bs []byte) error {
 			utils.Unmarshal(bs[ReadPtr+16:ReadPtr+64], atrNoNRecordResident)
 
 			if int(ReadPtr+atrNoNRecordResident.RunOff+attrHeader.AttrLen) < len(bs) &&
-				ReadPtr+atrNoNRecordResident.RunOff < attrHeader.AttrLen {
+				atrNoNRecordResident.RunOff < attrHeader.AttrLen {
 				var runlist *MFTAttributes.RunList = new(MFTAttributes.RunList)
 				lengthcl := runlist.Process(bs[ReadPtr+
 					atrNoNRecordResident.RunOff : ReadPtr+attrHeader.AttrLen])
