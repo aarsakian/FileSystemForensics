@@ -82,10 +82,10 @@ type IndexAttributes interface {
 	GetEntries() MFTAttributes.IndexEntries
 }
 
-func (mfttable *MFTTable) DetermineClusterOffsetLength() {
+func (mfttable *MFTTable) Initialize(clusterSizeB int64) {
 	firstRecord := mfttable.Records[0]
-
-	mfttable.Size = int(firstRecord.FindAttribute("DATA").GetHeader().ATRrecordNoNResident.RunListTotalLenCl)
+	size := int64(firstRecord.FindAttribute("DATA").GetHeader().ATRrecordNoNResident.RunListTotalLenCl) * clusterSizeB
+	mfttable.Records = make([]Record, size/int64(RecordSize))
 
 }
 
