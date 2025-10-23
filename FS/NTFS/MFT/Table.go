@@ -23,23 +23,16 @@ func (e *ParentReallocatedError) Error() string {
 // $MFT table points either to its file path or the buffer containing $MFT
 type MFTTable struct {
 	Records []Record
-	Size    int
+	SizeCL  int //size in clusters
 }
 
 func (mfttable *MFTTable) ProcessRecordsAsync(data []byte) {
 
 	var wg sync.WaitGroup
-	mfttable.Records = make([]Record, len(data)/RecordSize)
-	msg := fmt.Sprintf("Processing %d $MFT entries", len(mfttable.Records))
-	fmt.Printf(" %s \n", msg)
-	logger.FSLogger.Info(msg)
 
 	for i := 0; i < len(data); i += RecordSize {
-		if bytes.Equal(data[i:i+4], []byte{0x00, 0x00, 0x00, 0x00}) { //zero area skip
-			continue
-		}
 		wg.Add(1)
-		go mfttable.MFTWorker(data[i:i+RecordSize], i, &wg)
+		go mfttable.MFTWorker(data[i:i+RecordSize], i/RecordSize, &wg)
 
 	}
 	wg.Wait()
@@ -81,7 +74,7 @@ func (mfttable *MFTTable) MFTWorker(data []byte, pos int, wg *sync.WaitGroup) {
 
 	mfttable.Records[record.Entry] = record
 
-	logger.FSLogger.Info(fmt.Sprintf("Processed record %d at pos %d", record.Entry, pos/RecordSize))
+	logger.FSLogger.Info(fmt.Sprintf("Processed record %d at pos %d", record.Entry, pos))
 }
 
 func (mfttable *MFTTable) ProcessNonResidentRecords(hD readers.DiskReader, partitionOffsetB int64, clusterSizeB int) {
