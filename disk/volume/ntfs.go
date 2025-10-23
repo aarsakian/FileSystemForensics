@@ -55,12 +55,11 @@ func (ntfs *NTFS) Process(hD readers.DiskReader, partitionOffsetB int64, MFTSele
 
 	ntfs.MFT = new(MFT.MFTTable)
 	ntfs.MFT.ProcessRecords(data)
-	ntfs.MFT.DetermineClusterOffsetLength()
-
 	// fill buffer before parsing the record
 
 	MFTAreaBuf := ntfs.CollectMFTArea(hD, partitionOffsetB)
 	start := time.Now()
+	ntfs.MFT.Initialize(int64(ntfs.VBR.SectorsPerCluster) * int64(ntfs.VBR.BytesPerSector))
 	ntfs.ProcessMFT(MFTAreaBuf, MFTSelectedEntries, fromMFTEntry, toMFTEntry)
 	fmt.Println("completed at ", time.Since(start))
 
@@ -77,7 +76,7 @@ func (ntfs *NTFS) Process(hD readers.DiskReader, partitionOffsetB int64, MFTSele
 	ntfs.MFT.CreateLinkedRecords()
 	fmt.Printf("completed at %f secs \n", time.Since(start).Seconds())
 
-	if len(MFTSelectedEntries) == 0 && fromMFTEntry == -1 && toMFTEntry == math.MaxUint32 { // additional processing only when user has not selected entries
+	if len(MFTSelectedEntries) == 0 && fromMFTEntry == 0 && toMFTEntry == math.MaxUint32 { // additional processing only when user has not selected entries
 
 		start = time.Now()
 
@@ -282,8 +281,9 @@ func (ntfs *NTFS) ProcessMFT(data []byte, MFTSelectedEntries []int,
 	fromMFTEntry int, toMFTEntry int) {
 
 	totalRecords := len(data) / MFT.RecordSize
+
 	var buf bytes.Buffer
-	if fromMFTEntry != -1 {
+	if fromMFTEntry != 0 {
 		totalRecords -= fromMFTEntry
 	}
 	if fromMFTEntry > totalRecords {
@@ -301,33 +301,35 @@ func (ntfs *NTFS) ProcessMFT(data []byte, MFTSelectedEntries []int,
 	}
 	buf.Grow(totalRecords * MFT.RecordSize)
 
-	for i := 0; i < len(data); i += MFT.RecordSize {
-		if i/MFT.RecordSize > toMFTEntry {
-			break
+	if len(MFTSelectedEntries) == 0 {
+		if toMFTEntry == math.MaxUint32 {
+			buf.Write(data[fromMFTEntry*MFT.RecordSize:])
+		} else {
+			buf.Write(data[fromMFTEntry*MFT.RecordSize : toMFTEntry*MFT.RecordSize])
 		}
-		for _, MFTSelectedEntry := range MFTSelectedEntries {
+	} else {
+		for i := 0; i < len(data); i += MFT.RecordSize {
 
-			if i/MFT.RecordSize != MFTSelectedEntry {
+			for _, MFTSelectedEntry := range MFTSelectedEntries {
 
-				continue
+				if i/MFT.RecordSize != MFTSelectedEntry {
+
+					continue
+				}
+
+				buf.Write(data[i : i+MFT.RecordSize])
+				if buf.Len() <= len(MFTSelectedEntries)*MFT.RecordSize {
+					break
+				}
 			}
 
-			buf.Write(data[i : i+MFT.RecordSize])
-
 		}
-		//buffer full break
-
-		if fromMFTEntry > i/MFT.RecordSize {
-			continue
-		}
-		if len(MFTSelectedEntries) == 0 {
-			buf.Write(data[i : i+MFT.RecordSize])
-		}
-		if buf.Len() == len(MFTSelectedEntries)*MFT.RecordSize {
-			break
-		}
-
 	}
+	msg := fmt.Sprintf("Processing %d $MFT entries out of %d",
+		buf.Len()/MFT.RecordSize, totalRecords)
+	fmt.Printf(" %s \n", msg)
+	logger.FSLogger.Info(msg)
+
 	ntfs.MFT.ProcessRecordsAsync(buf.Bytes())
 
 }
@@ -335,7 +337,7 @@ func (ntfs *NTFS) ProcessMFT(data []byte, MFTSelectedEntries []int,
 func (ntfs NTFS) CollectMFTArea(hD readers.DiskReader, partitionOffsetB int64) []byte {
 	var buf bytes.Buffer
 
-	length := int(ntfs.MFT.Size) * int(ntfs.VBR.BytesPerSector) * int(ntfs.VBR.SectorsPerCluster) // allow for MFT size
+	length := int(ntfs.MFT.SizeCL) * int(ntfs.VBR.BytesPerSector) * int(ntfs.VBR.SectorsPerCluster) // allow for MFT size
 	buf.Grow(length)
 
 	runlist := ntfs.MFT.Records[0].GetRunList("DATA") // first record $MFT
