@@ -98,16 +98,23 @@ func (disk *Disk) SearchFileSystemCH(fstype string, startOffset int) []MFT.Carve
 				break
 
 			}
-			partitionOffsetB := carvedRecord.PhysicalOffset - offset
+			partitionOffsetB := carvedRecord.PhysicalOffset - offset*int64(ntfs.VBR.BytesPerSector)*int64(ntfs.VBR.SectorsPerCluster)
+
+			if partitionOffsetB <= 128*512 {
+				msg := fmt.Sprintf("Invalid partition offset %d", partitionOffsetB)
+				logger.FSLogger.Warning(msg)
+				continue
+			}
 
 			carvedRecord.Record.ShowFNACreationTime()
-			fmt.Printf("attempting to reconstruct $MFT Table  %d possible partition offset %d\n",
+			msg := fmt.Sprintf("attempting to reconstruct $MFT Table  %d possible partition offset %d\n",
 				carvedRecord.PhysicalOffset, partitionOffsetB)
+			fmt.Printf("%s \n", msg)
+			logger.FSLogger.Warning(msg)
 
 			ntfs.MFT = new(MFT.MFTTable)
 			ntfs.MFT.Records = make([]MFT.Record, 1)
 			ntfs.MFT.Records[carvedRecord.Record.Entry] = *carvedRecord.Record
-			ntfs.MFT.DetermineClusterOffsetLength()
 
 			MFTAreaBuf := ntfs.CollectMFTArea(disk.Handler, partitionOffsetB)
 			start := time.Now()
