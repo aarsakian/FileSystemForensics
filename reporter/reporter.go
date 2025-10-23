@@ -1,8 +1,6 @@
 package reporter
 
 import (
-	"fmt"
-
 	metadata "github.com/aarsakian/FileSystemForensics/FS"
 	UsnJrnl "github.com/aarsakian/FileSystemForensics/FS/NTFS/usnjrnl"
 	"github.com/aarsakian/FileSystemForensics/tree"
@@ -32,8 +30,6 @@ func (rp Reporter) Show(records []metadata.Record, usnjrnlRecords UsnJrnl.Record
 		if record.GetID() == 0 {
 			continue
 		}
-
-		fmt.Printf("%d  --------------------------------------------------------------------\n", record.GetID())
 
 		if rp.ShowFileName != "" {
 			record.ShowAttributes("FileName")
