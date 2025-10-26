@@ -14,6 +14,7 @@ import (
 	"time"
 
 	EWFLogger "github.com/aarsakian/EWF_Reader/logger"
+	metadata "github.com/aarsakian/FileSystemForensics/FS"
 	vssLib "github.com/aarsakian/FileSystemForensics/FS/NTFS/VSS"
 	UsnJrnl "github.com/aarsakian/FileSystemForensics/FS/NTFS/usnjrnl"
 	"github.com/aarsakian/FileSystemForensics/disk"
@@ -101,6 +102,9 @@ func main() {
 	var shadowVolume vssLib.ShadowVolume
 	var fileNamesToExport []string
 
+	var err error
+	var recordsPerPartition map[int][]metadata.Record
+
 	entries := utils.GetEntriesInt(*MFTSelectedEntries)
 
 	recordsTree := tree.Tree{}
@@ -160,6 +164,7 @@ func main() {
 	if (*evidencefile != "" || *physicalDrive != -1 || *vmdkfile != "") && *logical == "" {
 		dsk := new(disk.Disk)
 		dsk.Initialize(*evidencefile, *physicalDrive, *vmdkfile)
+		defer dsk.Close()
 
 		if *mftOffset != 0 {
 			vol := Vol.NTFS{}
@@ -169,15 +174,15 @@ func main() {
 		}
 
 		if *searchFS != "" {
-			dsk.SearchFileSystemCH(*searchFS, *searchOffset)
-		}
+			recordsPerPartition = dsk.SearchFileSystemCH(*searchFS, *searchOffset)
 
-		recordsPerPartition, err := dsk.Process(*partitionNum-1, entries, *fromMFTEntry, *toMFTEntry)
+		} else {
+			recordsPerPartition, err = dsk.Process(*partitionNum-1, entries, *fromMFTEntry, *toMFTEntry)
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
 
-		defer dsk.Close()
-		if err != nil {
-			fmt.Println(err)
-			return
 		}
 
 		if *usnjrnl {
