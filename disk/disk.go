@@ -75,8 +75,8 @@ func (disk *Disk) SearchFileSystem(fstype string) []MFT.CarvedRecord {
 
 }
 
-func (disk *Disk) SearchFileSystemCH(fstype string, startOffset int) []MFT.CarvedRecord {
-
+func (disk *Disk) SearchFileSystemCH(fstype string, startOffset int) map[int][]metadata.Record {
+	recordsPerPartition := make(map[int][]metadata.Record)
 	if fstype == "NTFS" {
 		//educated guess
 		//	sectorsPerCluster := 8
@@ -88,7 +88,8 @@ func (disk *Disk) SearchFileSystemCH(fstype string, startOffset int) []MFT.Carve
 		sectorAlignedOffsetB := startOffset - startOffset%512
 		ntfs.CarveMFTRecordsCH(disk.Handler, sectorAlignedOffsetB)
 
-		for _, carvedRecord := range ntfs.CarvedRecords {
+		//	pseudoPartitionNum := 0
+		for idx, carvedRecord := range ntfs.CarvedRecords {
 
 			runlist := carvedRecord.Record.GetRunList("DATA") // first record $MFT
 			offset := int64(0)
@@ -107,25 +108,25 @@ func (disk *Disk) SearchFileSystemCH(fstype string, startOffset int) []MFT.Carve
 			}
 
 			carvedRecord.Record.ShowFNACreationTime()
-			msg := fmt.Sprintf("attempting to reconstruct $MFT Table  %d possible partition offset %d\n",
+			start := time.Now()
+			msg := fmt.Sprintf("attempting to reconstruct $MFT Table  %d possible partition offset %d",
 				carvedRecord.PhysicalOffset, partitionOffsetB)
 			fmt.Printf("%s \n", msg)
 			logger.FSLogger.Warning(msg)
-
+			ntfs.VBR.MFTOffset = uint64(offset)
 			ntfs.MFT = new(MFT.MFTTable)
 			ntfs.MFT.Records = make([]MFT.Record, 1)
 			ntfs.MFT.Records[carvedRecord.Record.Entry] = *carvedRecord.Record
 
-			MFTAreaBuf := ntfs.CollectMFTArea(disk.Handler, partitionOffsetB)
-			start := time.Now()
-			ntfs.ProcessMFT(MFTAreaBuf, []int{}, 0, math.MaxUint32)
-			fmt.Println("completed at ", time.Since(start))
-
+			ntfs.Process(disk.Handler, partitionOffsetB, []int{}, 0, math.MaxUint32)
+			fmt.Println("NTFS $MFT reconstruction completed at ", time.Since(start))
+			recordsPerPartition[idx] = ntfs.GetFS()
 		}
-		return ntfs.CarvedRecords
+
 	} else {
 		panic(fmt.Errorf("only NTFS is supported %s", fstype))
 	}
+	return recordsPerPartition
 
 }
 
