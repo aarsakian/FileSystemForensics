@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"net/http"
+	_ "net/http/pprof"
 	"strconv"
 	"strings"
 	"time"
@@ -78,6 +80,7 @@ func main() {
 	clusters := flag.String("clusters", "", "clusters to look for")
 	listvss := flag.Bool("listvss", false, "list vss copied clusters")
 
+	benchmark := flag.Bool("benchmark", false, "test HD speed")
 	showVSSClusters := flag.Bool("showvssclusters", false, "show volume shadow releveat information for selected clusters")
 
 	orphans := flag.Bool("orphans", false, "show information only for orphan records")
@@ -95,6 +98,8 @@ func main() {
 	usnjrnl := flag.Bool("usnjrnl", false, "show usnjrnl information about changes to files and folders")
 	logfile := flag.Bool("logfile", false, "parse and show $logfile")
 
+	profile := flag.Bool("profile", false, "profile memory usage")
+
 	flag.Parse() //ready to parse
 
 	//var records MFT.Records
@@ -108,6 +113,12 @@ func main() {
 	entries := utils.GetEntriesInt(*MFTSelectedEntries)
 
 	recordsTree := tree.Tree{}
+	if *profile {
+		go func() {
+			log.Println("pprof listening on :6060")
+			log.Println(http.ListenAndServe("localhost:6060", nil))
+		}()
+	}
 
 	rp := reporter.Reporter{
 		ShowFileName:    *showFileName,
@@ -165,6 +176,10 @@ func main() {
 		dsk := new(disk.Disk)
 		dsk.Initialize(*evidencefile, *physicalDrive, *vmdkfile)
 		defer dsk.Close()
+
+		if *benchmark {
+			dsk.Benchmark()
+		}
 
 		if *mftOffset != 0 {
 			vol := Vol.NTFS{}
@@ -262,6 +277,8 @@ func main() {
 
 		dsk2 := new(disk.Disk)
 		dsk2.Initialize(*evidencefile, *physicalDrive, *vmdkfile)
+
+		defer dsk2.Close()
 
 		lvm2 := new(Vol.LVM2)
 		err := lvm2.ProcessHeader(dsk2.Handler, int64(*physicalOffset*512))
