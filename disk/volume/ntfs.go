@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"math"
+	"runtime"
 	"sync"
 	"time"
 
@@ -101,6 +102,7 @@ func (ntfs *NTFS) Process(hD readers.DiskReader, partitionOffsetB int64, MFTSele
 }
 
 func (ntfs *NTFS) CarveMFTRecordsCH(hD readers.DiskReader, startOffset int) {
+	var m runtime.MemStats
 
 	Chunk_size := 512 * 1024 * 1024
 	processedData := Chunk_size
@@ -110,14 +112,19 @@ func (ntfs *NTFS) CarveMFTRecordsCH(hD readers.DiskReader, startOffset int) {
 	var wg sync.WaitGroup
 	ch := make(chan utils.CandidateRecord, 100)
 
-	processedRecordsCH := make(chan MFT.CarvedRecord, 100)
+	processedRecordsCH := make(chan MFT.CarvedRecord, 10)
 
 	go func(ch chan<- utils.CandidateRecord) {
 
 		for offset := startOffset; offset < int(diskSize); offset += Chunk_size {
 
+			runtime.ReadMemStats(&m)
+
 			data, _ := hD.ReadFile(int64(offset), Chunk_size)
-			msg := fmt.Sprintf("offs %d read %d MB at %.2f mins", offset, processedData/1024/1024, time.Since(now).Minutes())
+			msg := fmt.Sprintf("offs %d read %d GB at %.2f mins Througput %0.2f MB/s Memory Alloc %v MiB Garbage Coll %v",
+				offset, processedData/1024/1024/1024, time.Since(now).Minutes(),
+				float64(processedData/1024/1024)/time.Since(now).Seconds(),
+				m.Alloc/1024/1024, m.NumGC)
 			fmt.Printf("%s\n", msg)
 			logger.FSLogger.Info(msg)
 			processedData += Chunk_size
@@ -131,7 +138,7 @@ func (ntfs *NTFS) CarveMFTRecordsCH(hD readers.DiskReader, startOffset int) {
 		close(ch)
 	}(ch)
 
-	numWorks := 8
+	numWorks := 2 * runtime.NumCPU()
 	for i := 0; i < numWorks; i++ {
 		wg.Add(1)
 		go ProcessRecord(ch, processedRecordsCH, &wg)
@@ -238,6 +245,7 @@ func ProcessRecord(ch <-chan utils.CandidateRecord, processedRecord chan<- MFT.C
 
 		record := new(MFT.Record)
 		err := record.Process(candidateRecord.Data)
+
 		if err != nil {
 			logger.FSLogger.Error(err)
 			continue
