@@ -11,6 +11,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 	"unicode/utf16"
 	"unicode/utf8"
@@ -45,6 +46,22 @@ type AskedFile struct {
 type TimeSpec struct {
 	Sec  int64
 	Nsec int32
+}
+
+var BufferPool = sync.Pool{
+	New: func() any {
+		return new(bytes.Buffer)
+	},
+}
+
+func GetBuffer() *bytes.Buffer {
+	buf := BufferPool.Get().(*bytes.Buffer)
+	buf.Reset()
+	return buf
+}
+
+func PutBuffer(buf *bytes.Buffer) {
+	BufferPool.Put(buf)
 }
 
 func (timeSpec TimeSpec) ToTime() time.Time {
