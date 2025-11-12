@@ -75,9 +75,35 @@ func (disk *Disk) SearchFileSystem(fstype string) []MFT.CarvedRecord {
 
 }
 
+func (disk Disk) Benchmark() {
+
+	const (
+		chunkSize   = 512 * 1024 * 1024 // 512 MB
+		totalChunks = 6                 // Total read = 3 GB
+	)
+
+	var totalRead int64
+	start := time.Now()
+	offset := 0
+	for i := 0; i < totalChunks; i++ {
+		disk.Handler.ReadFile(int64(offset), chunkSize)
+		totalRead += int64(chunkSize)
+		offset += chunkSize
+		fmt.Printf("Chunk %d: %d bytes read in %f\n", i+1, chunkSize, time.Since(start).Seconds())
+	}
+
+	elapsed := time.Since(start).Seconds()
+	mbps := float64(totalRead) / (1024 * 1024) / elapsed
+	fmt.Printf("\nTotal read: %.2f MB in %.2f seconds\n", float64(totalRead)/(1024*1024), elapsed)
+	fmt.Printf("Average throughput: %.2f MB/s\n", mbps)
+
+}
+
 func (disk *Disk) SearchFileSystemCH(fstype string, startOffset int) map[int][]metadata.Record {
 	recordsPerPartition := make(map[int][]metadata.Record)
+
 	if fstype == "NTFS" {
+		recordsBYLSN := make(map[uint64]MFT.CarvedRecord)
 		//educated guess
 		//	sectorsPerCluster := 8
 		//bytesPerSector := 512
@@ -88,8 +114,14 @@ func (disk *Disk) SearchFileSystemCH(fstype string, startOffset int) map[int][]m
 		sectorAlignedOffsetB := startOffset - startOffset%512
 		ntfs.CarveMFTRecordsCH(disk.Handler, sectorAlignedOffsetB)
 
-		//	pseudoPartitionNum := 0
-		for idx, carvedRecord := range ntfs.CarvedRecords {
+		// reduce duplicates by LSNs
+		for _, carvedRecord := range ntfs.CarvedRecords {
+			recordsBYLSN[carvedRecord.Record.Lsn] = carvedRecord
+
+		}
+
+		pseudoPartitionID := 0
+		for _, carvedRecord := range recordsBYLSN {
 
 			runlist := carvedRecord.Record.GetRunList("DATA") // first record $MFT
 			offset := int64(0)
@@ -113,14 +145,14 @@ func (disk *Disk) SearchFileSystemCH(fstype string, startOffset int) map[int][]m
 				carvedRecord.PhysicalOffset, partitionOffsetB)
 			fmt.Printf("%s \n", msg)
 			logger.FSLogger.Warning(msg)
+
 			ntfs.VBR.MFTOffset = uint64(offset)
-			ntfs.MFT = new(MFT.MFTTable)
-			ntfs.MFT.Records = make([]MFT.Record, 1)
-			ntfs.MFT.Records[carvedRecord.Record.Entry] = *carvedRecord.Record
 
 			ntfs.Process(disk.Handler, partitionOffsetB, []int{}, 0, math.MaxUint32)
 			fmt.Println("NTFS $MFT reconstruction completed at ", time.Since(start))
-			recordsPerPartition[idx] = ntfs.GetFS()
+			recordsPerPartition[pseudoPartitionID] = ntfs.GetFS()
+
+			pseudoPartitionID++
 		}
 
 	} else {
