@@ -19,7 +19,7 @@ func (data *DATA) SetHeader(header *AttributeHeader) {
 }
 
 func (data *DATA) Parse(datab []byte) {
-	data.Content = datab
+	copy(data.Content, datab)
 }
 
 func (data DATA) GetHeader() AttributeHeader {

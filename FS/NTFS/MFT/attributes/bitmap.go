@@ -16,7 +16,7 @@ func (bitmap BitMap) GetHeader() AttributeHeader {
 }
 
 func (bitmap *BitMap) Parse(data []byte) {
-	bitmap.AllocationStatus = data
+	copy(bitmap.AllocationStatus, data)
 }
 
 func (bitmap BitMap) FindType() string {
