@@ -1,15 +1,17 @@
 package readers
 
 import (
-	"bufio"
 	"bytes"
 	"fmt"
 	"log"
 	"unsafe"
 
 	"github.com/aarsakian/FileSystemForensics/logger"
+	"github.com/aarsakian/FileSystemForensics/utils"
 	"golang.org/x/sys/windows"
 )
+
+const chunkSize = 512 * 1024 * 1024 // 512 MB
 
 var (
 	kernel32             = windows.NewLazySystemDLL("kernel32.dll")
@@ -32,9 +34,9 @@ type WindowsReader struct {
 func (winreader *WindowsReader) CreateHandler() {
 	file_ptr, _ := windows.UTF16PtrFromString(winreader.a_file)
 	var templateHandle windows.Handle
-	fd, err := windows.CreateFile(file_ptr, windows.FILE_READ_DATA,
+	fd, err := windows.CreateFile(file_ptr, windows.GENERIC_READ,
 		windows.FILE_SHARE_READ, nil,
-		windows.OPEN_EXISTING, 0, templateHandle)
+		windows.OPEN_EXISTING, windows.FILE_FLAG_SEQUENTIAL_SCAN, templateHandle)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -63,16 +65,20 @@ func (winreader WindowsReader) GetDiskSize() int64 {
 }
 
 func (winreader WindowsReader) ReadFile(startOffset int64, totalSize int) ([]byte, error) {
-	var wholebuffer bytes.Buffer
-	w := bufio.NewWriter(&wholebuffer)
+	var wholebuffer *bytes.Buffer
 
-	const chunkSize = 512 * 1024 * 1024 // 512 MB
+	// allocate only when requested to read more than chunksize
+	if totalSize > chunkSize {
+		wholebuffer = utils.GetBuffer()
+		defer utils.PutBuffer(wholebuffer)
 
+		wholebuffer.Grow(totalSize)
+	}
 	buffer := make([]byte, chunkSize)
-	bytesRead := int64(0)
+	bytesRead := uint32(0)
 	offset := int64(0)
 
-	for bytesRead < int64(totalSize) {
+	for int(bytesRead) < totalSize {
 
 		err := setFilePointerEx(winreader.fd, offset+startOffset, windows.FILE_BEGIN)
 
@@ -85,15 +91,14 @@ func (winreader WindowsReader) ReadFile(startOffset int64, totalSize int) ([]byt
 			toRead = int(int64(totalSize) - offset)
 		}
 
-		var bytesRead uint32
-
 		err = windows.ReadFile(winreader.fd, buffer[:toRead], &bytesRead, nil)
 		if err != nil {
 			logger.FSLogger.Error(fmt.Sprintf("Read failed at offset %d: %v", offset+startOffset, err))
 			return nil, err
 		}
-
-		w.Write(buffer)
+		if totalSize > chunkSize {
+			wholebuffer.Write(buffer)
+		}
 
 		logger.FSLogger.Info(fmt.Sprintf("Read %d bytes at offset %d", bytesRead, offset+startOffset))
 		offset += int64(bytesRead)
@@ -102,8 +107,12 @@ func (winreader WindowsReader) ReadFile(startOffset int64, totalSize int) ([]byt
 			break
 		}
 	}
-	w.Flush()
-	return wholebuffer.Bytes()[:totalSize], nil
+	if totalSize > chunkSize {
+		return append([]byte(nil), wholebuffer.Bytes()...), nil
+	} else {
+		return buffer, nil
+	}
+
 }
 
 func setFilePointerEx(handle windows.Handle, distance int64, moveMethod uint32) error {
