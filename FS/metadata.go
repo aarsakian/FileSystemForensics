@@ -22,8 +22,10 @@ type Record interface {
 	HasPrefix(string) bool
 	IsDeleted() bool
 	IsFolder() bool
+	IsBase() bool
 	GetFname() string
 	GetID() int
+	GetParentID() int
 	GetLinkedRecords() []Record
 	GetLogicalFileSize() int64
 	GetSequence() int
