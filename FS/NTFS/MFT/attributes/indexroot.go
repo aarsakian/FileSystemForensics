@@ -76,6 +76,10 @@ func (idxRoot *IndexRoot) Parse(data []byte) {
 	idxRoot.Nodeheader = nodeheader
 
 	idxEntryOffset := 16 + uint16(nodeheader.OffsetEntryList)
+	if int(nodeheader.OffsetEndUsedEntryList) > len(data) {
+		logger.FSLogger.Warning("nodeheeader offset exceeds buffer")
+		return
+	}
 
 	idxRoot.IndexEntries = Parse(data[idxEntryOffset:nodeheader.OffsetEndUsedEntryList])
 
