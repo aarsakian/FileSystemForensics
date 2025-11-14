@@ -2,10 +2,10 @@ package tree
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	metadata "github.com/aarsakian/FileSystemForensics/FS"
-	MFTAttributes "github.com/aarsakian/FileSystemForensics/FS/NTFS/MFT/attributes"
 	"github.com/aarsakian/FileSystemForensics/logger"
 )
 
@@ -14,106 +14,59 @@ in the tree is actually the number of the block containing the child node (usual
 interpreted as an offset from the beginning of the corresponding disk file)*/
 
 type Node struct {
-	record        *metadata.Record
-	parent        *Node
-	children      []*Node
-	MinChildEntry int
-	MaxChildEntry int
+	ID       int
+	ParentID int
+	record   *metadata.Record
+	parent   *Node
+	children []*Node
 }
 
 type Tree struct {
-	root *Node
+	root          *Node
+	OrphanedNodes []*Node
 }
 
 func (t *Tree) Build(records []metadata.Record) {
 	msg := fmt.Sprintf("Building tree from %d MFT records ", len(records))
 	fmt.Printf(msg + "\n")
 	logger.FSLogger.Info(msg)
+	nodeMap := make(map[int]*Node)
 
 	for idx := range records {
 		if records[idx].GetID() < 5 { //$MFT entry number 5
 			continue
 		}
 
-		t.AddRecord(&records[idx])
+		//skip non base records
+		if !records[idx].IsBase() {
+			continue
+		}
+		parentID := records[idx].GetParentID()
+
+		if parentID == -1 {
+			continue
+		}
+
+		nodeMap[records[idx].GetID()] = &Node{records[idx].GetID(), parentID,
+			&records[idx], nil, nil}
+		//t.AddRecord(&records[idx])
 	}
 
-}
+	for _, node := range nodeMap {
+		if node.ID == 5 {
+			t.root = node
+			continue
+		}
 
-func (t *Tree) AddRecord(record *metadata.Record) {
-
-	if t.root == nil {
-		logger.FSLogger.Info("initialized root")
-
-		t.root = &Node{record, nil, nil, 0, 0}
-	} else {
-
-		t.root.insert(record)
-
-	}
-
-}
-
-func (node *Node) insert(record *metadata.Record) {
-	if !(*node.record).IsFolder() {
-		return
-	}
-
-	attr := (*record).FindAttribute("FileName")
-	if attr != nil {
-		logger.FSLogger.Info(fmt.Sprintf("checking %s %d min %d max %d",
-			(*node.record).GetFname(), (*node.record).GetID(), node.MinChildEntry, node.MaxChildEntry))
-
-		fnattr := attr.(*MFTAttributes.FNAttribute)
-		if uint64((*node.record).GetID()) == fnattr.ParRef && (*node.record).GetSequence()-int(fnattr.ParSeq) < 2 { //record is children
-			childNode := Node{record, node, nil, (*record).GetID(), (*record).GetID()}
-			node.updateEntryRange((*record).GetID())
-			node.children = append(node.children, &childNode)
-
-			childNode.parent = node
-
-			logger.FSLogger.Info(fmt.Sprintf("added %s Id %d  to %s Id %d", (*childNode.record).GetFname(),
-				(*childNode.record).GetID(), (*childNode.parent.record).GetFname(), (*childNode.parent.record).GetID()))
-
+		parent, ok := nodeMap[node.ParentID]
+		if ok {
+			parent.children = append(parent.children, node)
+			node.parent = parent
 		} else {
-
-			for idx := range node.children { //test its children
-				/*	logger.FSLogger.Info(fmt.Sprintf("children %s %d min %d max %d", node.children[idx].record.GetFname(), node.children[idx].(*record).GetID(),
-					node.children[idx].MinChildEntry, node.children[idx].MaxChildEntry))*/
-				if !node.children[idx].contains(int(fnattr.ParRef)) {
-
-					continue
-				}
-				node.children[idx].insert(record)
-
-			}
+			// Orphaned node
+			t.OrphanedNodes = append(t.OrphanedNodes, node)
 		}
-	}
 
-}
-
-func (node Node) contains(entry int) bool {
-
-	if node.MinChildEntry <= entry && entry <= node.MaxChildEntry {
-		return true
-
-	}
-
-	return false
-}
-
-func (node *Node) updateEntryRange(entry int) {
-	for node != nil {
-		//logger.FSLogger.Info(fmt.Sprintf("updating %d for %d", (*node.record).GetID(), entry))
-		if node.MinChildEntry > entry {
-			node.MinChildEntry = entry
-
-		}
-		if node.MaxChildEntry < entry {
-			node.MaxChildEntry = entry
-
-		}
-		node = node.parent
 	}
 
 }
@@ -121,6 +74,7 @@ func (node *Node) updateEntryRange(entry int) {
 func (t Tree) Show() {
 
 	t.root.descend()
+	t.showOrphanedNodes()
 
 }
 
@@ -137,6 +91,16 @@ func (node Node) descend() {
 	}
 }
 
+func (t Tree) showOrphanedNodes() {
+	if t.OrphanedNodes == nil {
+		return
+	}
+	fmt.Print("\n Orphaned Nodes: \n")
+	for _, orphanedNode := range t.OrphanedNodes {
+		orphanedNode.showChildrenInfo()
+	}
+}
+
 func (node Node) showChildrenInfo() {
 	msgB := strings.Builder{}
 	msgB.Grow(len(node.children) + 1) // for root
@@ -147,7 +111,12 @@ func (node Node) showChildrenInfo() {
 
 	fmt.Print("\n" + msg)
 
+	sort.Slice(node.children, func(i, j int) bool {
+		return (*node.children[i].record).GetFname() < (*node.children[j].record).GetFname()
+	})
+
 	for _, childNode := range node.children {
+
 		msg := fmt.Sprintf(" %s %d", (*childNode.record).GetFname(), (*childNode.record).GetID())
 
 		fmt.Print(msg)
