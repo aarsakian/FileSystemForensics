@@ -121,6 +121,10 @@ func (fileDirEntry FileDirEntry) GetID() int {
 	return fileDirEntry.Id
 }
 
+func (fileDirEntry FileDirEntry) GetParentID() int {
+	return fileDirEntry.Parent.Id
+}
+
 func (fileDirEntry FileDirEntry) GetLinkedRecords() []*FileDirEntry {
 	return []*FileDirEntry{}
 }
@@ -173,6 +177,10 @@ func (fileDirEntry FileDirEntry) IsDeleted() bool {
 
 func (fileDirEntry FileDirEntry) IsFolder() bool {
 	return false
+}
+
+func (fileDirEntry FileDirEntry) IsBase() bool {
+	return true
 }
 
 func (fileDirEntry FileDirEntry) GetIndex() int {
