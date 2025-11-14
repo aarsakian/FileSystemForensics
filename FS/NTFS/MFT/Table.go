@@ -22,8 +22,9 @@ func (e *ParentReallocatedError) Error() string {
 
 // $MFT table points either to its file path or the buffer containing $MFT
 type MFTTable struct {
-	Records []Record
-	SizeCL  int //size in clusters
+	Records         []Record
+	NonValidRecords int
+	SizeCL          int //size in clusters
 }
 
 func (mfttable *MFTTable) ProcessRecordsAsync(data []byte) {
@@ -31,6 +32,7 @@ func (mfttable *MFTTable) ProcessRecordsAsync(data []byte) {
 	var wg sync.WaitGroup
 
 	for i := 0; i < len(data); i += RecordSize {
+
 		wg.Add(1)
 		go mfttable.MFTWorker(data[i:i+RecordSize], i/RecordSize, &wg)
 
@@ -67,8 +69,9 @@ func (mfttable *MFTTable) MFTWorker(data []byte, pos int, wg *sync.WaitGroup) {
 	defer wg.Done()
 	var record Record
 	err := record.Process(data)
-	if err != nil {
+	if err == ErrCorruptRecord || err == ErrNotValidRecord {
 		logger.FSLogger.Error(err)
+		mfttable.NonValidRecords++
 		return
 	}
 
