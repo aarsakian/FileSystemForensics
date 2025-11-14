@@ -19,6 +19,11 @@ import (
 	"github.com/aarsakian/FileSystemForensics/utils"
 )
 
+var (
+	ErrCorruptRecord  = errors.New("record is bad")
+	ErrNotValidRecord = errors.New("record has bad singature")
+)
+
 var RecordSize = 1024
 
 var SIFlags = map[uint32]string{
@@ -89,9 +94,21 @@ func (mfttable *MFTTable) Initialize(clusterSizeB int64) {
 
 }
 
+func (mfttable MFTTable) IsOK() bool {
+	// after more than 20 non valid recors $MFT is corrupt
+	// check table if
+
+	return mfttable.NonValidRecords < 20
+}
+
 func (record Record) IsFolder() bool {
 	recordType := record.getType()
-	return recordType == "Folder Unallocated" || recordType == "Folder Allocated"
+	return recordType == "Folder Unallocated" && record.BaseRef == 0 ||
+		recordType == "Folder Allocated" && record.BaseRef == 0
+}
+
+func (record Record) IsBase() bool {
+	return record.BaseRef == 0
 }
 
 func (record *Record) ProcessNoNResidentAttributes(hD readers.DiskReader, partitionOffsetB int64, clusterSizeB int, buf *bytes.Buffer) int {
@@ -332,6 +349,15 @@ func (record Record) getType() string {
 
 func (record Record) GetID() int {
 	return int(record.Entry)
+}
+
+func (record Record) GetParentID() int {
+	attr := record.FindAttribute("FileName")
+	if attr == nil {
+		return -1
+	}
+	fnattr := attr.(*MFTAttributes.FNAttribute)
+	return int(fnattr.ParRef)
 }
 
 func (record Record) GetSequence() int {
@@ -647,14 +673,14 @@ func (record *Record) Process(bs []byte) error {
 		return errors.New(msg)
 
 	} else if bytes.Equal(bs[:4], []byte{0x62, 0x61, 0x61, 0x64}) { //BAAD
-		msg = "Record is corrupt"
-		logger.FSLogger.Warning(msg)
-		return errors.New(msg)
+
+		logger.FSLogger.Warning("Record is corrupt")
+		return ErrCorruptRecord
 
 	} else if !bytes.Equal(bs[:4], []byte{0x46, 0x49, 0x4c, 0x45}) { //FILE
 		msg = fmt.Sprintf("Record has non valid signature %x", bs[:4])
 		logger.FSLogger.Warning(msg)
-		return errors.New(msg)
+		return ErrNotValidRecord
 	}
 
 	utils.Unmarshal(bs, record)
