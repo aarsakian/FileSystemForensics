@@ -207,6 +207,8 @@ func (disk Disk) ProcessJrnl(recordsPerPartition map[int][]metadata.Record, part
 		if partitionNum != -1 && partitionID != partitionNum {
 			continue
 		}
+		partition := disk.Partitions[2]
+		clusterSize := partition.GetVolume().GetSectorsPerCluster() * int(partition.GetVolume().GetBytesPerSector())
 		for _, record := range metadata.FilterByName(records, "$UsnJrnl") {
 			recordsCH := make(chan UsnJrnl.Record)
 			wg := new(sync.WaitGroup)
@@ -214,7 +216,7 @@ func (disk Disk) ProcessJrnl(recordsPerPartition map[int][]metadata.Record, part
 			dataClusters := make(chan []byte, record.GetLogicalFileSize())
 
 			go disk.AsyncWorker(wg, record, dataClusters, partitionID)
-			go UsnJrnl.AsyncProcess(wg, dataClusters, recordsCH)
+			go UsnJrnl.AsyncProcess(wg, dataClusters, recordsCH, clusterSize)
 			for record := range recordsCH {
 				usnrecords = append(usnrecords, record)
 			}
