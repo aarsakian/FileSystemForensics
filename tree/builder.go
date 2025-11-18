@@ -104,26 +104,27 @@ func (t Tree) showOrphanedNodes() {
 func (node Node) showChildrenInfo() {
 	msgB := strings.Builder{}
 	msgB.Grow(len(node.children) + 1) // for root
+	if (*node.record).IsFolder() {
+		msg := fmt.Sprintf(" %s  (%d) |_> ", (*node.record).GetFname(), (*node.record).GetID())
 
-	msg := fmt.Sprintf(" %s  %d |_> ", (*node.record).GetFname(), (*node.record).GetID())
-
-	msgB.WriteString(msg)
-
-	fmt.Print("\n" + msg)
-
-	sort.Slice(node.children, func(i, j int) bool {
-		return (*node.children[i].record).GetFname() < (*node.children[j].record).GetFname()
-	})
-
-	for _, childNode := range node.children {
-
-		msg := fmt.Sprintf(" %s %d", (*childNode.record).GetFname(), (*childNode.record).GetID())
-
-		fmt.Print(msg)
 		msgB.WriteString(msg)
 
-	}
+		fmt.Print("\n" + msg)
 
-	logger.FSLogger.Info(msgB.String())
+		sort.Slice(node.children, func(i, j int) bool {
+			return (*node.children[i].record).GetFname() < (*node.children[j].record).GetFname()
+		})
+
+		for _, childNode := range node.children {
+
+			msg := fmt.Sprintf(" %s %d", (*childNode.record).GetFname(), (*childNode.record).GetID())
+
+			fmt.Print(msg)
+			msgB.WriteString(msg)
+
+		}
+
+		logger.FSLogger.Info(msgB.String())
+	}
 
 }
