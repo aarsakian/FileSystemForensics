@@ -82,7 +82,7 @@ type Record struct {
 
 }
 
-func AsyncProcess(wg *sync.WaitGroup, dataClusters <-chan []byte, recordsCH chan<- Record) {
+func AsyncProcess(wg *sync.WaitGroup, dataClusters <-chan []byte, recordsCH chan<- Record, clusterSize int) {
 	defer wg.Done()
 
 	for dataCluster := range dataClusters {
@@ -100,11 +100,13 @@ func AsyncProcess(wg *sync.WaitGroup, dataClusters <-chan []byte, recordsCH chan
 				logger.FSLogger.Warning(msg)
 				break
 			}
-			offset += parsedLen
 
-			if record.Length == 0 {
+			if record.Length == 0 ||
+				int(record.Length) > clusterSize-offset%clusterSize {
 				offset += 1
 				continue
+			} else {
+				offset += parsedLen
 			}
 
 			recordsCH <- *record
@@ -122,7 +124,7 @@ func (record *Record) Parse(data []byte) (int, error) {
 
 	utils.Unmarshal(data, record)
 
-	readTo := int(record.FnameOffset + record.FnameLen)
+	readTo := int(record.FnameOffset) + int(record.FnameLen)
 	if record.Length == 0 {
 		logger.FSLogger.Warning("USN jrnl record length is zero")
 		return int(record.Length), nil
@@ -130,7 +132,6 @@ func (record *Record) Parse(data []byte) (int, error) {
 
 		return int(record.Length), errors.New("exceeded available record length")
 	}
-
 	record.Fname = utils.DecodeUTF16(data[record.FnameOffset:readTo])
 	return int(record.Length), nil
 }
@@ -148,7 +149,7 @@ func (record Record) GetReason() string {
 }
 
 func (record Record) ShowInfo() {
-	fmt.Printf("%s %s %s entry Ref %d entry Seq %d parent Ref %d parent Seq %d\n",
+	fmt.Printf("%s %s %s entry Ref %d entry Seq %d parent Ref %d parent Seq %d Event %s\n",
 		record.Fname, record.GetReason(), record.GetFileAttributes(), record.EntryRef, record.EntrySeq,
-		record.ParRef, record.ParSeq)
+		record.ParRef, record.ParSeq, record.EventTime.ConvertToIsoTime())
 }
