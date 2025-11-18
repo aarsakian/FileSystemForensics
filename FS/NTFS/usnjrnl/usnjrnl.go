@@ -128,7 +128,7 @@ func (record *Record) Parse(data []byte) (int, error) {
 	if record.Length == 0 {
 		logger.FSLogger.Warning("USN jrnl record length is zero")
 		return int(record.Length), nil
-	} else if readTo > int(record.Length) {
+	} else if readTo >= len(data) {
 
 		return int(record.Length), errors.New("exceeded available record length")
 	}
