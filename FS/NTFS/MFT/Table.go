@@ -27,14 +27,15 @@ type MFTTable struct {
 	SizeCL          int //size in clusters
 }
 
-func (mfttable *MFTTable) ProcessRecordsAsync(data []byte) {
+func (mfttable *MFTTable) ProcessRecordsAsync(data [][]byte) {
 
 	var wg sync.WaitGroup
 
-	for i := 0; i < len(data); i += RecordSize {
+	for i := 0; i < len(data[:]); i++ {
 
 		wg.Add(1)
-		go mfttable.MFTWorker(data[i:i+RecordSize], i/RecordSize, &wg)
+
+		go mfttable.MFTWorker(data[i][:], i, &wg)
 
 	}
 	wg.Wait()
@@ -67,11 +68,18 @@ func (mfttable *MFTTable) ProcessRecords(data []byte) {
 
 func (mfttable *MFTTable) MFTWorker(data []byte, pos int, wg *sync.WaitGroup) {
 	defer wg.Done()
+	if len(data) == 0 {
+		return
+	}
 	var record Record
 	err := record.Process(data)
 	if err == ErrCorruptRecord || err == ErrNotValidRecord {
 		logger.FSLogger.Error(err)
 		mfttable.NonValidRecords++
+		return
+	}
+	if int(record.Entry) >= len(mfttable.Records) {
+		logger.FSLogger.Warning(fmt.Sprintf("record  %d probably does not belong to current $MFT table", record.Entry))
 		return
 	}
 
