@@ -62,7 +62,13 @@ func (ntfs *NTFS) Process(hD readers.DiskReader, partitionOffsetB int64, MFTSele
 	start := time.Now()
 	ntfs.MFT.Initialize(int64(ntfs.VBR.SectorsPerCluster) * int64(ntfs.VBR.BytesPerSector))
 	ntfs.ProcessMFT(MFTAreaBuf, MFTSelectedEntries, fromMFTEntry, toMFTEntry)
-	fmt.Println("completed at ", time.Since(start))
+	fmt.Printf("completed at %0.2f secs\n", time.Since(start).Seconds())
+
+	if !ntfs.MFT.IsOK() {
+
+		fmt.Println("skipping further processing.")
+		return
+	}
 
 	start = time.Now()
 	fmt.Printf("Processing NoN resident attributes of %d records.\n", len(ntfs.MFT.Records))
@@ -290,10 +296,8 @@ func (ntfs *NTFS) ProcessMFT(data []byte, MFTSelectedEntries []int,
 
 	totalRecords := len(data) / MFT.RecordSize
 
-	var buf bytes.Buffer
-	if fromMFTEntry != 0 {
-		totalRecords -= fromMFTEntry
-	}
+	selectedRecordsData := make([][]byte, totalRecords)
+
 	if fromMFTEntry > totalRecords {
 		panic("MFT start entry exceeds $MFT number of records")
 	}
@@ -301,44 +305,34 @@ func (ntfs *NTFS) ProcessMFT(data []byte, MFTSelectedEntries []int,
 	if toMFTEntry != math.MaxUint32 && toMFTEntry > totalRecords {
 		panic("MFT end entry exceeds $MFT number of records")
 	}
-	if toMFTEntry != math.MaxUint32 {
-		totalRecords -= toMFTEntry
-	}
-	if len(MFTSelectedEntries) > 0 {
-		totalRecords = len(MFTSelectedEntries)
-	}
-	buf.Grow(totalRecords * MFT.RecordSize)
 
-	if len(MFTSelectedEntries) == 0 {
-		if toMFTEntry == math.MaxUint32 {
-			buf.Write(data[fromMFTEntry*MFT.RecordSize:])
-		} else {
-			buf.Write(data[fromMFTEntry*MFT.RecordSize : toMFTEntry*MFT.RecordSize])
-		}
-	} else {
-		for i := 0; i < len(data); i += MFT.RecordSize {
-
-			for _, MFTSelectedEntry := range MFTSelectedEntries {
-
-				if i/MFT.RecordSize != MFTSelectedEntry {
-
-					continue
-				}
-
-				buf.Write(data[i : i+MFT.RecordSize])
-				if buf.Len() <= len(MFTSelectedEntries)*MFT.RecordSize {
-					break
+	totalSelectedRecords := 0
+	for i := 0; i < len(data); i += MFT.RecordSize {
+		found := func(selectedEntry int, arr []int) bool {
+			for _, v := range arr {
+				if v == selectedEntry {
+					return true
 				}
 			}
+			return false
+		}(i/MFT.RecordSize, MFTSelectedEntries)
 
+		if !found && len(MFTSelectedEntries) > 0 ||
+			i/MFT.RecordSize > toMFTEntry ||
+			i/MFT.RecordSize < fromMFTEntry {
+
+			continue
 		}
+
+		selectedRecordsData[i/MFT.RecordSize] = data[i : i+MFT.RecordSize]
+		totalSelectedRecords++
+
 	}
-	msg := fmt.Sprintf("Processing %d $MFT entries out of %d",
-		buf.Len()/MFT.RecordSize, totalRecords)
+	msg := fmt.Sprintf("Processing %d $MFT entries out of %d", totalSelectedRecords, totalRecords)
 	fmt.Printf(" %s \n", msg)
 	logger.FSLogger.Info(msg)
 
-	ntfs.MFT.ProcessRecordsAsync(buf.Bytes())
+	ntfs.MFT.ProcessRecordsAsync(selectedRecordsData)
 
 }
 
