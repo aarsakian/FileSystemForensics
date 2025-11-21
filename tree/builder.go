@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	metadata "github.com/aarsakian/FileSystemForensics/FS"
 	"github.com/aarsakian/FileSystemForensics/logger"
@@ -27,12 +28,14 @@ type Tree struct {
 }
 
 func (t *Tree) Build(records []metadata.Record) {
+	start := time.Now()
 	msg := fmt.Sprintf("Building tree from %d MFT records ", len(records))
 	fmt.Printf(msg + "\n")
 	logger.FSLogger.Info(msg)
 	nodeMap := make(map[int]*Node)
 
 	for idx := range records {
+
 		if records[idx].GetID() < 5 { //$MFT entry number 5
 			continue
 		}
@@ -68,6 +71,7 @@ func (t *Tree) Build(records []metadata.Record) {
 		}
 
 	}
+	fmt.Printf("Completed in %f\n", time.Since(start).Seconds())
 
 }
 
