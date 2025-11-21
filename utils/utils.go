@@ -134,13 +134,13 @@ func GetStructSize(v interface{}, size int) int {
 
 func ToUint32(data []byte) uint32 {
 	var temp uint32
-	binary.Read(bytes.NewBuffer(data), binary.LittleEndian, &temp)
+	binary.Read(bytes.NewReader(data), binary.LittleEndian, &temp)
 	return temp
 }
 
 func ToUint16(data []byte) uint16 {
 	var temp uint16
-	binary.Read(bytes.NewBuffer(data), binary.LittleEndian, &temp)
+	binary.Read(bytes.NewReader(data), binary.LittleEndian, &temp)
 	return temp
 }
 
@@ -226,7 +226,7 @@ func ReadEndianInt(barray []byte) int64 {
 	var sum int32
 	copy(buf, barray)
 
-	binary.Read(bytes.NewBuffer(buf), binary.LittleEndian, &sum)
+	binary.Read(bytes.NewReader(buf), binary.LittleEndian, &sum)
 	return int64(sum)
 
 }
@@ -298,27 +298,27 @@ func Unmarshal(data []byte, v interface{}) (int, error) {
 
 		case reflect.Uint8:
 			var temp uint8
-			binary.Read(bytes.NewBuffer(data[idx:idx+1]), binary.LittleEndian, &temp)
+			binary.Read(bytes.NewReader(data[idx:idx+1]), binary.LittleEndian, &temp)
 			field.SetUint(uint64(temp))
 			idx += 1
 		case reflect.Int16:
 			var temp int16
-			binary.Read(bytes.NewBuffer(data[idx:idx+2]), binary.LittleEndian, &temp)
+			binary.Read(bytes.NewReader(data[idx:idx+2]), binary.LittleEndian, &temp)
 			field.SetInt(int64(temp))
 			idx += 2
 		case reflect.Uint16:
 			var temp uint16
-			binary.Read(bytes.NewBuffer(data[idx:idx+2]), binary.LittleEndian, &temp)
+			binary.Read(bytes.NewReader(data[idx:idx+2]), binary.LittleEndian, &temp)
 			field.SetUint(uint64(temp))
 			idx += 2
 		case reflect.Uint32:
 			var temp uint32
-			binary.Read(bytes.NewBuffer(data[idx:idx+4]), binary.LittleEndian, &temp)
+			binary.Read(bytes.NewReader(data[idx:idx+4]), binary.LittleEndian, &temp)
 			field.SetUint(uint64(temp))
 			idx += 4
 		case reflect.Int64:
 			var temp int64
-			binary.Read(bytes.NewBuffer(data[idx:idx+8]), binary.LittleEndian, &temp)
+			binary.Read(bytes.NewReader(data[idx:idx+8]), binary.LittleEndian, &temp)
 			idx += 8
 			field.SetInt(temp)
 		case reflect.Uint64:
@@ -331,18 +331,18 @@ func Unmarshal(data []byte, v interface{}) (int, error) {
 			case "ParRef", "EntryRef":
 				buf := make([]byte, 8)
 				copy(buf, data[idx:idx+6])
-				binary.Read(bytes.NewBuffer(buf), binary.LittleEndian, &temp)
+				binary.Read(bytes.NewReader(buf), binary.LittleEndian, &temp)
 				idx += 6
 			case "ChildVCN":
 				len := val.FieldByName("Len").Uint()
 				flags := val.FieldByName("Flags").Uint()
 				if flags == 1 {
-					binary.Read(bytes.NewBuffer(data[len-8:len]), binary.LittleEndian, &temp)
+					binary.Read(bytes.NewReader(data[len-8:len]), binary.LittleEndian, &temp)
 
 				}
 
 			default:
-				binary.Read(bytes.NewBuffer(data[idx:idx+8]), binary.LittleEndian, &temp)
+				binary.Read(bytes.NewReader(data[idx:idx+8]), binary.LittleEndian, &temp)
 				idx += 8
 			}
 			field.SetUint(temp)
@@ -435,15 +435,15 @@ func readEndianU(barray []byte) (val interface{}) {
 	switch len(barray) {
 	case 8:
 		var vale uint64
-		binary.Read(bytes.NewBuffer(barray), binary.LittleEndian, &vale)
+		binary.Read(bytes.NewReader(barray), binary.LittleEndian, &vale)
 		val = vale
 	case 6:
 
 		var vale uint32
 		buf := make([]byte, 6)
-		binary.Read(bytes.NewBuffer(barray[:4]), binary.LittleEndian, &vale)
+		binary.Read(bytes.NewReader(barray[:4]), binary.LittleEndian, &vale)
 		var vale1 uint16
-		binary.Read(bytes.NewBuffer(barray[4:]), binary.LittleEndian, &vale1)
+		binary.Read(bytes.NewReader(barray[4:]), binary.LittleEndian, &vale1)
 		binary.LittleEndian.PutUint32(buf[:4], vale)
 		binary.LittleEndian.PutUint16(buf[4:], vale1)
 		val, _ = binary.ReadUvarint(bytes.NewBuffer(buf))
@@ -451,13 +451,13 @@ func readEndianU(barray []byte) (val interface{}) {
 	case 4:
 		var vale uint32
 		//   fmt.Println("barray",barray)
-		binary.Read(bytes.NewBuffer(barray), binary.LittleEndian, &vale)
+		binary.Read(bytes.NewReader(barray), binary.LittleEndian, &vale)
 		val = vale
 	case 2:
 
 		var vale uint16
 
-		binary.Read(bytes.NewBuffer(barray), binary.LittleEndian, &vale)
+		binary.Read(bytes.NewReader(barray), binary.LittleEndian, &vale)
 		//   fmt.Println("after conversion vale----------------",barray,vale)
 		val = vale
 
@@ -465,14 +465,14 @@ func readEndianU(barray []byte) (val interface{}) {
 
 		var vale uint8
 
-		binary.Read(bytes.NewBuffer(barray), binary.LittleEndian, &vale)
+		binary.Read(bytes.NewReader(barray), binary.LittleEndian, &vale)
 		//      fmt.Println("after conversion vale----------------",barray,vale)
 		val = vale
 
 	default: //best it would be nil
 		var vale uint64
 
-		binary.Read(bytes.NewBuffer(barray), binary.LittleEndian, &vale)
+		binary.Read(bytes.NewReader(barray), binary.LittleEndian, &vale)
 		val = vale
 	}
 
@@ -483,13 +483,13 @@ func readEndianFloat(barray []byte) (val uint64) {
 
 	//    fmt.Printf("len%d ",len(barray))
 
-	binary.Read(bytes.NewBuffer(barray), binary.LittleEndian, &val)
+	binary.Read(bytes.NewReader(barray), binary.LittleEndian, &val)
 	return val
 }
 
 func readEndianString(barray []byte) (val []byte) {
 
-	binary.Read(bytes.NewBuffer(barray), binary.LittleEndian, &val)
+	binary.Read(bytes.NewReader(barray), binary.LittleEndian, &val)
 
 	return val
 }
