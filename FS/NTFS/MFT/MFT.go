@@ -409,6 +409,34 @@ func (record Record) ShowVCNs() {
 
 }
 
+func (record Record) ShowAllocatedClusters() {
+	runlist := record.GetRunList("DATA")
+
+	offset := int64(0)
+
+	for runlist != nil {
+		offset += runlist.Offset
+
+		if runlist.Offset != 0 && runlist.Length > 0 {
+
+			fmt.Printf("offset %d cl.  offset %d cl\n", runlist.Length, offset)
+
+		} else if runlist.Offset == 0 && runlist.Length > 0 {
+
+			fmt.Printf("sparse  len %d cl.\n", runlist.Length)
+
+		}
+
+		if runlist.Next == nil {
+			break
+		}
+
+		runlist = runlist.Next
+
+	}
+
+}
+
 func (record Record) ShowParentRecordInfo() {
 	if record.Parent == nil {
 		fmt.Printf("\n Record has no parent ")

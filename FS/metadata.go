@@ -40,6 +40,7 @@ type Record interface {
 	ShowInfo()
 	ShowParentRecordInfo()
 	ShowPath(int)
+	ShowAllocatedClusters()
 
 	LocateData(readers.DiskReader, int64, int, *bytes.Buffer, map[uint64]Chunk)
 	LocateDataAsync(readers.DiskReader, int64, int, chan<- []byte)
