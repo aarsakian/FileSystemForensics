@@ -476,6 +476,7 @@ func (disk Disk) Worker(wg *sync.WaitGroup, records []metadata.Record, results c
 		}
 		// use lsize to make sure that we cannot exceed the logical size
 		results <- utils.AskedFile{Fname: record.GetFname(), Content: buf.Bytes()[:lSize], Id: int(record.GetID())}
+		buf.Reset()
 	}
 	close(results)
 
