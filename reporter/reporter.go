@@ -22,6 +22,7 @@ type Reporter struct {
 	ShowReparse     bool
 	ShowTree        bool
 	ShowVSSClusters bool
+	ShowClusters    bool
 }
 
 func (rp Reporter) Show(records []metadata.Record, usnjrnlRecords UsnJrnl.Records, partitionId int, tree tree.Tree) {
@@ -78,6 +79,10 @@ func (rp Reporter) Show(records []metadata.Record, usnjrnlRecords UsnJrnl.Record
 
 		if rp.ShowPath {
 			record.ShowPath(partitionId)
+		}
+
+		if rp.ShowClusters {
+			record.ShowAllocatedClusters()
 		}
 
 		if rp.ShowReparse {

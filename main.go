@@ -94,6 +94,7 @@ func main() {
 	volinfo := flag.Bool("volinfo", false, "show volume information")
 	logactive := flag.Bool("log", false, "enable logging")
 	showPath := flag.Bool("showpath", false, "show the full path of the selected files")
+	showClusters := flag.Bool("showclusters", false, "show allocated clusters of a record")
 	strategy := flag.String("strategy", "overwrite", "what strategy will be used for files sharing the same name, default is ovewrite, or use Id")
 	usnjrnl := flag.Bool("usnjrnl", false, "show usnjrnl information about changes to files and folders")
 	logfile := flag.Bool("logfile", false, "parse and show $logfile")
@@ -136,6 +137,7 @@ func main() {
 		ShowReparse:     *showreparse,
 		ShowTree:        *showtree,
 		ShowVSSClusters: *showVSSClusters,
+		ShowClusters:    *showClusters,
 	}
 
 	if *logactive {
