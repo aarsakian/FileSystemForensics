@@ -133,15 +133,12 @@ func GetStructSize(v interface{}, size int) int {
 }
 
 func ToUint32(data []byte) uint32 {
-	var temp uint32
-	binary.Read(bytes.NewReader(data), binary.LittleEndian, &temp)
-	return temp
+
+	return uint32(binary.LittleEndian.Uint32(data))
 }
 
 func ToUint16(data []byte) uint16 {
-	var temp uint16
-	binary.Read(bytes.NewReader(data), binary.LittleEndian, &temp)
-	return temp
+	return uint16(binary.LittleEndian.Uint16(data))
 }
 
 func ReadFile(inputfile string) ([]byte, int, error) {
@@ -273,6 +270,9 @@ func Unmarshal(data []byte, v interface{}) (int, error) {
 	for i := 0; i < val.NumField(); i++ {
 		field := val.Field(i) //StructField type
 		name := val.Type().Field(i).Name
+		if idx >= len(data) {
+			return idx, errors.New("exhausted buffer")
+		}
 		switch field.Kind() {
 
 		case reflect.Struct:
@@ -297,30 +297,25 @@ func Unmarshal(data []byte, v interface{}) (int, error) {
 			}
 
 		case reflect.Uint8:
-			var temp uint8
-			binary.Read(bytes.NewReader(data[idx:idx+1]), binary.LittleEndian, &temp)
-			field.SetUint(uint64(temp))
+
+			field.SetUint(uint64(data[idx]))
 			idx += 1
 		case reflect.Int16:
-			var temp int16
-			binary.Read(bytes.NewReader(data[idx:idx+2]), binary.LittleEndian, &temp)
-			field.SetInt(int64(temp))
+
+			field.SetInt(int64(binary.LittleEndian.Uint16(data[idx:])))
 			idx += 2
 		case reflect.Uint16:
-			var temp uint16
-			binary.Read(bytes.NewReader(data[idx:idx+2]), binary.LittleEndian, &temp)
-			field.SetUint(uint64(temp))
+
+			field.SetUint(uint64(binary.LittleEndian.Uint16(data[idx:])))
 			idx += 2
 		case reflect.Uint32:
-			var temp uint32
-			binary.Read(bytes.NewReader(data[idx:idx+4]), binary.LittleEndian, &temp)
-			field.SetUint(uint64(temp))
+
+			field.SetUint(uint64(binary.LittleEndian.Uint32(data[idx:])))
 			idx += 4
 		case reflect.Int64:
-			var temp int64
-			binary.Read(bytes.NewReader(data[idx:idx+8]), binary.LittleEndian, &temp)
+
+			field.SetInt(int64(binary.LittleEndian.Uint64(data[idx:])))
 			idx += 8
-			field.SetInt(temp)
 		case reflect.Uint64:
 			var temp uint64
 			if idx >= len(data) {
@@ -329,9 +324,16 @@ func Unmarshal(data []byte, v interface{}) (int, error) {
 
 			switch name {
 			case "ParRef", "EntryRef":
-				buf := make([]byte, 8)
-				copy(buf, data[idx:idx+6])
-				binary.Read(bytes.NewReader(buf), binary.LittleEndian, &temp)
+				//avoids reallocations
+				if idx+6 >= len(data) {
+					return idx, errors.New("exceeded available buffer")
+				}
+				temp = uint64(data[idx]) |
+					uint64(data[idx+1])<<8 |
+					uint64(data[idx+2])<<16 |
+					uint64(data[idx+3])<<24 |
+					uint64(data[idx+4])<<32 |
+					uint64(data[idx+5])<<40
 				idx += 6
 			case "ChildVCN":
 				len := val.FieldByName("Len").Uint()
@@ -342,7 +344,7 @@ func Unmarshal(data []byte, v interface{}) (int, error) {
 				}
 
 			default:
-				binary.Read(bytes.NewReader(data[idx:idx+8]), binary.LittleEndian, &temp)
+				temp = binary.LittleEndian.Uint64(data[idx:])
 				idx += 8
 			}
 			field.SetUint(temp)
