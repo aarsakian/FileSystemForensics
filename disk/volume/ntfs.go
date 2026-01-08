@@ -1,7 +1,6 @@
 package volume
 
 import (
-	"bytes"
 	"fmt"
 	"math"
 	"runtime"
@@ -58,9 +57,12 @@ func (ntfs *NTFS) Process(hD readers.DiskReader, partitionOffsetB int64, MFTSele
 	ntfs.MFT.ProcessRecords(data)
 	// fill buffer before parsing the record
 
-	MFTAreaBuf := ntfs.CollectMFTArea(hD, partitionOffsetB)
 	start := time.Now()
-	ntfs.MFT.Initialize(int64(ntfs.VBR.SectorsPerCluster) * int64(ntfs.VBR.BytesPerSector))
+
+	ntfs.MFT.SetSize()
+	MFTAreaBuf := ntfs.CollectMFTArea(hD, partitionOffsetB)
+	ntfs.MFT.AllocateRecordsTable(int64(ntfs.VBR.SectorsPerCluster) * int64(ntfs.VBR.BytesPerSector))
+
 	ntfs.ProcessMFT(MFTAreaBuf, MFTSelectedEntries, fromMFTEntry, toMFTEntry)
 	fmt.Printf("completed at %0.2f secs\n", time.Since(start).Seconds())
 
@@ -127,10 +129,14 @@ func (ntfs *NTFS) CarveMFTRecordsCH(hD readers.DiskReader, startOffset int) {
 			runtime.ReadMemStats(&m)
 
 			data, _ := hD.ReadFile(int64(offset), Chunk_size)
-			msg := fmt.Sprintf("offs %d read %d GB at %.2f mins Througput %0.2f MB/s Memory Alloc %v MiB Garbage Coll %v",
+
+			throughput := float64(processedData/1024/1024) / time.Since(now).Seconds()
+
+			msg := fmt.Sprintf("offs %d read %d GB at %.2f mins Througput %f MB/s Memory Alloc %v MiB Garbage Coll %v Est. completion %0.f mins",
 				offset, processedData/1024/1024/1024, time.Since(now).Minutes(),
-				float64(processedData/1024/1024)/time.Since(now).Seconds(),
-				m.Alloc/1024/1024, m.NumGC)
+				throughput,
+				m.Alloc/1024/1024, m.NumGC, float64(diskSize-int64(processedData))/(throughput*60*1024*1024),
+			)
 			fmt.Printf("%s\n", msg)
 			logger.FSLogger.Info(msg)
 			processedData += Chunk_size
@@ -269,7 +275,7 @@ func (vbr *VBR) Parse(data []byte) {
 
 func (ntfs NTFS) GetFS() []metadata.Record {
 	//explicit conversion
-	var records []metadata.Record
+	records := make([]metadata.Record, 0, len(ntfs.MFT.Records))
 	for _, record := range ntfs.MFT.Records {
 		temp := record
 		records = append(records, metadata.NTFSRecord{&temp})
@@ -337,29 +343,28 @@ func (ntfs *NTFS) ProcessMFT(data []byte, MFTSelectedEntries []int,
 }
 
 func (ntfs NTFS) CollectMFTArea(hD readers.DiskReader, partitionOffsetB int64) []byte {
-	var buf bytes.Buffer
 
-	length := int(ntfs.MFT.SizeCL) * int(ntfs.VBR.BytesPerSector) * int(ntfs.VBR.SectorsPerCluster) // allow for MFT size
-	buf.Grow(length)
+	dataToRead := make([]byte,
+		int(ntfs.MFT.SizeCL)*int(ntfs.VBR.BytesPerSector)*int(ntfs.VBR.SectorsPerCluster)) // allow for MFT size
 
 	runlist := ntfs.MFT.Records[0].GetRunList("DATA") // first record $MFT
 	offset := 0
+	readData := 0
 
 	for runlist != nil {
 		offset += int(runlist.Offset)
-
-		clusters := int(runlist.Length)
-
-		data, _ := hD.ReadFile(partitionOffsetB+int64(offset)*int64(ntfs.VBR.SectorsPerCluster)*int64(ntfs.VBR.BytesPerSector), clusters*int(ntfs.VBR.BytesPerSector)*int(ntfs.VBR.SectorsPerCluster))
-		buf.Write(data)
+		toRead := int(runlist.Length) * int(ntfs.VBR.BytesPerSector) * int(ntfs.VBR.SectorsPerCluster)
+		data, _ := hD.ReadFile(partitionOffsetB+int64(offset)*int64(ntfs.VBR.SectorsPerCluster)*int64(ntfs.VBR.BytesPerSector),
+			toRead)
+		copy(dataToRead[readData:], data)
 
 		if runlist.Next == nil {
 			break
 		}
-
+		readData += toRead
 		runlist = runlist.Next
 	}
-	return buf.Bytes()
+	return dataToRead
 }
 
 func (vbr VBR) GetSignature() string {
