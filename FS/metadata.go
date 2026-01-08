@@ -1,8 +1,6 @@
 package metadata
 
 import (
-	"bytes"
-
 	"github.com/aarsakian/FileSystemForensics/readers"
 	"github.com/aarsakian/FileSystemForensics/utils"
 )
@@ -42,12 +40,12 @@ type Record interface {
 	ShowPath(int)
 	ShowAllocatedClusters()
 
-	LocateData(readers.DiskReader, int64, int, *bytes.Buffer, map[uint64]Chunk)
+	LocateData(readers.DiskReader, int64, int, []byte, map[uint64]Chunk)
 	LocateDataAsync(readers.DiskReader, int64, int, chan<- []byte)
 }
 
 func FilterByExtensions(records []Record, extensions []string) []Record {
-	var filteredRecords []Record
+	filteredRecords := make([]Record, 0, len(extensions))
 	for _, extension := range extensions {
 		filteredRecords = append(filteredRecords, FilterByExtension(records, extension)...)
 	}
