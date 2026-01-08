@@ -96,6 +96,9 @@ func (exp Exporter) HashFiles(records []metadata.Record) {
 	for _, record := range records {
 		fname := record.GetFname()
 
+		if exp.Strategy == "Id" {
+			fname = fmt.Sprintf("[%d]%s", record.GetID(), record.GetFname())
+		}
 		data, e := os.ReadFile(filepath.Join(exp.Location, fname))
 		if e != nil {
 			fmt.Printf("ERROR %s", e)
