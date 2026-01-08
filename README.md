@@ -57,13 +57,22 @@ e.g. *-evidence path_to_evidence -partition 1*.
  
   -listunallocated
         list unallocated clusters
+
+   -listvss
+        list vss copied clusters
  
   -location string
         the path to export files
  
   -log
         enable logging
- 
+
+   -logfile
+        parse and show $logfile
+
+  -mftoffset int
+      physical offset to the  $MFT file 
+
   -orphans
         show information only for orphan records
  
@@ -81,6 +90,9 @@ e.g. *-evidence path_to_evidence -partition 1*.
 
   -physicaloffset int
         offset to volume (sectors) (default -1)
+
+   -profile
+        profile memory usage
 
   -resident
         check whether entry is resident
@@ -123,6 +135,7 @@ e.g. *-evidence path_to_evidence -partition 1*.
 
   -tree
         reconstrut file system tree
+
   -unallocated
         collect unallocated area of a volume
 
