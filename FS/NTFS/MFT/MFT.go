@@ -87,10 +87,14 @@ type IndexAttributes interface {
 	GetEntries() MFTAttributes.IndexEntries
 }
 
-func (mfttable *MFTTable) Initialize(clusterSizeB int64) {
+func (mfttable *MFTTable) SetSize() {
 	firstRecord := mfttable.Records[0]
-	size := int64(firstRecord.FindAttribute("DATA").GetHeader().ATRrecordNoNResident.RunListTotalLenCl) * clusterSizeB
-	mfttable.Records = make([]Record, size/int64(RecordSize))
+	mfttable.SizeCL = int(firstRecord.FindAttribute("DATA").GetHeader().ATRrecordNoNResident.RunListTotalLenCl)
+}
+
+func (mfttable *MFTTable) AllocateRecordsTable(clusterSizeB int64) {
+
+	mfttable.Records = make([]Record, int64(mfttable.SizeCL)*clusterSizeB/int64(RecordSize))
 
 }
 
@@ -111,7 +115,8 @@ func (record Record) IsBase() bool {
 	return record.BaseRef == 0
 }
 
-func (record *Record) ProcessNoNResidentAttributes(hD readers.DiskReader, partitionOffsetB int64, clusterSizeB int, buf *bytes.Buffer) int {
+func (record *Record) ProcessNoNResidentAttributes(hD readers.DiskReader,
+	partitionOffsetB int64, clusterSizeB int, dataToRead []byte) int {
 
 	totalReadBytes := 0
 	logger.FSLogger.Info(fmt.Sprintf("Record %d has %d attributes", record.Entry, len(record.Attributes)))
@@ -133,7 +138,7 @@ func (record *Record) ProcessNoNResidentAttributes(hD readers.DiskReader, partit
 			logger.FSLogger.Warning(msg)
 			continue
 		}
-		err := attrHeader.ATRrecordNoNResident.GetContent(hD, partitionOffsetB, clusterSizeB, buf)
+		err := attrHeader.ATRrecordNoNResident.GetContent(hD, partitionOffsetB, clusterSizeB, dataToRead)
 
 		if err != nil {
 			continue
@@ -146,14 +151,14 @@ func (record *Record) ProcessNoNResidentAttributes(hD readers.DiskReader, partit
 			logger.FSLogger.Warning(msg)
 
 		} else {
-			record.Attributes[idx].Parse(buf.Bytes()[:actualLen])
+			record.Attributes[idx].Parse(dataToRead[:actualLen])
 			if record.Attributes[idx].GetHeader().IsAttrList() {
 				attrList := record.Attributes[idx].(*MFTAttributes.AttributeListEntries)
 				record.LinkedRecordsInfo = append(record.LinkedRecordsInfo, attrList.GetLinkedRecordsInfo(record.Entry)...)
 			}
 		}
 		totalReadBytes += actualLen
-		buf.Reset()
+
 		logger.FSLogger.Info(fmt.Sprintf("Processed non resident attribute record %d at pos %d", record.Entry, idx))
 
 	}
@@ -162,8 +167,8 @@ func (record *Record) ProcessNoNResidentAttributes(hD readers.DiskReader, partit
 
 func ProcessNoNResidentAttributesWorker(records chan *Record, hD readers.DiskReader, partitionOffsetB int64,
 	clusterSizeB int, wg *sync.WaitGroup) {
-	var buf bytes.Buffer
-	buf.Grow(16 * clusterSizeB) //experience
+
+	scratch := make([]byte, 16*clusterSizeB) //experience
 
 	defer wg.Done()
 
@@ -173,30 +178,39 @@ func ProcessNoNResidentAttributesWorker(records chan *Record, hD readers.DiskRea
 			//all non resident attrs except DATA
 			//process $bitmap
 			attrHeader := record.Attributes[idx].GetHeader()
-			if !attrHeader.IsNoNResident() || record.Attributes[idx].FindType() == "DATA" && record.Entry != 6 {
+			if !attrHeader.IsNoNResident() ||
+				(record.Attributes[idx].FindType() == "DATA" && record.Entry != 6) {
 				continue
 			}
 
-			length := int(attrHeader.ATRrecordNoNResident.RunListTotalLenCl) * clusterSizeB
-			if length == 0 { // no runlists found
-				msg := "non resident attribute has zero length runlist"
-				logger.FSLogger.Warning(msg)
+			runLength := int(attrHeader.ATRrecordNoNResident.RunListTotalLenCl) * clusterSizeB
+			if runLength == 0 { // no runlists found
+
+				logger.FSLogger.Warning("non resident attribute has zero length runlist")
 				continue
 			}
-			err := attrHeader.ATRrecordNoNResident.GetContent(hD, partitionOffsetB, clusterSizeB, &buf)
+			//ensure scratch buffer length is appropriate
 
+			if cap(scratch) < runLength {
+				scratch = make([]byte, runLength)
+			}
+
+			buf := scratch[:runLength]
+
+			err := attrHeader.ATRrecordNoNResident.GetContent(hD, partitionOffsetB, clusterSizeB, buf)
 			if err != nil {
 				continue
 			}
 
 			actualLen := int(attrHeader.ATRrecordNoNResident.ActualLength)
-			if actualLen > length {
+
+			if actualLen > runLength {
 				msg := fmt.Sprintf("attribute  actual length exceeds the runlist length actual %d runlist %d.",
-					actualLen, length)
+					actualLen, runLength)
 				logger.FSLogger.Warning(msg)
 
 			} else {
-				record.Attributes[idx].Parse(buf.Bytes()[:actualLen])
+				record.Attributes[idx].Parse(buf[:actualLen])
 				if attrHeader.IsAttrList() {
 					attrList := record.Attributes[idx].(*MFTAttributes.AttributeListEntries)
 					record.LinkedRecordsInfo = append(record.LinkedRecordsInfo, attrList.GetLinkedRecordsInfo(record.Entry)...)
@@ -205,7 +219,7 @@ func ProcessNoNResidentAttributesWorker(records chan *Record, hD readers.DiskRea
 			}
 
 			logger.FSLogger.Info(fmt.Sprintf("Processed non resident attribute record %d at pos %d", record.Entry, idx))
-			buf.Reset()
+
 		}
 
 	}
