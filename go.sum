@@ -36,6 +36,8 @@ github.com/aarsakian/EWF_Reader v0.0.0-20251031151213-52fb5ff9a006 h1:5x+Te0XtnJ
 github.com/aarsakian/EWF_Reader v0.0.0-20251031151213-52fb5ff9a006/go.mod h1:d6erJYcE1G79EhLFO1lTgteghLoEYyn3B4MEsTR2Hpo=
 github.com/aarsakian/EWF_Reader v0.0.0-20251105200644-0b8559893950 h1:BZcrBU55adH529WzJwKBOSVKdHCtAvULTXAICdTBJRM=
 github.com/aarsakian/EWF_Reader v0.0.0-20251105200644-0b8559893950/go.mod h1:d6erJYcE1G79EhLFO1lTgteghLoEYyn3B4MEsTR2Hpo=
+github.com/aarsakian/EWF_Reader v0.0.0-20251219163715-06f27839d852 h1:rIIJI47VLSph3IzSZxsIxs4lOm2VRKP0zEYvooql5M4=
+github.com/aarsakian/EWF_Reader v0.0.0-20251219163715-06f27839d852/go.mod h1:d6erJYcE1G79EhLFO1lTgteghLoEYyn3B4MEsTR2Hpo=
 github.com/aarsakian/VMDK_Reader v0.0.0-20231107192908-b871c4a383b0 h1:5OBpaUKYrXPzoJD0URxnKra9i2nHi1oP6smktZsfkrw=
 github.com/aarsakian/VMDK_Reader v0.0.0-20231107192908-b871c4a383b0/go.mod h1:a+SYNiPvKba0NMg3g9BXlLVZflohz06h4veLf0gyySY=
 github.com/aarsakian/VMDK_Reader v0.0.0-20231123172143-16141680fd2c h1:wPTeuXbkFhDgBblJfWIxdLrXaNrSevKt0VNPVG9tLmE=
