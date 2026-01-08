@@ -230,22 +230,26 @@ func (disk Disk) ProcessJrnl(recordsPerPartition map[int][]metadata.Record, part
 }
 
 func (disk Disk) ProcessLogFile(recordsPerPartition map[int][]metadata.Record, partitionNum int) {
-	buf := new(bytes.Buffer)
+
 	physicalToLogicalMap, _ := disk.GetLogicalToPhysicalMap(partitionNum)
 	partition := disk.Partitions[partitionNum]
 
 	clusterSizeB := int(partition.GetVolume().GetBytesPerSector() * uint64(partition.GetVolume().GetSectorsPerCluster()))
 
+	buf := make([]byte, 0)
 	for partitionID, records := range recordsPerPartition {
 		if partitionNum != -1 && partitionID != partitionNum {
 			continue
 		}
 		for _, record := range metadata.FilterByName(records, "$LogFile") {
-			lsize := int(record.GetLogicalFileSize())
-			buf.Grow(lsize)
-			record.LocateData(disk.Handler, int64(partition.GetOffset()*512), clusterSizeB, buf, physicalToLogicalMap)
+			recordSize := record.GetLogicalFileSize()
+			if cap(buf) < int(recordSize) {
+				buf = make([]byte, recordSize)
+			}
+			record.LocateData(disk.Handler, int64(partition.GetOffset()*512), clusterSizeB,
+				buf[:recordSize], physicalToLogicalMap)
 			logfile := logfileLib.LogFile{}
-			logfile.Parse(buf.Bytes())
+			logfile.Parse(buf[:recordSize])
 		}
 
 	}
@@ -438,7 +442,6 @@ func (disk Disk) AsyncWorker(wg *sync.WaitGroup, record metadata.Record, dataClu
 func (disk Disk) Worker(wg *sync.WaitGroup, records []metadata.Record, results chan<- utils.AskedFile, partitionNum int) {
 	defer wg.Done()
 	partition := disk.Partitions[partitionNum]
-	var buf bytes.Buffer
 
 	vol := partition.GetVolume()
 	sectorsPerCluster := int(vol.GetSectorsPerCluster())
@@ -449,6 +452,7 @@ func (disk Disk) Worker(wg *sync.WaitGroup, records []metadata.Record, results c
 	if err != nil {
 		return
 	}
+	buf := make([]byte, 0)
 
 	for _, record := range records {
 
@@ -461,22 +465,24 @@ func (disk Disk) Worker(wg *sync.WaitGroup, records []metadata.Record, results c
 		linkedRecords := record.GetLinkedRecords()
 
 		lSize := int(record.GetLogicalFileSize())
-		buf.Grow(lSize)
+		if cap(buf) < lSize {
+			buf = make([]byte, lSize)
+		}
 
 		fmt.Printf("extracting data file %s Id %d %d MB\n", record.GetFname(), record.GetID(), lSize/1024/1024)
 
 		if len(linkedRecords) == 0 {
-			record.LocateData(disk.Handler, partitionOffsetB, sectorsPerCluster*bytesPerSector, &buf, physicalToLogicalMap)
+			record.LocateData(disk.Handler, partitionOffsetB, sectorsPerCluster*bytesPerSector, buf[:lSize], physicalToLogicalMap)
 		} else { // attribute runlist
 
 			for _, linkedRecord := range linkedRecords {
-				linkedRecord.LocateData(disk.Handler, partitionOffsetB, sectorsPerCluster*bytesPerSector, &buf, physicalToLogicalMap)
+				linkedRecord.LocateData(disk.Handler, partitionOffsetB, sectorsPerCluster*bytesPerSector, buf[:lSize], physicalToLogicalMap)
 
 			}
 		}
 		// use lsize to make sure that we cannot exceed the logical size
-		results <- utils.AskedFile{Fname: record.GetFname(), Content: buf.Bytes()[:lSize], Id: int(record.GetID())}
-		buf.Reset()
+		results <- utils.AskedFile{Fname: record.GetFname(), Content: buf[:lSize], Id: int(record.GetID())}
+
 	}
 	close(results)
 
