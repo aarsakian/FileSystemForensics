@@ -35,7 +35,7 @@ func (btrfsRecord *BTRFSRecord) LocatePhysicalOffset() {
 }
 
 func (record BTRFSRecord) GetLinkedRecords() []Record {
-	var linkedRecords []Record
+	linkedRecords := make([]Record, 0, len(record.FileDirEntry.GetLinkedRecords()))
 	for _, linkedRecord := range record.FileDirEntry.GetLinkedRecords() {
 		linkedRecords = append(linkedRecords, BTRFSRecord{linkedRecord})
 	}
@@ -43,7 +43,7 @@ func (record BTRFSRecord) GetLinkedRecords() []Record {
 }
 
 func (ntfsRecord NTFSRecord) GetLinkedRecords() []Record {
-	var linkedRecords []Record
+	linkedRecords := make([]Record, 0, len(ntfsRecord.Record.LinkedRecords))
 	for _, linkedRecord := range ntfsRecord.Record.LinkedRecords {
 		linkedRecords = append(linkedRecords, NTFSRecord{linkedRecord})
 	}
@@ -108,7 +108,7 @@ func (record BTRFSRecord) LocateDataORG(hD readers.DiskReader, partitionOffsetB 
 }
 
 func (record BTRFSRecord) LocateData(hD readers.DiskReader, partitionOffsetB int64,
-	blockSizeB int, buf *bytes.Buffer,
+	blockSizeB int, dataToRead []byte,
 	physicalToLogicalMap map[uint64]Chunk) {
 
 	/*if fileDirEntry.HasResidentDataAttr() {
@@ -145,21 +145,22 @@ func (record BTRFSRecord) LocateData(hD readers.DiskReader, partitionOffsetB int
 			logger.FSLogger.Warning(msg)
 			break
 		}
-		totalReadBytes += int(toRead)
+
 		if startFrom != 0 && toRead > 0 {
 			data, _ := hD.ReadFile(offset, int(toRead))
-			buf.Write(data)
+			copy(dataToRead[totalReadBytes:], data)
 
-			msg := fmt.Sprintf("Read %d bytes from physical offset %d (sectors) logical %d (sectors) total bytes read %d out of %d",
-				toRead, offset/512, (offset-partitionOffsetB)/512, totalReadBytes, buf.Cap())
+			msg := fmt.Sprintf("Read %d bytes from physical offset %d (sectors) logical %d (sectors) total bytes read %d ",
+				toRead, offset/512, (offset-partitionOffsetB)/512, totalReadBytes)
 			logger.FSLogger.Info(msg)
 		} else if startFrom == 0 && toRead > 0 {
 			//sparse not allocated generate zeros
 
-			buf.Write(make([]byte, toRead))
+			copy(dataToRead[totalReadBytes:], make([]byte, toRead))
 			msg := fmt.Sprintf("sparse  len %d cl.", startFrom/uint64(blockSizeB))
 			logger.FSLogger.Info(msg)
 		}
+		totalReadBytes += int(toRead)
 
 	}
 
@@ -167,14 +168,15 @@ func (record BTRFSRecord) LocateData(hD readers.DiskReader, partitionOffsetB int
 	//results <- utils.AskedFile{Fname: record.GetFname(), Content: buf.Bytes()[:lSize], Id: int(record.Id)}
 }
 
-func (record NTFSRecord) LocateData(hD readers.DiskReader, partitionOffset int64, clusterSizeB int, buf *bytes.Buffer,
+func (record NTFSRecord) LocateData(hD readers.DiskReader, partitionOffset int64,
+	clusterSizeB int, dataToRead []byte,
 	physicalToLogicalMap map[uint64]Chunk) {
 	p := message.NewPrinter(language.Greek)
 
 	writeOffset := 0
 
 	if record.HasResidentDataAttr() {
-		buf.Write(record.GetResidentData())
+		copy(dataToRead, record.GetResidentData())
 
 	} else {
 
@@ -194,14 +196,14 @@ func (record NTFSRecord) LocateData(hD readers.DiskReader, partitionOffset int64
 
 			if runlist.Offset != 0 && runlist.Length > 0 {
 				data, _ := hD.ReadFile(offset, int(runlist.Length)*clusterSizeB)
-				buf.Write(data)
+				copy(dataToRead[writeOffset:], data)
 				res := p.Sprintf("%d", (offset-partitionOffset)/int64(clusterSizeB))
 
 				msg := fmt.Sprintf("offset %s cl len %d cl. write offset %d", res, runlist.Length, writeOffset)
 				logger.FSLogger.Info(msg)
 			} else if runlist.Offset == 0 && runlist.Length > 0 {
 				//sparse not allocated generate zeros
-				buf.Write(make([]byte, int(runlist.Length)*clusterSizeB))
+				copy(dataToRead[writeOffset:], make([]byte, int(runlist.Length)*clusterSizeB))
 				msg := fmt.Sprintf("sparse  len %d cl.", runlist.Length)
 				logger.FSLogger.Info(msg)
 			}
