@@ -1,7 +1,6 @@
 package MFT
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"runtime"
@@ -110,12 +109,12 @@ func (mfttable *MFTTable) ProcessNonResidentRecords(hD readers.DiskReader, parti
 
 func (mfttable *MFTTable) ProcessNonResidentRecordsSync(hD readers.DiskReader, partitionOffsetB int64, clusterSizeB int) int {
 	totalReadBytes := 0
-	var buf bytes.Buffer
+
 	//allocate a large enough buffer
-	buf.Grow(clusterSizeB)
+	dataToRead := make([]byte, clusterSizeB)
 
 	for idx := range mfttable.Records {
-		totalReadBytes += mfttable.Records[idx].ProcessNoNResidentAttributes(hD, partitionOffsetB, clusterSizeB, &buf)
+		totalReadBytes += mfttable.Records[idx].ProcessNoNResidentAttributes(hD, partitionOffsetB, clusterSizeB, dataToRead[totalReadBytes:])
 	}
 	return totalReadBytes
 }
