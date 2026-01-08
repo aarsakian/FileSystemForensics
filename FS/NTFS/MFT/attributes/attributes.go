@@ -1,7 +1,6 @@
 package attributes
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 
@@ -67,7 +66,7 @@ func (atrRecordResident *ATRrecordResident) Parse(data []byte) {
 }
 
 func (atrRecordNoNResident ATRrecordNoNResident) GetContent(hD readers.DiskReader, partitionOffsetB int64, clusterSizeB int,
-	buf *bytes.Buffer) error {
+	dataToRead []byte) error {
 
 	if atrRecordNoNResident.RunList == nil {
 		msg := "non resident attribute has no runlists"
@@ -78,17 +77,19 @@ func (atrRecordNoNResident ATRrecordNoNResident) GetContent(hD readers.DiskReade
 	runlist := atrRecordNoNResident.RunList
 
 	offset := int64(0)
+	dataRead := 0
 	for runlist != nil {
 
 		offset += int64(runlist.Offset)
 		data, _ := hD.ReadFile(partitionOffsetB+offset*int64(clusterSizeB),
 			int(runlist.Length)*clusterSizeB)
-		buf.Write(data)
+		copy(dataToRead[dataRead:], data)
 
 		if runlist.Next == nil {
 			break
 		}
 
+		dataRead += int(runlist.Length) * clusterSizeB
 		runlist = runlist.Next
 	}
 
