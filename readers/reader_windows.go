@@ -1,13 +1,11 @@
 package readers
 
 import (
-	"bytes"
 	"fmt"
 	"log"
 	"unsafe"
 
 	"github.com/aarsakian/FileSystemForensics/logger"
-	"github.com/aarsakian/FileSystemForensics/utils"
 	"golang.org/x/sys/windows"
 )
 
@@ -65,53 +63,42 @@ func (winreader WindowsReader) GetDiskSize() int64 {
 }
 
 func (winreader WindowsReader) ReadFile(startOffset int64, totalSize int) ([]byte, error) {
-	var wholebuffer *bytes.Buffer
 
-	// allocate only when requested to read more than chunksize
-	if totalSize > chunkSize {
-		wholebuffer = utils.GetBuffer()
-		defer utils.PutBuffer(wholebuffer)
+	data := make([]byte, totalSize)
 
-		wholebuffer.Grow(totalSize)
+	offset := 0
+
+	//seek once sequentially advances
+	err := setFilePointerEx(winreader.fd, startOffset, windows.FILE_BEGIN)
+
+	if err != nil {
+		panic(fmt.Sprintf("Seek failed at offset %d: %v", startOffset, err))
 	}
-	buffer := make([]byte, chunkSize)
-	bytesRead := uint32(0)
-	offset := int64(0)
 
-	for int(bytesRead) < totalSize {
-
-		err := setFilePointerEx(winreader.fd, offset+startOffset, windows.FILE_BEGIN)
-
-		if err != nil {
-			panic(fmt.Sprintf("Seek failed at offset %d: %v", offset+startOffset, err))
-		}
+	for offset < totalSize {
 
 		toRead := chunkSize
-		if int64(totalSize)-offset < int64(chunkSize) {
-			toRead = int(int64(totalSize) - offset)
+		if totalSize-offset < chunkSize {
+			toRead = totalSize - offset
 		}
-
-		err = windows.ReadFile(winreader.fd, buffer[:toRead], &bytesRead, nil)
+		var bytesRead uint32
+		err = windows.ReadFile(winreader.fd, data[offset:offset+toRead], &bytesRead, nil)
 		if err != nil {
-			logger.FSLogger.Error(fmt.Sprintf("Read failed at offset %d: %v", offset+startOffset, err))
+			logger.FSLogger.Error(fmt.Sprintf("Read failed at offset %d: %v", offset+int(startOffset), err))
 			return nil, err
 		}
-		if totalSize > chunkSize {
-			wholebuffer.Write(buffer)
-		}
-
-		logger.FSLogger.Info(fmt.Sprintf("Read %d bytes at offset %d", bytesRead, offset+startOffset))
-		offset += int64(bytesRead)
 
 		if bytesRead == 0 {
 			break
 		}
+
+		logger.FSLogger.Info(fmt.Sprintf("Read %d bytes at offset %d", bytesRead, offset+int(startOffset)))
+		offset += int(bytesRead)
+
 	}
-	if totalSize > chunkSize {
-		return append([]byte(nil), wholebuffer.Bytes()...), nil
-	} else {
-		return buffer, nil
-	}
+
+	//allocated buffer
+	return data[:offset], nil
 
 }
 
