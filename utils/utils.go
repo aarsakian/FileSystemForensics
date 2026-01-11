@@ -297,30 +297,37 @@ func Unmarshal(data []byte, v interface{}) (int, error) {
 			}
 
 		case reflect.Uint8:
-
+			if idx+1 >= len(data) {
+				return idx, errors.New("exhausted buffer")
+			}
 			field.SetUint(uint64(data[idx]))
 			idx += 1
 		case reflect.Int16:
-
+			if idx+2 >= len(data) {
+				return idx, errors.New("exhausted buffer")
+			}
 			field.SetInt(int64(binary.LittleEndian.Uint16(data[idx:])))
 			idx += 2
 		case reflect.Uint16:
-
+			if idx+2 >= len(data) {
+				return idx, errors.New("exhausted buffer")
+			}
 			field.SetUint(uint64(binary.LittleEndian.Uint16(data[idx:])))
 			idx += 2
 		case reflect.Uint32:
-
+			if idx+4 >= len(data) {
+				return idx, errors.New("exhausted buffer")
+			}
 			field.SetUint(uint64(binary.LittleEndian.Uint32(data[idx:])))
 			idx += 4
 		case reflect.Int64:
-
+			if idx+8 >= len(data) {
+				return idx, errors.New("exhausted buffer")
+			}
 			field.SetInt(int64(binary.LittleEndian.Uint64(data[idx:])))
 			idx += 8
 		case reflect.Uint64:
 			var temp uint64
-			if idx >= len(data) {
-				return idx, errors.New("exceeded available buffer")
-			}
 
 			switch name {
 			case "ParRef", "EntryRef":
@@ -344,6 +351,9 @@ func Unmarshal(data []byte, v interface{}) (int, error) {
 				}
 
 			default:
+				if idx+8 >= len(data) {
+					return idx, errors.New("exceeded available buffer")
+				}
 				temp = binary.LittleEndian.Uint64(data[idx:])
 				idx += 8
 			}
