@@ -42,12 +42,12 @@ func main() {
 	//defer dbmap.Db.Close()
 
 	//	save2DB := flag.Bool("db", false, "bool if set an sqlite file will be created, each table will corresponed to an MFT attribute")
-	var location string
+
 	mftOffset := flag.Int("mftoffset", 0, "physical offset to the  $MFT file")
 	evidencefile := flag.String("evidence", "", "path to image file (EWF/Raw formats are supported)")
 	vmdkfile := flag.String("vmdk", "", "path to vmdk file (Sparse formats are supported)")
 
-	flag.StringVar(&location, "location", "", "the path to export files")
+	exportLocation := flag.String("export", "", "the path to export files")
 	MFTSelectedEntries := flag.String("entries", "", "select file system records by entering its id, use comma as a seperator")
 	showFileName := flag.String("showfilename", "", "show the name of the filename attribute of MFT records: enter (Any, Win32, Dos)")
 	exportFiles := flag.String("filenames", "", "files to export use comma as a seperator")
@@ -149,7 +149,7 @@ func main() {
 
 	}
 
-	exp := exporter.Exporter{Location: location, Hash: *hashFiles, Strategy: *strategy}
+	exp := exporter.Exporter{Location: *exportLocation, Hash: *hashFiles, Strategy: *strategy}
 
 	flm := filtermanager.FilterManager{}
 
@@ -259,7 +259,7 @@ func main() {
 				dsk.ProcessJrnl(recordsPerPartition, partitionId)
 			}
 
-			if location != "" {
+			if *exportLocation != "" {
 				exp.ExportRecords(records, *dsk, partitionId)
 				if *hashFiles != "" {
 					exp.HashFiles(records)
