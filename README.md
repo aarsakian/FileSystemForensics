@@ -36,6 +36,10 @@ e.g. *-evidence path_to_evidence -partition 1*.
  
   -evidence string
         path to image file (EWF/Raw formats are supported)
+
+  -export string
+        the path to export files
+ 
  
   -extensions string
         search file system records by extensions use comma as a seperator
@@ -60,9 +64,6 @@ e.g. *-evidence path_to_evidence -partition 1*.
 
    -listvss
         list vss copied clusters
- 
-  -export string
-        the path to export files
  
   -log
         enable logging
