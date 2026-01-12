@@ -180,7 +180,10 @@ func (record NTFSRecord) LocateData(hD readers.DiskReader, partitionOffset int64
 
 	} else {
 
-		runlist := record.GetRunList("DATA")
+		runlist, err := record.GetRunList("DATA")
+		if err != nil {
+			return
+		}
 
 		offset := partitionOffset // partition in bytes
 
