@@ -6,7 +6,7 @@ import (
 )
 
 type Volume interface {
-	Process(readers.DiskReader, int64, []int, int, int)
+	Process(readers.DiskReader, int64, []int, int, int) error
 	GetSectorsPerCluster() int
 	GetBytesPerSector() uint64
 	GetInfo() string
