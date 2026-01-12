@@ -1,6 +1,7 @@
 package volume
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"runtime"
@@ -42,7 +43,7 @@ func (ntfs NTFS) GetFSOffset() int64 {
 }
 
 func (ntfs *NTFS) Process(hD readers.DiskReader, partitionOffsetB int64, MFTSelectedEntries []int,
-	fromMFTEntry int, toMFTEntry int) {
+	fromMFTEntry int, toMFTEntry int) error {
 	physicalOffset := partitionOffsetB + int64(ntfs.VBR.MFTOffset)*int64(ntfs.VBR.SectorsPerCluster)*int64(ntfs.VBR.BytesPerSector)
 
 	length := int(1024) // len of MFT record
@@ -60,7 +61,11 @@ func (ntfs *NTFS) Process(hD readers.DiskReader, partitionOffsetB int64, MFTSele
 	start := time.Now()
 
 	ntfs.MFT.SetSize()
-	MFTAreaBuf := ntfs.CollectMFTArea(hD, partitionOffsetB)
+	MFTAreaBuf, err := ntfs.CollectMFTArea(hD, partitionOffsetB)
+	if err != nil {
+		return err
+	}
+
 	ntfs.MFT.AllocateRecordsTable(int64(ntfs.VBR.SectorsPerCluster) * int64(ntfs.VBR.BytesPerSector))
 
 	ntfs.ProcessMFT(MFTAreaBuf, MFTSelectedEntries, fromMFTEntry, toMFTEntry)
@@ -68,8 +73,7 @@ func (ntfs *NTFS) Process(hD readers.DiskReader, partitionOffsetB int64, MFTSele
 
 	if !ntfs.MFT.IsOK() {
 
-		fmt.Println("skipping further processing.")
-		return
+		return errors.New("corrupt $MFT")
 	}
 
 	start = time.Now()
@@ -106,7 +110,7 @@ func (ntfs *NTFS) Process(hD readers.DiskReader, partitionOffsetB int64, MFTSele
 		fmt.Println("completed at ", time.Since(start).Seconds())
 
 	}
-
+	return nil
 }
 
 func (ntfs *NTFS) CarveMFTRecordsCH(hD readers.DiskReader, startOffset int) {
@@ -135,7 +139,7 @@ func (ntfs *NTFS) CarveMFTRecordsCH(hD readers.DiskReader, startOffset int) {
 			msg := fmt.Sprintf("offs %d read %d GB at %.2f mins Througput %f MB/s Memory Alloc %v MiB Garbage Coll %v Est. completion %0.f mins",
 				offset, processedData/1024/1024/1024, time.Since(now).Minutes(),
 				throughput,
-				m.Alloc/1024/1024, m.NumGC, float64(diskSize-int64(processedData))/(throughput*60*1024*1024),
+				m.Alloc/1024/1024, m.NumGC, float64(diskSize-int64(offset))/(throughput*60*1024*1024),
 			)
 			fmt.Printf("%s\n", msg)
 			logger.FSLogger.Info(msg)
@@ -342,12 +346,15 @@ func (ntfs *NTFS) ProcessMFT(data []byte, MFTSelectedEntries []int,
 
 }
 
-func (ntfs NTFS) CollectMFTArea(hD readers.DiskReader, partitionOffsetB int64) []byte {
+func (ntfs NTFS) CollectMFTArea(hD readers.DiskReader, partitionOffsetB int64) ([]byte, error) {
 
 	dataToRead := make([]byte,
 		int(ntfs.MFT.SizeCL)*int(ntfs.VBR.BytesPerSector)*int(ntfs.VBR.SectorsPerCluster)) // allow for MFT size
 
-	runlist := ntfs.MFT.Records[0].GetRunList("DATA") // first record $MFT
+	runlist, err := ntfs.MFT.Records[0].GetRunList("DATA") // first record $CollectMFTArea
+	if err != nil {
+		return []byte{}, err
+	}
 	offset := 0
 	readData := 0
 
@@ -364,7 +371,7 @@ func (ntfs NTFS) CollectMFTArea(hD readers.DiskReader, partitionOffsetB int64) [
 		readData += toRead
 		runlist = runlist.Next
 	}
-	return dataToRead
+	return dataToRead, nil
 }
 
 func (vbr VBR) GetSignature() string {
