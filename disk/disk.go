@@ -123,7 +123,10 @@ func (disk *Disk) SearchFileSystemCH(fstype string, startOffset int) map[int][]m
 		pseudoPartitionID := 0
 		for _, carvedRecord := range recordsBYLSN {
 
-			runlist := carvedRecord.Record.GetRunList("DATA") // first record $MFT
+			runlist, err := carvedRecord.Record.GetRunList("DATA") // first record $MFT
+			if err != nil {
+				break
+			}
 			offset := int64(0)
 
 			for runlist != nil {
@@ -148,7 +151,11 @@ func (disk *Disk) SearchFileSystemCH(fstype string, startOffset int) map[int][]m
 
 			ntfs.VBR.MFTOffset = uint64(offset)
 
-			ntfs.Process(disk.Handler, partitionOffsetB, []int{}, 0, math.MaxUint32)
+			err = ntfs.Process(disk.Handler, partitionOffsetB, []int{}, 0, math.MaxUint32)
+			if err != nil {
+				continue
+			}
+
 			fmt.Println("NTFS $MFT reconstruction completed at ", time.Since(start))
 			recordsPerPartition[pseudoPartitionID] = ntfs.GetFS()
 
@@ -452,7 +459,6 @@ func (disk Disk) Worker(wg *sync.WaitGroup, records []metadata.Record, results c
 	if err != nil {
 		return
 	}
-	buf := make([]byte, 0)
 
 	for _, record := range records {
 
@@ -465,10 +471,7 @@ func (disk Disk) Worker(wg *sync.WaitGroup, records []metadata.Record, results c
 		linkedRecords := record.GetLinkedRecords()
 
 		lSize := int(record.GetLogicalFileSize())
-		if cap(buf) < lSize {
-			buf = make([]byte, lSize)
-		}
-
+		buf := make([]byte, lSize)
 		fmt.Printf("extracting data file %s Id %d %d MB\n", record.GetFname(), record.GetID(), lSize/1024/1024)
 
 		if len(linkedRecords) == 0 {
