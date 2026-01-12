@@ -137,7 +137,7 @@ func (btrfs BTRFS) VerifySuperBlock(data []byte) bool {
 }
 
 func (btrfs *BTRFS) Process(hD readers.DiskReader, partitionOffsetB int64, selectedEntries []int,
-	fromEntry int, toEntry int) {
+	fromEntry int, toEntry int) error {
 
 	btrfs.ChunkTreeMap = make(fstree.ChunkTreeMap)
 	btrfs.UpdateChunkMaps(btrfs.ParseSystemChunks())
@@ -149,7 +149,7 @@ func (btrfs *BTRFS) Process(hD readers.DiskReader, partitionOffsetB int64, selec
 	if err != nil {
 
 		logger.FSLogger.Error(err)
-		log.Fatal(err)
+		return err
 	}
 
 	btrfs.UpdateChunkMaps(node)
@@ -170,6 +170,7 @@ func (btrfs *BTRFS) Process(hD readers.DiskReader, partitionOffsetB int64, selec
 	carve := false
 	btrfs.DescendTreeCh(hD, partitionOffsetB,
 		int(btrfs.Superblock.NodeSize), verify, carve)
+	return nil
 
 }
 

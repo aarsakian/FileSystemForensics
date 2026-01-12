@@ -78,18 +78,19 @@ func (lvm2 *LVM2) ProcessHeader(hD readers.DiskReader, physicalOffsetB int64) er
 }
 
 func (lvm2 *LVM2) Process(hD readers.DiskReader, physicalOffsetB int64, SelectedEntries []int,
-	fromEntry int, toEntry int) {
+	fromEntry int, toEntry int) error {
 	btrfs := new(BTRFS)
 
 	data, _ := hD.ReadFile(physicalOffsetB+lvm2.Header.PhysicalVolHeader.DataAreaDescriptors[0].OffsetB+OFFSET_TO_SUPERBLOCK,
 		SUPERBLOCKSIZE)
 	err := btrfs.ParseSuperblock(data)
 	if err != nil {
-		return
+		return err
 	}
 	btrfs.Process(hD, physicalOffsetB+lvm2.Header.PhysicalVolHeader.DataAreaDescriptors[0].OffsetB,
 		SelectedEntries, fromEntry, toEntry)
 	lvm2.btrfs = btrfs
+	return nil
 }
 
 func (lvm2 LVM2) HasValidSignature() bool {
