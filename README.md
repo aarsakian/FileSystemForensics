@@ -61,7 +61,7 @@ e.g. *-evidence path_to_evidence -partition 1*.
    -listvss
         list vss copied clusters
  
-  -location string
+  -export string
         the path to export files
  
   -log
