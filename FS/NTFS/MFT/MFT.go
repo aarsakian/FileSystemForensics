@@ -101,8 +101,8 @@ func (mfttable *MFTTable) AllocateRecordsTable(clusterSizeB int64) {
 func (mfttable MFTTable) IsOK() bool {
 	// after more than 20 non valid recors $MFT is corrupt
 	// check table if
-
-	return mfttable.NonValidRecords < 20
+	logger.FSLogger.Info("$MFT has more than 1% non valid records")
+	return float64(mfttable.NonValidRecords)/float64(len(mfttable.Records)) < 0.01
 }
 
 func (record Record) IsFolder() bool {
@@ -272,7 +272,10 @@ func (record Record) LocateDataAsync(hD readers.DiskReader, partitionOffset int6
 
 	} else {
 
-		runlist := record.GetRunList("DATA")
+		runlist, err := record.GetRunList("DATA")
+		if err != nil {
+			return
+		}
 
 		offset := partitionOffset // partition in bytes
 
@@ -382,23 +385,16 @@ func (record Record) IsDeleted() bool {
 	return record.getType() == "File Unallocated" || record.getType() == "Folder Unallocated"
 }
 
-func (record Record) GetRunList(attrType string) *MFTAttributes.RunList {
+func (record Record) GetRunList(attrType string) (*MFTAttributes.RunList, error) {
 
 	attr := record.FindAttribute(attrType)
-	return attr.GetHeader().ATRrecordNoNResident.RunList
-
-}
-
-func (record Record) GetRunLists() []MFTAttributes.RunList {
-	var runlists []MFTAttributes.RunList
-	for _, attribute := range record.Attributes {
-		if attribute.IsNoNResident() {
-
-			runlists = append(runlists, *attribute.GetHeader().ATRrecordNoNResident.RunList)
-		}
+	if attr == nil {
+		return nil, fmt.Errorf("attribute %s is nil", attrType)
+	} else if attr.GetHeader().ATRrecordNoNResident == nil {
+		return nil, errors.New("nonresident is nil")
 	}
+	return attr.GetHeader().ATRrecordNoNResident.RunList, nil
 
-	return runlists
 }
 
 func (record Record) GetFullPath() string {
@@ -424,8 +420,10 @@ func (record Record) ShowVCNs() {
 }
 
 func (record Record) ShowAllocatedClusters() {
-	runlist := record.GetRunList("DATA")
-
+	runlist, err := record.GetRunList("DATA")
+	if err != nil {
+		return
+	}
 	offset := int64(0)
 
 	for runlist != nil {
@@ -576,17 +574,19 @@ func (record Record) GetResidentData() []byte {
 }
 
 func (record Record) ShowRunList() {
-	runlists := record.GetRunLists()
-	nonResidentAttributes := record.FindNonResidentAttributes()
 
 	for _, linkedRecord := range record.LinkedRecords {
-		runlists = append(runlists, linkedRecord.GetRunLists()...)
-		nonResidentAttributes = append(nonResidentAttributes, linkedRecord.FindNonResidentAttributes()...)
+		linkedRecord.ShowRunList()
+
 	}
 
-	for idx, nonResidentAttr := range nonResidentAttributes {
+	for idx, nonResidentAttr := range record.FindNonResidentAttributes() {
+
 		fmt.Printf("%d - %s: \t", idx, nonResidentAttr.FindType())
-		runlist := runlists[idx]
+		if nonResidentAttr.GetHeader().ATRrecordNoNResident.RunList == nil {
+			continue
+		}
+		runlist := *nonResidentAttr.GetHeader().ATRrecordNoNResident.RunList
 		logicalOffset := runlist.Offset
 		nofFragments := 0
 		totalClusters := 0
