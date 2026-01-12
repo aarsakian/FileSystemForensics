@@ -491,21 +491,6 @@ func readEndianU(barray []byte) (val interface{}) {
 	return val
 }
 
-func readEndianFloat(barray []byte) (val uint64) {
-
-	//    fmt.Printf("len%d ",len(barray))
-
-	binary.Read(bytes.NewReader(barray), binary.LittleEndian, &val)
-	return val
-}
-
-func readEndianString(barray []byte) (val []byte) {
-
-	binary.Read(bytes.NewReader(barray), binary.LittleEndian, &val)
-
-	return val
-}
-
 func SetProgress(progressStat int, msg string) {
 	clearLine := "\x1B[2K"
 	io.WriteString(os.Stdout, clearLine)
