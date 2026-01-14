@@ -45,12 +45,12 @@ func (idxRoot IndexRoot) GetEntries() IndexEntries {
 func (idxEntry IndexEntry) ShowInfo() {
 	if idxEntry.Fnattr != nil {
 		if idxEntry.Flags == 0 {
-			fmt.Printf("type %s file ref %d idx name %s  allocated size %d real size %d \n",
+			fmt.Printf("IdxEntry %s file ref %d idx name %s  allocated size %d real size %d \n",
 				idxEntry.Fnattr.GetType(), idxEntry.ParRef,
 				idxEntry.Fnattr.Fname,
 				idxEntry.Fnattr.AllocFsize, idxEntry.Fnattr.RealFsize)
 		} else {
-			fmt.Printf("type %s file ref %d idx name %s  allocated size %d real size %d VCN %d\n",
+			fmt.Printf("IdxEntry %s file ref %d idx name %s  allocated size %d real size %d VCN %d\n",
 				idxEntry.Fnattr.GetType(), idxEntry.ParRef,
 				idxEntry.Fnattr.Fname,
 				idxEntry.Fnattr.AllocFsize, idxEntry.Fnattr.RealFsize, idxEntry.ChildVCN)
@@ -121,12 +121,12 @@ func Parse(data []byte) IndexEntries {
 	for idxEntryOffset < uint16(len(data)) {
 		var idxEntry *IndexEntry = new(IndexEntry)
 		idxEntry.Parse(data[idxEntryOffset:])
-
-		idxEntryOffset += idxEntry.Len
 		if idxEntry.Len == 0 {
 			logger.FSLogger.Warning("zero len index entry")
 			break
 		}
+		idxEntryOffset += idxEntry.Len
+
 		idxEntries = append(idxEntries, *idxEntry)
 	}
 	return idxEntries
