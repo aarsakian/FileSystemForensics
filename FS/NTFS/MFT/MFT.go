@@ -177,9 +177,10 @@ func ProcessNoNResidentAttributesWorker(records chan *Record, hD readers.DiskRea
 		for idx := range record.Attributes {
 			//all non resident attrs except DATA
 			//process $bitmap
-			attrHeader := record.Attributes[idx].GetHeader()
+			attr := record.Attributes[idx]
+			attrHeader := attr.GetHeader()
 			if !attrHeader.IsNoNResident() ||
-				(record.Attributes[idx].FindType() == "DATA" && record.Entry != 6) {
+				(attr.FindType() == "DATA" && record.Entry != 6) {
 				continue
 			}
 
@@ -210,9 +211,9 @@ func ProcessNoNResidentAttributesWorker(records chan *Record, hD readers.DiskRea
 				logger.FSLogger.Warning(msg)
 
 			} else {
-				record.Attributes[idx].Parse(buf[:actualLen])
+				attr.Parse(buf[:actualLen])
 				if attrHeader.IsAttrList() {
-					attrList := record.Attributes[idx].(*MFTAttributes.AttributeListEntries)
+					attrList := attr.(*MFTAttributes.AttributeListEntries)
 					record.LinkedRecordsInfo = append(record.LinkedRecordsInfo, attrList.GetLinkedRecordsInfo(record.Entry)...)
 				}
 
@@ -454,7 +455,7 @@ func (record Record) ShowParentRecordInfo() {
 		fmt.Printf("\n Record has no parent ")
 	} else {
 		fmt.Printf("\n Record has parent ")
-		record.Parent.ShowInfo()
+
 		record.Parent.ShowFileName("win32")
 
 	}
@@ -527,21 +528,22 @@ func (record Record) ShowTimestamps() {
 	}
 	//get parent
 	if !record.IsFolder() && record.Parent != nil {
-
-		record.Parent.ShowIndexTimestamps("Index Root")
-		record.Parent.ShowIndexTimestamps("Index Allocation")
+		fmt.Printf("Timestamps retrieved from parent folder $I30\n")
+		record.Parent.ShowIndexTimestamps("Index Root", record.Entry)
+		record.Parent.ShowIndexTimestamps("Index Allocation", record.Entry)
 
 	}
 
 }
 
-func (record Record) ShowIndexTimestamps(attrName string) {
+func (record Record) ShowIndexTimestamps(attrName string, childRecordEntry uint32) {
+	//shows timestamps for a child record entry
 	attr := record.FindAttribute(attrName)
 
 	if attr != nil {
 
 		for _, entry := range attr.(IndexAttributes).GetEntries() {
-			if entry.Fnattr == nil || entry.ParRef != uint64(record.Entry) {
+			if entry.Fnattr == nil || entry.ParRef != uint64(childRecordEntry) {
 				continue
 			}
 
