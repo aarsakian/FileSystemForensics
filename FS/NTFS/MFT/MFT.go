@@ -464,7 +464,7 @@ func (record Record) ShowParentRecordInfo() {
 
 func (record Record) GetPath(partitionId int) string {
 	fullpath := record.GetFullPath()
-	return fmt.Sprintf("Partition%d%s%c\n", partitionId+1, fullpath, os.PathSeparator)
+	return fmt.Sprintf("Partition%d%s%c", partitionId+1, fullpath, os.PathSeparator)
 }
 
 func (record Record) ShowPath(partitionId int) {
