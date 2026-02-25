@@ -3,7 +3,7 @@ package fstree
 import (
 	"errors"
 	"fmt"
-	"path/filepath"
+	"os"
 	"sort"
 	"strings"
 
@@ -232,7 +232,11 @@ func (fileDirEntry FileDirEntry) ShowParentRecordInfo() {
 }
 
 func (fileDirEntry FileDirEntry) ShowPath(pathtype int) {
-	fmt.Printf("%s \n", filepath.Join(fileDirEntry.Path, fileDirEntry.GetFname()))
+	fmt.Printf("%s \n", fileDirEntry.GetPath(pathtype))
+}
+
+func (fileDirEntry FileDirEntry) GetPath(pathtype int) string {
+	return fmt.Sprintf("%s%c", fileDirEntry.Path, os.PathSeparator)
 }
 
 func (fileDirEntry FileDirEntry) ShowRunList() {
