@@ -15,21 +15,23 @@ import (
 )
 
 type Exporter struct {
-	Location string
-	Hash     string
-	Strategy string
+	Location     string
+	Hash         string
+	Strategy     string
+	RecreatePath bool
 }
 
 func (exp Exporter) ExportData(wg *sync.WaitGroup, results <-chan utils.AskedFile) {
 	defer wg.Done()
 
 	for result := range results {
+
 		if exp.Strategy == "Id" {
 
-			exp.CreateFile(fmt.Sprintf("[%d]%s", result.Id, result.Fname), result.Content)
+			exp.CreateFile(result.Path, fmt.Sprintf("[%d]%s", result.Id, result.Fname), result.Content)
 
 		} else {
-			exp.CreateFile(result.Fname, result.Content)
+			exp.CreateFile(result.Path, result.Fname, result.Content)
 		}
 
 	}
@@ -117,10 +119,21 @@ func (exp Exporter) HashFiles(records []metadata.Record) {
 
 }
 
-func (exp Exporter) CreateFile(fname string, data []byte) {
+func (exp Exporter) CreateFile(fpath string, fname string, data []byte) {
 	var err error
-	fullpath := filepath.Join(exp.Location, fname)
-	err = os.MkdirAll(exp.Location, 0750)
+	var fullpath string
+
+	if exp.RecreatePath {
+		dir, _ := filepath.Split(fpath)
+		fullpath = filepath.Join(exp.Location, dir, fname)
+		err = os.MkdirAll(filepath.Join(exp.Location, dir), 0750)
+
+	} else {
+		fullpath = filepath.Join(exp.Location, fname)
+		err = os.MkdirAll(exp.Location, 0750)
+
+	}
+
 	if err != nil && !os.IsExist(err) {
 		fmt.Println(err)
 	}
