@@ -38,6 +38,7 @@ type Record interface {
 	ShowInfo()
 	ShowParentRecordInfo()
 	ShowPath(int)
+	GetPath(int) string
 	ShowAllocatedClusters()
 
 	LocateData(readers.DiskReader, int64, int, []byte, map[uint64]Chunk)
