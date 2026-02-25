@@ -48,6 +48,7 @@ func main() {
 	vmdkfile := flag.String("vmdk", "", "path to vmdk file (Sparse formats are supported)")
 
 	exportLocation := flag.String("export", "", "the path to export files")
+	recreatePath := flag.Bool("recreatepath", false, "recreate file path")
 	MFTSelectedEntries := flag.String("entries", "", "select file system records by entering its id, use comma as a seperator")
 	showFileName := flag.String("showfilename", "", "show the name of the filename attribute of MFT records: enter (Any, Win32, Dos)")
 	exportFiles := flag.String("filenames", "", "files to export use comma as a seperator")
@@ -149,7 +150,7 @@ func main() {
 
 	}
 
-	exp := exporter.Exporter{Location: *exportLocation, Hash: *hashFiles, Strategy: *strategy}
+	exp := exporter.Exporter{Location: *exportLocation, Hash: *hashFiles, Strategy: *strategy, RecreatePath: *recreatePath}
 
 	flm := filtermanager.FilterManager{}
 
