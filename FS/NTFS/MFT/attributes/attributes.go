@@ -9,6 +9,26 @@ import (
 	"github.com/aarsakian/FileSystemForensics/utils"
 )
 
+const (
+	StandardInformation          uint32 = 0x00000010
+	AttrList                     uint32 = 0x00000020
+	FileName                     uint32 = 0x00000030
+	ObjID                        uint32 = 0x00000040
+	SecurityDescriptor           uint32 = 0x00000050
+	VolName                      uint32 = 0x00000060
+	VolumeInformation            uint32 = 0x00000070
+	Data                         uint32 = 0x00000080
+	IdxRoot                      uint32 = 0x00000090
+	IdxAllocation                uint32 = 0x000000a0
+	Bitmap                       uint32 = 0x000000b0
+	ReparsePoint                 uint32 = 0x000000c0
+	ExtendedAttributeInformation uint32 = 0x000000d0
+	ExtendedAttr                 uint32 = 0x000000e0
+	LoggedUtilStream             uint32 = 0x00000100
+	TXF_Data                     uint32 = 0x00000110
+	Last                         uint32 = 0xffffffff
+)
+
 var AttrTypes = map[uint32]string{
 	0x00000010: "Standard Information", 0x00000020: "Attribute List",
 	0x00000030: "FileName", 0x00000040: "Object ID",
@@ -23,8 +43,8 @@ var AttrTypes = map[uint32]string{
 }
 
 type AttributeHeader struct {
-	Type                 [4]byte //        0-3                              type of attribute e.g. $DATA
-	AttrLen              uint16  //4-8             length of attribute??? practice shown 4-6
+	Type                 uint32 //        0-3                              type of attribute e.g. $DATA
+	AttrLen              uint16 //4-8             length of attribute??? practice shown 4-6
 	Uknown               [2]byte
 	NoNResident          uint8  //8
 	Nlen                 uint8  //9
@@ -98,11 +118,11 @@ func (atrRecordNoNResident ATRrecordNoNResident) GetContent(hD readers.DiskReade
 
 func (attrHeader AttributeHeader) GetType() string {
 
-	attrType, ok := AttrTypes[utils.ToUint32(attrHeader.Type[:])]
+	attrType, ok := AttrTypes[attrHeader.Type]
 	if ok {
 		return attrType
 	} else {
-		return fmt.Sprintf("%s ", attrHeader.Type)
+		return fmt.Sprintf("%d ", attrHeader.Type)
 	}
 }
 
