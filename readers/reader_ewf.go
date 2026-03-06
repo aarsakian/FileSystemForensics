@@ -1,6 +1,7 @@
 package readers
 
 import (
+	"log"
 	"path"
 	"strings"
 
@@ -18,7 +19,9 @@ func (imgreader *EWFReader) CreateHandler() {
 	if strings.ToLower(extension) == ".e01" {
 		var ewf_image ewfLib.EWF_Image
 		filenames := ewfutils.FindEvidenceFiles(imgreader.PathToEvidenceFiles)
-
+		if len(filenames) == 0 {
+			log.Fatal("No evidence files found!")
+		}
 		ewf_image.ParseEvidenceCH(filenames)
 
 		imgreader.fd = ewf_image
