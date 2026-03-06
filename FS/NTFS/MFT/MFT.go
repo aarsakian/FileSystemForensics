@@ -168,19 +168,25 @@ func (record *Record) ProcessNoNResidentAttributes(hD readers.DiskReader,
 func ProcessNoNResidentAttributesWorker(records chan *Record, hD readers.DiskReader, partitionOffsetB int64,
 	clusterSizeB int, wg *sync.WaitGroup) {
 
-	scratch := make([]byte, 16*clusterSizeB) //experience
+	scratch := make([]byte, 1024*1024) //experience
 
 	defer wg.Done()
 
 	for record := range records {
-		logger.FSLogger.Info(fmt.Sprintf("Record %d has %d attributes", record.Entry, len(record.Attributes)))
+		if logger.FSLogger.IsActive() {
+			logger.FSLogger.Info(fmt.Sprintf("Record %d has %d attributes", record.Entry, len(record.Attributes)))
+		}
+
 		for idx := range record.Attributes {
 			//all non resident attrs except DATA
 			//process $bitmap
 			attr := record.Attributes[idx]
 			attrHeader := attr.GetHeader()
-			if !attrHeader.IsNoNResident() ||
-				(attr.FindType() == "DATA" && record.Entry != 6) {
+			if !attrHeader.IsNoNResident() {
+				continue
+			}
+
+			if attrHeader.Type == MFTAttributes.Data && record.Entry != 6 {
 				continue
 			}
 
@@ -218,8 +224,9 @@ func ProcessNoNResidentAttributesWorker(records chan *Record, hD readers.DiskRea
 				}
 
 			}
-
-			logger.FSLogger.Info(fmt.Sprintf("Processed non resident attribute record %d at pos %d", record.Entry, idx))
+			if logger.FSLogger.IsActive() {
+				logger.FSLogger.Info(fmt.Sprintf("Processed non resident attribute record %d at pos %d", record.Entry, idx))
+			}
 
 		}
 
@@ -400,14 +407,20 @@ func (record Record) GetRunList(attrType string) (*MFTAttributes.RunList, error)
 
 func (record Record) GetFullPath() string {
 	var fullpath strings.Builder
+	var nodes []*Record
 	parent := record.Parent
 	for parent != nil && parent.Entry != 5 { //$MFT Root entry
 		//prepends
-		fullpath.WriteRune(os.PathSeparator)
-		fullpath.WriteString(parent.GetFname())
+		nodes = append(nodes, parent)
 		parent = parent.Parent
 	}
+	fullpath.WriteRune(os.PathSeparator)
 	//reverse
+	for i := len(nodes) - 1; i >= 0; i-- {
+
+		fullpath.WriteString(nodes[i].GetFname())
+		fullpath.WriteRune(os.PathSeparator)
+	}
 
 	return filepath.Join(fullpath.String())
 }
@@ -914,8 +927,10 @@ func (record *Record) Process(bs []byte) error {
 			}
 
 		} //ends non Resident
+		if logger.FSLogger.IsActive() {
+			logger.FSLogger.Info(fmt.Sprintf("processed attribute %s at %d", attrHeader.GetType(), ReadPtr))
+		}
 
-		logger.FSLogger.Info(fmt.Sprintf("processed attribute %s at %d", attrHeader.GetType(), ReadPtr))
 		ReadPtr = ReadPtr + uint16(attrHeader.AttrLen)
 
 	} //ends while
