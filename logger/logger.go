@@ -31,7 +31,9 @@ func InitializeLogger(active bool, logfilename string) {
 	}
 
 }
-
+func (logger Logger) IsActive() bool {
+	return logger.active
+}
 func (logger Logger) Info(msg string) {
 	if logger.active {
 		logger.info.Println(msg)
