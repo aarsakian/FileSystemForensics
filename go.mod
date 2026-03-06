@@ -9,4 +9,6 @@ require (
 	golang.org/x/text v0.13.0
 )
 
-require github.com/aarsakian/EWF_Reader v0.0.0-20251219163715-06f27839d852 // indirect
+require github.com/aarsakian/EWF_Reader v0.0.0-20260306182323-6ede308af4dd // indirect
+
+replace github.com/aarsakian/EWF_Reader => ..\..\go\pkg\mod\github.com\aarsakian\!e!w!f_!reader@v0.0.0-20251219163715-06f27839d852
