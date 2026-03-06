@@ -58,8 +58,9 @@ func (mfttable *MFTTable) ProcessRecords(data []byte) {
 		}
 
 		mfttable.Records[record.Entry] = record
-
-		logger.FSLogger.Info(fmt.Sprintf("Processed record %d at pos %d", record.Entry, i/RecordSize))
+		if logger.FSLogger.IsActive() {
+			logger.FSLogger.Info(fmt.Sprintf("Processed record %d at pos %d", record.Entry, i/RecordSize))
+		}
 
 	}
 
@@ -83,8 +84,10 @@ func (mfttable *MFTTable) MFTWorker(data []byte, pos int, wg *sync.WaitGroup) {
 	}
 
 	mfttable.Records[record.Entry] = record
+	if logger.FSLogger.IsActive() {
+		logger.FSLogger.Info(fmt.Sprintf("Processed record %d at pos %d", record.Entry, pos))
+	}
 
-	logger.FSLogger.Info(fmt.Sprintf("Processed record %d at pos %d", record.Entry, pos))
 }
 
 func (mfttable *MFTTable) ProcessNonResidentRecords(hD readers.DiskReader, partitionOffsetB int64, clusterSizeB int) {
