@@ -69,7 +69,7 @@ type CatalogEntry3 struct {
 	Uknown                    [48]byte
 }
 
-func (shadowVol *ShadowVolume) Process(handler readers.DiskReader, partitionOffsetB int64) {
+func (shadowVol *ShadowVolume) Process(handler readers.DiskReader, partitionOffsetB int64) *ShadowVolume {
 	var entries1 []CatalogEntry1
 	var entries2 []CatalogEntry2
 	var entries3 []CatalogEntry3
@@ -122,7 +122,7 @@ func (shadowVol *ShadowVolume) Process(handler readers.DiskReader, partitionOffs
 	}
 
 	shadowVol.ProcessStores(handler, partitionOffsetB)
-
+	return shadowVol
 }
 
 func (shadowVol *ShadowVolume) ProcessStores(handler readers.DiskReader, partitionOffsetB int64) {
@@ -196,25 +196,25 @@ func (shadowVol *ShadowVolume) ProcessStores(handler readers.DiskReader, partiti
 
 }
 
-func (shadow ShadowVolume) GetClustersInfo(clusters []int) []int {
-	shadowClusterOffsets := make([]int, 2)
+func (shadow ShadowVolume) GetClustersInfo(clusterSizeB int, clusters []int) []int {
+	shadowClusterOffsets := make([]int, len(clusters))
 	for idx, cluster := range clusters {
-		shadowClusterOffsets[idx] = shadow.GetShadowClusterOffset([]int{cluster})
+		shadowClusterOffsets[idx] = shadow.GetShadowClusterOffset(clusterSizeB, cluster)
 
 	}
 	return shadowClusterOffsets
 }
 
-func (shadow ShadowVolume) GetShadowClusterOffset(clusters []int) int {
+func (shadow ShadowVolume) GetShadowClusterOffset(clusterSizeB int, cluster int) int {
 	for _, store := range shadow.Stores {
 		for _, blockrangeList := range store.StoreBlockRange.BlockRangeLists {
-			if blockrangeList.HasClusters(clusters[0]) {
-				return int(blockrangeList.ShadowOffset)/4096 + clusters[0] - int(blockrangeList.StartOffset/4096)
+			if blockrangeList.HasClusters(cluster) {
+				return int(blockrangeList.ShadowOffset)/clusterSizeB + cluster - int(blockrangeList.StartOffset)/clusterSizeB
 			}
 		}
 
 		for _, blockDescriptor := range store.StoresList.BlockDescriptors {
-			if int(blockDescriptor.OriginalDataBlockOffset) == clusters[0]*4096 {
+			if int(blockDescriptor.OriginalDataBlockOffset) == cluster*clusterSizeB {
 				return int(blockDescriptor.ShadowDataBlockOffset)
 			}
 		}
