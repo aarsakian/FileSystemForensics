@@ -17,7 +17,7 @@ import (
 
 	EWFLogger "github.com/aarsakian/EWF_Reader/logger"
 	metadata "github.com/aarsakian/FileSystemForensics/FS"
-	vssLib "github.com/aarsakian/FileSystemForensics/FS/NTFS/VSS"
+	VssLib "github.com/aarsakian/FileSystemForensics/FS/NTFS/VSS"
 	UsnJrnl "github.com/aarsakian/FileSystemForensics/FS/NTFS/usnjrnl"
 	"github.com/aarsakian/FileSystemForensics/disk"
 	Vol "github.com/aarsakian/FileSystemForensics/disk/volume"
@@ -82,7 +82,8 @@ func main() {
 	listvss := flag.Bool("listvss", false, "list vss copied clusters")
 
 	benchmark := flag.Bool("benchmark", false, "test HD speed")
-	showVSSClusters := flag.Bool("showvssclusters", false, "show volume shadow releveat information for selected clusters")
+	showVSSClusters := flag.Bool("showvssclusters", false,
+		"show volume shadow relevant information for selected records")
 
 	orphans := flag.Bool("orphans", false, "show information only for orphan records")
 	deleted := flag.Bool("deleted", false, "show deleted records")
@@ -95,7 +96,7 @@ func main() {
 	volinfo := flag.Bool("volinfo", false, "show volume information")
 	logactive := flag.Bool("log", false, "enable logging")
 	showPath := flag.Bool("showpath", false, "show the full path of the selected files")
-	showClusters := flag.Bool("showclusters", false, "show allocated clusters of a record")
+	showClusters := flag.Bool("showclusters", false, "show allocated clusters of a record inside shadow volumes")
 	strategy := flag.String("strategy", "overwrite", "what strategy will be used for files sharing the same name, default is ovewrite, or use Id")
 	usnjrnl := flag.Bool("usnjrnl", false, "show usnjrnl information about changes to files and folders")
 	logfile := flag.Bool("logfile", false, "parse and show $logfile")
@@ -106,7 +107,7 @@ func main() {
 
 	//var records MFT.Records
 	var usnjrnlRecords UsnJrnl.Records
-	var shadowVolume vssLib.ShadowVolume
+	var shadowVol *VssLib.ShadowVolume
 	var fileNamesToExport []string
 
 	var err error
@@ -120,6 +121,18 @@ func main() {
 			log.Println("pprof listening on :6060")
 			log.Println(http.ListenAndServe("localhost:6060", nil))
 		}()
+	}
+
+	if *showClusters && !*vss {
+		fmt.Println("showclusters option is only relevant when processing shadow volumes, ignoring it")
+	}
+
+	if *showUsnjrnl && !*usnjrnl {
+		fmt.Println("showusn option is only relevant when processing usnjrnl records, ignoring it")
+	}
+
+	if *listvss && !*vss {
+		fmt.Println("listvss option is only relevant when processing shadow volumes, ignoring it")
 	}
 
 	rp := reporter.Reporter{
@@ -212,7 +225,7 @@ func main() {
 		}
 
 		if *vss {
-			shadowVolume = dsk.ProcessVSS(*partitionNum - 1)
+			shadowVol, _ = dsk.ProcessVSS(*partitionNum - 1)
 		}
 
 		if *listPartitions {
@@ -237,19 +250,12 @@ func main() {
 				val, _ := strconv.ParseUint(cluster, 10, 64)
 				_clusters = append(_clusters, int(val))
 			}
-			offsets := shadowVolume.GetClustersInfo(_clusters)
-			for idx, offset := range offsets {
-				if offset == -1 {
-					fmt.Printf("%d cl shadow offset not found\n", _clusters[idx])
-				} else {
-					fmt.Printf("%d cl shadow offset cl %d\n", _clusters[idx], offset)
-				}
-			}
+			dsk.ShowClustersInfo(*partitionNum-1, _clusters)
 
 		}
 
 		if *listvss {
-			shadowVolume.ListVSS()
+			dsk.ListVSS(*partitionNum - 1)
 		}
 
 		for partitionId, records := range recordsPerPartition {
@@ -272,7 +278,7 @@ func main() {
 
 			}
 
-			rp.Show(records, usnjrnlRecords, partitionId, recordsTree)
+			rp.Show(records, usnjrnlRecords, partitionId, recordsTree, shadowVol)
 
 		}
 
