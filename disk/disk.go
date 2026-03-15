@@ -62,6 +62,22 @@ func (disk *Disk) Initialize(evidencefile string, physicaldrive int, vmdkfile st
 	disk.Handler = reader
 }
 
+func (disk Disk) ListVSS(partitionNum int) error {
+	for idx := range disk.Partitions {
+		if idx != partitionNum {
+			continue
+		}
+
+		vol := disk.Partitions[idx].GetVolume()
+		if vol == nil {
+			return errors.New("no volume found")
+		}
+		ntfs := vol.(*volume.NTFS)
+		ntfs.ShadowVolume.ListVSS()
+	}
+	return nil
+}
+
 func (disk *Disk) SearchFileSystem(fstype string) []MFT.CarvedRecord {
 
 	if fstype == "NTFS" {
@@ -197,13 +213,36 @@ func (disk Disk) GetLogicalToPhysicalMap(partitionNum int) (map[uint64]metadata.
 	return vol.GetLogicalToPhysicalMap(), nil
 }
 
-func (disk Disk) GetClustersInfo(partitionID int, clusters []int) {
+func (disk Disk) GetClustersInfo(partitionID int, clusters []int) ([]int, error) {
+	var clusterOffsets []int
 	for idx, partition := range disk.Partitions {
 		if idx != partitionID {
 			continue
 		}
-		partition.GetVolume().GetFS()
+		vol := partition.GetVolume()
+		if vol == nil {
+			return []int{}, errors.New("no volume found")
+		}
+		ntfs := vol.(*volume.NTFS)
+		clusterOffsets = ntfs.ShadowVolume.GetClustersInfo(ntfs.GetSectorsPerCluster()*int(ntfs.GetBytesPerSector()),
+			clusters)
 
+	}
+	return clusterOffsets, nil
+
+}
+
+func (disk Disk) ShowClustersInfo(partitionID int, clusters []int) {
+	clOffsets, err := disk.GetClustersInfo(partitionID, clusters)
+	if err != nil {
+		fmt.Printf("%s\n", err)
+	}
+	for idx, offset := range clOffsets {
+		if offset == -1 {
+			fmt.Printf("%d cl shadow offset not found\n", clusters[idx])
+		} else {
+			fmt.Printf("%d cl shadow offset cl %d\n", clusters[idx], offset)
+		}
 	}
 }
 
@@ -262,18 +301,17 @@ func (disk Disk) ProcessLogFile(recordsPerPartition map[int][]metadata.Record, p
 	}
 }
 
-func (disk Disk) ProcessVSS(partitionID int) vssLib.ShadowVolume {
-	shadowVol := new(vssLib.ShadowVolume)
-	for idx := range disk.Partitions {
-		if idx != partitionID {
-			continue
-		}
-		partitionOffsetB := int64(disk.Partitions[idx].GetOffset() * 512)
+func (disk Disk) ProcessVSS(partitionID int) (*vssLib.ShadowVolume, error) {
 
-		shadowVol.Process(disk.Handler, partitionOffsetB)
+	vol := disk.Partitions[partitionID].GetVolume()
 
+	if vol == nil {
+		return &vssLib.ShadowVolume{}, errors.New("volume not found")
 	}
-	return *shadowVol
+	partitionOffsetB := int64(disk.Partitions[partitionID].GetOffset() * 512)
+
+	return vol.(*volume.NTFS).ProcessVss(disk.Handler, partitionOffsetB), nil
+
 }
 
 func (disk Disk) Close() {
