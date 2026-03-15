@@ -204,6 +204,10 @@ func (fileDirEntry FileDirEntry) ShowAllocatedClusters() {
 
 }
 
+func (fileDirEntry FileDirEntry) GetAllocatedClusters() []int {
+	return []int{}
+}
+
 func (fileDirEntry FileDirEntry) ShowFileName() {
 	fmt.Printf("%s\n", fileDirEntry.GetFname())
 

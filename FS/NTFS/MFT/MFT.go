@@ -463,6 +463,34 @@ func (record Record) ShowAllocatedClusters() {
 
 }
 
+func (record Record) GetAllocatedClusters() []int {
+	var allocatedClusters []int
+	runlist, err := record.GetRunList("DATA")
+	if err != nil {
+		return []int{}
+	}
+	offset := int64(0)
+
+	for runlist != nil {
+		offset += runlist.Offset
+
+		if runlist.Offset != 0 && runlist.Length > 0 {
+			for cl := 0; cl < int(runlist.Length); cl++ {
+				allocatedClusters = append(allocatedClusters, int(runlist.Offset)+cl)
+			}
+		}
+
+		if runlist.Next == nil {
+			break
+		}
+
+		runlist = runlist.Next
+
+	}
+	return allocatedClusters
+
+}
+
 func (record Record) ShowParentRecordInfo() {
 	if record.Parent == nil {
 		fmt.Printf("\n Record has no parent ")
