@@ -128,6 +128,9 @@ e.g. *-evidence path_to_evidence -partition 1*.
   -showusn
         show information about NTFS usnjrnl records
 
+  -showclusters 
+      show allocated clusters of a record inside shadow volumes
+
   -strategy string
         what strategy will be used for files sharing the same name, default is ovewrite, or use Id (default "overwrite")
 
