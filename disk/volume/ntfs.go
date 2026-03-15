@@ -10,6 +10,7 @@ import (
 
 	metadata "github.com/aarsakian/FileSystemForensics/FS"
 	"github.com/aarsakian/FileSystemForensics/FS/NTFS/MFT"
+	vssLib "github.com/aarsakian/FileSystemForensics/FS/NTFS/VSS"
 	"github.com/aarsakian/FileSystemForensics/logger"
 	"github.com/aarsakian/FileSystemForensics/readers"
 	"github.com/aarsakian/FileSystemForensics/utils"
@@ -19,6 +20,7 @@ type NTFS struct {
 	VBR           *VBR
 	MFT           *MFT.MFTTable
 	CarvedRecords []MFT.CarvedRecord
+	ShadowVolume  vssLib.ShadowVolume
 }
 
 type VBR struct { //Volume Boot Record
@@ -40,6 +42,10 @@ func (ntfs *NTFS) AddVolume(data []byte) {
 
 func (ntfs NTFS) GetFSOffset() int64 {
 	return 0
+}
+
+func (ntfs *NTFS) ProcessVss(hD readers.DiskReader, partitionOffset int64) *vssLib.ShadowVolume {
+	return ntfs.ShadowVolume.Process(hD, partitionOffset)
 }
 
 func (ntfs *NTFS) Process(hD readers.DiskReader, partitionOffsetB int64, MFTSelectedEntries []int,
