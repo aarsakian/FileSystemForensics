@@ -35,7 +35,7 @@ e.g. *-evidence path_to_evidence -partition 1*.
         select file system records by entering its id, use comma as a seperator
  
   -evidence string
-        path to image file (EWF/Raw formats are supported)
+        path to image file (EWF/VHDX/Raw formats are supported)
 
   -export string
         the path to export files
