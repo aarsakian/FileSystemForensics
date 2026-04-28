@@ -21,6 +21,8 @@ func GetHandler(pathToDisk string, mode string) DiskReader {
 		dr = &RawReader{PathToEvidenceFiles: pathToDisk}
 	case "vmdk":
 		dr = &VMDKReader{PathToEvidenceFiles: pathToDisk}
+	case "vhdx":
+		dr = &VHDXReader{PathToEvidenceFiles: pathToDisk}
 	}
 	dr.CreateHandler()
 
