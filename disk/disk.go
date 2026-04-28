@@ -46,6 +46,8 @@ func (disk *Disk) Initialize(evidencefile string, physicaldrive int, vmdkfile st
 		extension := path.Ext(evidencefile)
 		if strings.ToLower(extension) == ".e01" {
 			reader = readers.GetHandler(evidencefile, "ewf")
+		} else if strings.ToLower(extension) == ".vhdx" || strings.ToLower(extension) == ".avhdx" {
+			reader = readers.GetHandler(evidencefile, "vhdx")
 		} else {
 			reader = readers.GetHandler(evidencefile, "raw")
 		}

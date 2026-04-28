@@ -28,6 +28,7 @@ import (
 	"github.com/aarsakian/FileSystemForensics/reporter"
 	"github.com/aarsakian/FileSystemForensics/tree"
 	"github.com/aarsakian/FileSystemForensics/utils"
+	VHDXLogger "github.com/aarsakian/VHD_Reader/logger"
 	VMDKLogger "github.com/aarsakian/VMDK_Reader/logger"
 )
 
@@ -44,7 +45,7 @@ func main() {
 	//	save2DB := flag.Bool("db", false, "bool if set an sqlite file will be created, each table will corresponed to an MFT attribute")
 
 	mftOffset := flag.Int("mftoffset", 0, "physical offset to the  $MFT file")
-	evidencefile := flag.String("evidence", "", "path to image file (EWF/Raw formats are supported)")
+	evidencefile := flag.String("evidence", "", "path to image file (EWF/VHDX/Raw formats are supported)")
 	vmdkfile := flag.String("vmdk", "", "path to vmdk file (Sparse formats are supported)")
 
 	exportLocation := flag.String("export", "", "the path to export files")
@@ -160,6 +161,7 @@ func main() {
 		FSLogger.InitializeLogger(*logactive, logfilename)
 		VMDKLogger.InitializeLogger(*logactive, logfilename)
 		EWFLogger.InitializeLogger(*logactive, logfilename)
+		VHDXLogger.InitializeLogger(*logactive, logfilename)
 
 	}
 
