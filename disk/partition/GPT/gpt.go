@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 
+	bitlocker "github.com/aarsakian/FileSystemForensics/disk/Bitlocker"
 	mdraid "github.com/aarsakian/FileSystemForensics/disk/raid"
 	"github.com/aarsakian/FileSystemForensics/disk/volume"
 	lvmlib "github.com/aarsakian/FileSystemForensics/disk/volume"
@@ -125,7 +126,14 @@ func (partition *Partition) LocateVolume(hD readers.DiskReader) {
 		data, _ := hD.ReadFile(int64(partitionOffetB), 512)
 
 		ntfs := new(volume.NTFS)
-		ntfs.AddVolume(data)
+		if bytes.Equal(data[3:7], []byte("NTFS")) {
+
+			ntfs.ProcessHeader(data)
+		} else if bytes.Equal(data[3:11], []byte("-FVE-FS-")) {
+			bitlockerVolume := new(bitlocker.Volume)
+			bitlockerVolume.ProcessHeader(data)
+			bitlockerVolume.Process(hD, int64(partitionOffetB))
+		}
 		partition.Volume = ntfs
 	} else if partition.GetPartitionType() == "Linux RAID" {
 		data, _ := hD.ReadFile(int64(partitionOffetB+8*512), 512)  //8 sectors after superblock
