@@ -35,7 +35,7 @@ type VBR struct { //Volume Boot Record
 	MFTMirrOffset     uint64   //56-64
 }
 
-func (ntfs *NTFS) AddVolume(data []byte) {
+func (ntfs *NTFS) ProcessHeader(data []byte) {
 	ntfs.VBR = new(VBR)
 	ntfs.VBR.Parse(data)
 }
