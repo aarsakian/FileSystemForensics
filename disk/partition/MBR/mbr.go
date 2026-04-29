@@ -47,16 +47,17 @@ func (partition Partition) GetPartitionType() string {
 
 func (partition *Partition) LocateVolume(hD readers.DiskReader) {
 
-	if partition.Type == 0x07 || partition.Type == 0x17 {
+	switch partition.Type {
+	case 0x07, 0x17:
 		partitionOffetB := uint64(partition.GetOffset() * 512)
 		data, _ := hD.ReadFile(int64(partitionOffetB), 512)
 		ntfs := new(volume.NTFS)
-		ntfs.AddVolume(data)
+		ntfs.ProcessHeader(data)
 
 		if ntfs.HasValidSignature() {
 			partition.Volume = ntfs
 		}
-	} else if partition.Type == 0x83 { //linux native
+	case 0x83: //linux native
 		btrfs := new(volume.BTRFS)
 
 		partitionOffsetB := int64(partition.GetOffset() * 512)
