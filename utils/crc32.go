@@ -41,3 +41,7 @@ func CalcCRC32(data []byte) uint32 {
 	return crc32.Checksum(data, (*crc32.Table)(crctable))
 
 }
+
+func CalcCRC32IEEE(data []byte) uint32 {
+	return crc32.ChecksumIEEE(data)
+}
