@@ -1,12 +1,15 @@
 package bitlocker
 
 import (
+	"errors"
+	"fmt"
+
 	"github.com/aarsakian/FileSystemForensics/readers"
 	"github.com/aarsakian/FileSystemForensics/utils"
 )
 
-// BitLocker Windows 7 format structures
-// Based on libbde documentation: https://github.com/libyal/libbde/blob/main/documentation/BitLocker%20Drive%20Encryption%20(BDE)%20format.asciidoc
+// Based on libbde and dislocker  documentation
+
 // All structs assume little-endian encoding and packed layout.
 // Use encoding/binary with binary.LittleEndian.
 
@@ -54,10 +57,8 @@ type VolumeHeaderWindows7 struct {
 	Bootcode [70]byte // 0x5A: Bootcode (offset 0x5A to 0xA3)
 
 	// BitLocker specific fields
-	BitLockerID        [16]byte // 0xA0 (160): BitLocker identifier GUID
-	FVEMetadataOffset1 uint64   // 0xB0 (176): FVE metadata block 1 offset (from volume start)
-	FVEMetadataOffset2 uint64   // 0xB8 (184): FVE metadata block 2 offset (from volume start)
-	FVEMetadataOffset3 uint64   // 0xC0 (192): FVE metadata block 3 offset (from volume start)
+	BitLockerID        [16]byte  // 0xA0 (160): BitLocker identifier GUID
+	FVEMetadataOffsets [3]uint64 // 0xB0 (176): FVE metadata block 1 offset (from volume start)
 
 	// Additional bootcode
 	AdditionalBootcode [307]byte // 0xC8 (200): Unknown (part of bootcode)
@@ -73,19 +74,19 @@ type VolumeHeaderWindows7 struct {
 
 // FVEMetadataBlockHeaderV2 represents the FVE metadata block header for Windows 7.
 // Each BitLocker volume has 3 copies of this structure for redundancy.
+// equal to _bitlocker_information in dislocker
 type FVEMetadataBlockHeaderV2 struct {
-	Signature             [8]byte // 0x00: "-FVE-FS-"
-	Size                  uint16  // 0x08: Size of block header
-	Version               uint16  // 0x0A: Version (0x0002 for Windows 7)
-	ProtectionStatus      uint16  // 0x0C: Unknown - 0x04 typically, 0x05 in partial decrypted volume
-	ProtectionStatusCopy  uint16  // 0x0E: Unknown copy - 0x04 typically, 0x01 in partial decrypted volume
-	EncryptedVolumeSize   uint64  // 0x10: Encrypted volume size in bytes (bytes still encrypted/to be decrypted)
-	Unknown1              uint32  // 0x18: Unknown (reserved)
-	NumberOfHeaderSectors uint32  // 0x1C: Number of volume header sectors (typically 8192/512 = 16)
-	FVEMetadataOffset1    uint64  // 0x20: FVE metadata block 1 offset (from volume start)
-	FVEMetadataOffset2    uint64  // 0x28: FVE metadata block 2 offset (from volume start)
-	FVEMetadataOffset3    uint64  // 0x30: FVE metadata block 3 offset (from volume start)
-	VolumeHeaderOffset    uint64  // 0x38: Volume header offset (encrypted first sectors location)
+	Signature             [8]byte   // 0x00: "-FVE-FS-"
+	Size                  uint16    // 0x08: Size of block header
+	Version               uint16    // 0x0A: Version (0x0002 for Windows 7)
+	ProtectionStatus      uint16    // 0x0C: Unknown - 0x04 typically, 0x05 in partial decrypted volume
+	ProtectionStatusCopy  uint16    // 0x0E: Unknown copy - 0x04 typically, 0x01 in partial decrypted volume
+	EncryptedVolumeSize   uint64    // 0x10: Encrypted volume size in bytes (bytes still encrypted/to be decrypted)
+	ConvertSize           uint32    // 0x18: Unknown (reserved)
+	NumberOfHeaderSectors uint32    // 0x1C: Number of volume header sectors (typically 8192/512 = 16)
+	FVEMetadataOffsets    [3]uint64 // 0x20: FVE metadata block 1 offset (from volume start)
+	VolumeHeaderOffset    uint64    // 0x38: Volume header offset (encrypted first sectors location)
+	DataSets              *FVEMetadataHeaderV3
 }
 
 // ============================================================================
@@ -93,6 +94,7 @@ type FVEMetadataBlockHeaderV2 struct {
 // ============================================================================
 
 // FVEMetadataHeaderV1 contains metadata for the volume such as GUID and encryption method.
+// dataset
 type FVEMetadataHeaderV1 struct {
 	MetadataSize       uint32   // 0x00: Total size of metadata including this header
 	Version            uint32   // 0x04: Version (0x00000001 for Windows Vista/7)
@@ -102,124 +104,6 @@ type FVEMetadataHeaderV1 struct {
 	NextNonceCounter   uint32   // 0x20: Next nonce counter for AES-CCM
 	EncryptionMethod   uint32   // 0x24: Encryption method (see EncryptionMethods)
 	CreationTime       uint64   // 0x28: Creation time (Windows FILETIME)
-}
-
-// ============================================================================
-// FVE Metadata Entry - Variable size
-// ============================================================================
-
-// FVEMetadataEntry represents a single metadata entry.
-// Entries are variable-sized and contain different types of data.
-type FVEMetadataEntry struct {
-	EntrySize uint16 // 0x00: Size including this field
-	EntryType uint16 // 0x02: Entry type (see MetadataEntryType)
-	ValueType uint16 // 0x04: Value type (see MetadataValueType)
-	Version   uint16 // 0x06: Version (typically 1, sometimes 3 for clear key VMK)
-	Data      []byte // 0x08+: Variable-length data based on EntryType and ValueType
-}
-
-// ============================================================================
-// Metadata Entry Type Constants
-// ============================================================================
-
-const (
-	MetadataEntryTypeNone         uint16 = 0x0000 // Property entry
-	MetadataEntryTypeVMK          uint16 = 0x0002 // Volume Master Key
-	MetadataEntryTypeFVEK         uint16 = 0x0003 // Full Volume Encryption Key
-	MetadataEntryTypeValidation   uint16 = 0x0004 // Validation data
-	MetadataEntryTypeStartupKey   uint16 = 0x0006 // Startup key (external key)
-	MetadataEntryTypeDescription  uint16 = 0x0007 // Description (drive label)
-	MetadataEntryTypeFVEKBackup   uint16 = 0x000B // Backup FVEK
-	MetadataEntryTypeVolumeHeader uint16 = 0x000F // Volume header block
-)
-
-// ============================================================================
-// Metadata Value Type Constants
-// ============================================================================
-
-const (
-	MetadataValueTypeErased        uint16 = 0x0000 // Erased entry
-	MetadataValueTypeKey           uint16 = 0x0001 // Encryption key
-	MetadataValueTypeUnicodeString uint16 = 0x0002 // Unicode string (UTF-16 LE with null terminator)
-	MetadataValueTypeStretchKey    uint16 = 0x0003 // Stretch key (salt + AES-CCM encrypted key)
-	MetadataValueTypeUseKey        uint16 = 0x0004 // Use key
-	MetadataValueTypeAESCCMKey     uint16 = 0x0005 // AES-CCM encrypted key
-	MetadataValueTypeTPMEncodedKey uint16 = 0x0006 // TPM encoded key
-	MetadataValueTypeValidation    uint16 = 0x0007 // Validation
-	MetadataValueTypeVMK           uint16 = 0x0008 // Volume Master Key structure
-	MetadataValueTypeExternalKey   uint16 = 0x0009 // External key
-	MetadataValueTypeUpdate        uint16 = 0x000A // Update entry
-	MetadataValueTypeError         uint16 = 0x000B // Error entry
-	MetadataValueTypeOffsetSize    uint16 = 0x000F // Offset and size (two 64-bit values)
-)
-
-// ============================================================================
-// Encryption Method Constants
-// ============================================================================
-
-const (
-	EncryptionMethodUnknown           uint32 = 0x0000 // Unknown or not encrypted
-	EncryptionMethodStretchKey1       uint32 = 0x1000 // Stretch key variant 1
-	EncryptionMethodStretchKey2       uint32 = 0x1001 // Stretch key variant 2
-	EncryptionMethodAESCCM1           uint32 = 0x2000 // AES-CCM 256-bit
-	EncryptionMethodAESCCM2           uint32 = 0x2001 // AES-CCM 256-bit variant 1
-	EncryptionMethodAESCCM3           uint32 = 0x2002 // AES-CCM 256-bit variant 2
-	EncryptionMethodAESCCM4           uint32 = 0x2003 // AES-CCM 256-bit variant 3
-	EncryptionMethodAESCCM5           uint32 = 0x2004 // AES-CCM 256-bit variant 4
-	EncryptionMethodAESCCM6           uint32 = 0x2005 // AES-CCM 256-bit variant 5
-	EncryptionMethodAESCBCElephant128 uint32 = 0x8000 // AES-CBC 128-bit with Elephant Diffuser
-	EncryptionMethodAESCBCElephant256 uint32 = 0x8001 // AES-CBC 256-bit with Elephant Diffuser
-	EncryptionMethodAESCBC128         uint32 = 0x8002 // AES-CBC 128-bit
-	EncryptionMethodAESCBC256         uint32 = 0x8003 // AES-CBC 256-bit
-	EncryptionMethodAESXTS128         uint32 = 0x8004 // AES-XTS 128-bit
-	EncryptionMethodAESXTS256         uint32 = 0x8005 // AES-XTS 256-bit
-)
-
-// ============================================================================
-// Volume Master Key (VMK) Protection Type Constants
-// ============================================================================
-
-const (
-	VMKProtectionTypeClearKey   uint16 = 0x0000 // Clear key (unprotected VMK)
-	VMKProtectionTypeTPM        uint16 = 0x0100 // TPM-protected
-	VMKProtectionTypeStartupKey uint16 = 0x0200 // Startup key-protected (USB)
-	VMKProtectionTypeTPMPIN     uint16 = 0x0500 // TPM + PIN-protected
-	VMKProtectionTypeRecoveryPW uint16 = 0x0800 // Recovery password-protected
-	VMKProtectionTypePassword   uint16 = 0x2000 // User password-protected
-)
-
-// ============================================================================
-// FVE Key Structure
-// ============================================================================
-
-// FVEKey represents a key with encryption method and key data.
-type FVEKey struct {
-	EncryptionMethod uint32 // Encryption method used
-	KeyData          []byte // Variable-length key data
-}
-
-// ============================================================================
-// FVE Stretch Key
-// ============================================================================
-
-// FVEStretchKey is used for password/recovery key protection.
-// Value type: 0x0003
-type FVEStretchKey struct {
-	EncryptionMethod uint32   // Encryption method
-	Salt             [16]byte // 16-byte salt
-	EncryptedKey     []byte   // AES-CCM encrypted key follows (variable size)
-}
-
-// ============================================================================
-// FVE AES-CCM Encrypted Key
-// ============================================================================
-
-// FVEAESCCMKey represents an AES-CCM encrypted key entry.
-// Value type: 0x0005
-type FVEAESCCMKey struct {
-	NonceDateTime uint64 // FILETIME when nonce was created
-	NonceCounter  uint32 // Nonce counter
-	EncryptedData []byte // AES-CCM encrypted data (variable size)
 }
 
 // AESCCMKeyContainer is the unencrypted data inside AES-CCM.
@@ -233,46 +117,6 @@ type AESCCMKeyContainer struct {
 }
 
 // ============================================================================
-// FVE Volume Master Key (VMK)
-// ============================================================================
-
-// FVEVolumeMasterKey represents the VMK entry.
-// Value type: 0x0008
-type FVEVolumeMasterKey struct {
-	KeyIdentifier        [16]byte // GUID identifying this VMK
-	LastModificationTime uint64   // FILETIME of last modification
-	Unknown              uint16   // Unknown field
-	ProtectionType       uint16   // Protection type (see VMKProtectionType constants)
-	Properties           []byte   // Variable array of property entries (entry type 0x0000)
-}
-
-// ============================================================================
-// FVE External Key (Startup Key)
-// ============================================================================
-
-// FVEExternalKey represents a startup key (USB key) entry.
-// Value type: 0x0009
-type FVEExternalKey struct {
-	KeyIdentifier        [16]byte // GUID identifying this key
-	LastModificationTime uint64   // FILETIME of last modification
-	Properties           []byte   // Variable array of property entries
-}
-
-// ============================================================================
-// FVE Volume Header Block
-// ============================================================================
-
-// FVEVolumeHeaderBlock specifies the location of the encrypted volume header.
-// Value type: 0x000F
-type FVEVolumeHeaderBlock struct {
-	BlockOffset    uint64 // Offset where encrypted volume header is stored
-	BlockSize      uint64 // Size of encrypted volume header in bytes
-	Unknown1       uint16 // Unknown (entry count?)
-	Unknown2       uint16 // Unknown (size of additional data?)
-	AdditionalData []byte // Variable additional data (array of 14-byte entries)
-}
-
-// ============================================================================
 // FVE Metadata Header - Version 3 (Windows 8+) - 48+ bytes
 // ============================================================================
 
@@ -280,14 +124,14 @@ type FVEVolumeHeaderBlock struct {
 // This version extends V1 with additional fields and support for newer encryption methods.
 // Note: Version 3 was documented in February 2022 update to libbde specification.
 type FVEMetadataHeaderV3 struct {
-	MetadataSize       uint32   // 0x00: Total size of metadata including this header
-	Version            uint32   // 0x04: Version (0x00000003 for Windows 8+)
-	MetadataHeaderSize uint32   // 0x08: Size of metadata header
-	MetadataSizeCopy   uint32   // 0x0C: Copy of metadata size
-	VolumeIdentifier   [16]byte // 0x10: Volume GUID identifier
-	NextNonceCounter   uint32   // 0x20: Next nonce counter for AES-CCM
-	EncryptionMethod   uint32   // 0x24: Encryption method
-	CreationTime       uint64   // 0x28: Creation time (Windows FILETIME)
+	MetadataSize       uint32            // 0x00: Total size of metadata including this header
+	Version            uint32            // 0x04: Version (0x00000003 for Windows 8+)
+	MetadataHeaderSize uint32            // 0x08: Size of metadata header
+	MetadataSizeCopy   uint32            // 0x0C: Copy of metadata size
+	VolumeIdentifier   [16]byte          // 0x10: Volume GUID identifier
+	NextNonceCounter   uint32            // 0x20: Next nonce counter for AES-CCM
+	EncryptionMethod   uint32            // 0x24: Encryption method
+	CreationTime       utils.WindowsTime // 0x28: Creation time (Windows FILETIME)
 	// Additional fields may follow in Windows 8+ versions
 }
 
@@ -336,6 +180,7 @@ type VolumeHeaderVista struct {
 
 // FVEMetadataBlockHeaderV1 represents the FVE metadata block header for Windows Vista.
 // Each BitLocker volume has 3 copies of this structure for redundancy.
+// 0x40 bitlocker_dataset
 type FVEMetadataBlockHeaderV1 struct {
 	Signature          [8]byte  // 0x00: "-FVE-FS-"
 	Size               uint16   // 0x08: Size of block header
@@ -366,8 +211,8 @@ type MetadataBlock struct {
 	Header       FVEMetadataBlockHeaderV2 // Works for Windows 7+ (V2 = Windows 7, V2 for Windows 8/10)
 	MetadataV1   *FVEMetadataHeaderV1     // For Windows 7 and early Windows 8
 	MetadataV3   *FVEMetadataHeaderV3     // For Windows 8+ (if version 3 is detected)
-	Entries      []FVEMetadataEntry
-	PaddingBytes []byte // Padding (seen in Windows 8 metadata blocks)
+	Datums       []Datum                  //entries of datums
+	PaddingBytes []byte                   // Padding (seen in Windows 8 metadata blocks)
 }
 
 // ============================================================================
@@ -386,6 +231,12 @@ type BEKFileHeaderV1 struct {
 	NextNonceCounter   uint32   // Next nonce counter for AES-CCM
 	EncryptionMethod   uint32   // Encryption method
 	CreationTime       uint64   // Creation time (Windows FILETIME)
+}
+
+type BitlockerValidations struct {
+	Size    uint16
+	Version uint16
+	Crc32   uint32
 }
 
 // ============================================================================
@@ -457,11 +308,145 @@ func (volume *Volume) ProcessHeader(data []byte) {
 	volume.Header = *header
 }
 
-func (volume *Volume) Process(hD readers.DiskReader, volumeStartOffset int64) {
+func (volume *Volume) Process(hD readers.DiskReader, volumeStartOffset int64) error {
 	// Read the first metadata block header (at offset specified in volume header)
+	var size int64
+	for _, fveMetadataOffset := range volume.Header.FVEMetadataOffsets {
+		if fveMetadataOffset != 0 {
+			metadataBlockHeaderData, err := hD.ReadFile(int64(fveMetadataOffset)+volumeStartOffset, 112)
+			if err != nil {
+				return err
+			}
+			metadataBlockHeader := new(FVEMetadataBlockHeaderV2)
+			metadataBlockHeader.Process(metadataBlockHeaderData)
+			if metadataBlockHeader.Version == 2 {
+				size = int64(metadataBlockHeader.Size << 4) // Size is in 16-sector units (512 bytes per sector)
+			} else {
+				size = int64(metadataBlockHeader.Size)
+			}
+			data, _ := hD.ReadFile(int64(fveMetadataOffset)+volumeStartOffset+size, 8)
+			bv := new(BitlockerValidations)
+			utils.Unmarshal(data, bv)
 
-	metadataBlockHeaderData, _ := hD.ReadFile(int64(volume.Header.FVEMetadataOffset1)+volumeStartOffset, 64)
-	metadataBlockHeader := new(FVEMetadataBlockHeaderV2)
-	utils.Unmarshal(metadataBlockHeaderData, metadataBlockHeader)
-	volume.MetadataBlocks = append(volume.MetadataBlocks, MetadataBlock{Header: *metadataBlockHeader})
+			data, _ = hD.ReadFile(int64(fveMetadataOffset)+volumeStartOffset, int(size))
+			fmt.Println(size, utils.CalcCRC32IEEE(data))
+
+			metadataBlock := MetadataBlock{Header: *metadataBlockHeader}
+			if err := metadataBlock.ParseEntries(data); err != nil {
+				return err
+			}
+			volume.MetadataBlocks = append(volume.MetadataBlocks, metadataBlock)
+		}
+	}
+
+	/*for _, metadataBlock := range volume.MetadataBlocks {
+
+		datasetData, _ := hD.ReadFile(int64(metadataBlock.Header.VolumeHeaderOffset)+volumeStartOffset, size)
+		dataset := new(FVEMetadataHeaderV3)
+		utils.Unmarshal(datasetData, dataset)
+
+
+	}*/
+
+	/*for _, datum := range volume.MetadataBlocks[0].Datums {
+		fmt.Printf("%s\n", datum.GetInfo())
+	}*/
+	return nil
 }
+
+func (metadataBlockHeader *FVEMetadataBlockHeaderV2) Process(data []byte) {
+	utils.Unmarshal(data, metadataBlockHeader)
+	dataset := new(FVEMetadataHeaderV3)
+	utils.Unmarshal(data[64:], dataset)
+	metadataBlockHeader.DataSets = dataset
+	dataset.ShowInfo()
+
+}
+
+func (dataset FVEMetadataHeaderV3) ShowInfo() {
+	fmt.Printf("Windows FILETIME: %s GUID %s\n",
+		dataset.CreationTime.ConvertToIsoTime(), utils.StringifyGUID(dataset.VolumeIdentifier[:]))
+}
+
+func (metadataBlock *MetadataBlock) ParseEntries(raw []byte) error {
+	if len(raw) < 64 {
+		return errors.New("metadata block data too small")
+	}
+
+	offset := 64
+	if len(raw) <= offset {
+		return nil
+	}
+
+	metadataVersion := MetadataVersion(raw[offset:])
+	switch metadataVersion {
+	case 1:
+		metadataBlock.MetadataV1 = new(FVEMetadataHeaderV1)
+		if _, err := utils.Unmarshal(raw[offset:], metadataBlock.MetadataV1); err != nil {
+			return err
+		}
+		offset += int(metadataBlock.MetadataV1.MetadataHeaderSize)
+	case 3:
+		metadataBlock.MetadataV3 = new(FVEMetadataHeaderV3)
+		if _, err := utils.Unmarshal(raw[offset:], metadataBlock.MetadataV3); err != nil {
+			return err
+		}
+		offset += int(metadataBlock.MetadataV3.MetadataHeaderSize)
+	default:
+		fallback := new(FVEMetadataHeaderV1)
+		if _, err := utils.Unmarshal(raw[offset:], fallback); err == nil && fallback.MetadataHeaderSize >= 48 {
+			metadataBlock.MetadataV1 = fallback
+			offset += int(fallback.MetadataHeaderSize)
+		}
+	}
+
+	for offset < len(raw) {
+		datumHeader := new(DatumHeader)
+		err := datumHeader.Process(raw[offset:])
+		if err != nil {
+			break
+		}
+		if datumHeader.EntrySize == 0 {
+			break
+		}
+		datum, err := CreateDatum(*datumHeader, raw[offset+8:offset+int(datumHeader.EntrySize)])
+		if err != nil {
+			break
+		}
+		fmt.Printf("%s\n", datum.GetInfo())
+		metadataBlock.Datums = append(metadataBlock.Datums, datum)
+		offset += int(datumHeader.EntrySize)
+	}
+
+	return nil
+}
+
+/*
+case EncryptionMethodStretchKey1:
+		return "Stretch key variant 1"
+	case EncryptionMethodStretchKey2:
+		return "Stretch key variant 2"
+	case EncryptionMethodAESCCM1:
+		return "AES-CCM 256-bit"
+	case EncryptionMethodAESCCM2:
+		return "AES-CCM 256-bit variant 1"
+	case EncryptionMethodAESCCM3:
+		return "AES-CCM 256-bit variant 2"
+	case EncryptionMethodAESCCM4:
+		return "AES-CCM 256-bit variant 3"
+	case EncryptionMethodAESCCM5:
+		return "AES-CCM 256-bit variant 4"
+	case EncryptionMethodAESCCM6:
+		return "AES-CCM 256-bit variant 5"
+	case EncryptionMethodAESCBCElephant128:
+		return "AES-CBC 128-bit with Elephant Diffuser"
+	case EncryptionMethodAESCBCElephant256:
+		return "AES-CBC 256-bit with Elephant Diffuser"
+	case EncryptionMethodAESCBC128:
+		return "AES-CBC 128-bit"
+	case EncryptionMethodAESCBC256:
+		return "AES-CBC 256-bit"
+	case EncryptionMethodAESXTS128:
+		return "AES-XTS 128-bit"
+	case EncryptionMethodAESXTS256:
+		return "AES-XTS 256-bit"*/
