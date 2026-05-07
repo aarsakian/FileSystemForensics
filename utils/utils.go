@@ -271,7 +271,7 @@ func Unmarshal(data []byte, v interface{}) (int, error) {
 	for i := 0; i < val.NumField(); i++ {
 		field := val.Field(i) //StructField type
 		name := val.Type().Field(i).Name
-		if idx >= len(data) {
+		if idx > len(data) {
 			return idx, errors.New("exhausted buffer")
 		}
 		switch field.Kind() {
@@ -363,24 +363,37 @@ func Unmarshal(data []byte, v interface{}) (int, error) {
 			field.SetBool(false)
 			idx += 1
 		case reflect.Array:
-			arrT := reflect.ArrayOf(field.Len(), reflect.TypeOf(data[0])) //create array type to hold the slice
-			arr := reflect.New(arrT).Elem()                               //initialize and access array
-			var end int
-			if idx+field.Len() > len(data) { //determine end
-				end = len(data)
-			} else {
-				end = idx + field.Len()
+			elemType := field.Type().Elem()
+			elemSize := int(elemType.Size())
+			arr := reflect.New(reflect.ArrayOf(field.Len(), elemType)).Elem()
+			for i := 0; i < field.Len(); i++ {
+				if idx+elemSize > len(data) {
+					return idx, errors.New("exceeded available buffer")
+				}
+				switch elemType.Kind() {
+				case reflect.Uint8:
+					arr.Index(i).SetUint(uint64(data[idx]))
+				case reflect.Uint16:
+					val := binary.LittleEndian.Uint16(data[idx:])
+					arr.Index(i).SetUint(uint64(val))
+				case reflect.Uint32:
+					val := binary.LittleEndian.Uint32(data[idx:])
+					arr.Index(i).SetUint(uint64(val))
+				case reflect.Uint64:
+					val := binary.LittleEndian.Uint64(data[idx:])
+					arr.Index(i).SetUint(val)
+				case reflect.Int32:
+					val := int32(binary.LittleEndian.Uint32(data[idx:]))
+					arr.Index(i).SetInt(int64(val))
+				case reflect.Int64:
+					val := int64(binary.LittleEndian.Uint64(data[idx:]))
+					arr.Index(i).SetInt(val)
+				default:
+					return idx, fmt.Errorf("unsupported array element type: %s", elemType.Kind())
+				}
+				idx += elemSize
 			}
-			if idx >= end {
-				return idx, errors.New("exceeded available buffer")
-			}
-			for idx, val := range data[idx:end] {
-
-				arr.Index(idx).Set(reflect.ValueOf(val))
-			}
-
 			field.Set(arr)
-			idx += field.Len()
 
 		}
 
