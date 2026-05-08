@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	datum "github.com/aarsakian/FileSystemForensics/disk/Bitlocker/datums"
 	"github.com/aarsakian/FileSystemForensics/readers"
 	"github.com/aarsakian/FileSystemForensics/utils"
 )
@@ -211,7 +212,7 @@ type MetadataBlock struct {
 	Header       FVEMetadataBlockHeaderV2 // Works for Windows 7+ (V2 = Windows 7, V2 for Windows 8/10)
 	MetadataV1   *FVEMetadataHeaderV1     // For Windows 7 and early Windows 8
 	MetadataV3   *FVEMetadataHeaderV3     // For Windows 8+ (if version 3 is detected)
-	Datums       []Datum                  //entries of datums
+	Datums       []datum.Datum            //entries of datums
 	PaddingBytes []byte                   // Padding (seen in Windows 8 metadata blocks)
 }
 
@@ -401,7 +402,7 @@ func (metadataBlock *MetadataBlock) ParseEntries(raw []byte) error {
 	}
 
 	for offset < len(raw) {
-		datumHeader := new(DatumHeader)
+		datumHeader := new(datum.DatumHeader)
 		err := datumHeader.Process(raw[offset:])
 		if err != nil {
 			break
@@ -409,7 +410,7 @@ func (metadataBlock *MetadataBlock) ParseEntries(raw []byte) error {
 		if datumHeader.EntrySize == 0 {
 			break
 		}
-		datum, err := CreateDatum(*datumHeader, raw[offset+8:offset+int(datumHeader.EntrySize)])
+		datum, err := datum.CreateDatum(*datumHeader, raw[offset+8:offset+int(datumHeader.EntrySize)])
 		if err != nil {
 			break
 		}
