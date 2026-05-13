@@ -7,12 +7,6 @@ import (
 	"github.com/aarsakian/FileSystemForensics/utils"
 )
 
-type FVEAESCCMEncryptedKey struct {
-	Nonce      [12]byte // 12-byte nonce
-	Ciphertext [32]byte // 32-byte AES-CCM encrypted key
-	AuthTag    [16]byte // 16-byte authentication tag
-}
-
 // FVEVolumeMasterKey represents the VMK entry.
 // Value type: 0x0008
 type FVEVolumeMasterKey struct {
@@ -60,6 +54,10 @@ func (vmk *FVEVolumeMasterKey) Process(raw []byte) error {
 
 func (vmk *FVEVolumeMasterKey) SetHeader(header *DatumHeader) {
 	vmk.Header = header
+}
+
+func (vmk *FVEVolumeMasterKey) GetHeader() *DatumHeader {
+	return vmk.Header
 }
 
 func (vmk *FVEVolumeMasterKey) GetInfo() string {
