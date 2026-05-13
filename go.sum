@@ -4,6 +4,8 @@ github.com/aarsakian/VHD_Reader v0.0.0-20260428200416-2efff3e664e4 h1:8Me+vy1JXJ
 github.com/aarsakian/VHD_Reader v0.0.0-20260428200416-2efff3e664e4/go.mod h1:+xUCzmV5Vt4FfMyGwIHnDqdBJeVgFqmA3K2pDhE8nbY=
 github.com/aarsakian/VHD_Reader v0.0.0-20260428201947-39899a7d36bd h1:foLDaYxGdgOhuXZXajPAFeorIwcgd+wdnsmdzVcHqLw=
 github.com/aarsakian/VHD_Reader v0.0.0-20260428201947-39899a7d36bd/go.mod h1:+xUCzmV5Vt4FfMyGwIHnDqdBJeVgFqmA3K2pDhE8nbY=
+github.com/aarsakian/VHD_Reader v0.0.0-20260509153804-d2ecda471a5f h1:LXmFOg16p0MGhRPe9TTnkd8x9y6+N6PsPLzpw1tg8SA=
+github.com/aarsakian/VHD_Reader v0.0.0-20260509153804-d2ecda471a5f/go.mod h1:+xUCzmV5Vt4FfMyGwIHnDqdBJeVgFqmA3K2pDhE8nbY=
 github.com/aarsakian/VMDK_Reader v0.0.0-20240910071554-9d72aac7f6b9 h1:TxwSHpf0ff0ilqnrYx6L+qP3Cd+Z0jCLORbIKcPFo4Y=
 github.com/aarsakian/VMDK_Reader v0.0.0-20240910071554-9d72aac7f6b9/go.mod h1:a+SYNiPvKba0NMg3g9BXlLVZflohz06h4veLf0gyySY=
 golang.org/x/sys v0.12.0 h1:CM0HF96J0hcLAwsHPJZjfdNzs0gftsLfgKt57wWHJ0o=

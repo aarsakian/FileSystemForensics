@@ -11,5 +11,5 @@ require (
 
 require (
 	github.com/aarsakian/EWF_Reader v0.0.0-20260306182323-6ede308af4dd // indirect
-	github.com/aarsakian/VHD_Reader v0.0.0-20260428201947-39899a7d36bd // indirect
+	github.com/aarsakian/VHD_Reader v0.0.0-20260509153804-d2ecda471a5f // indirect
 )
