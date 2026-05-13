@@ -11,6 +11,7 @@ type Datum interface {
 	Process([]byte) error
 	SetHeader(*DatumHeader)
 	GetInfo() string
+	GetHeader() *DatumHeader
 }
 
 // FVEMetadataEntry represents a single metadata entry.
@@ -20,6 +21,7 @@ type DatumHeader struct {
 	EntryType uint16 // 0x02: Entry type (see MetadataEntryType)
 	ValueType uint16 // 0x04: Value type (see MetadataValueType)
 	Version   uint16 // 0x06: Version (typically 1, sometimes 3 for clear key VMK)
+	Raw       []byte //raw data of header
 
 }
 
@@ -57,9 +59,10 @@ type FVEUseKey struct {
 // Value type: 0x0005
 type FVEAESCCMKey struct {
 	Header        *DatumHeader // Common header for all entries
-	NonceTime     utils.WindowsTime
-	NonceCounter  uint32
-	EncryptedData []byte // AES-CCM encrypted data (variable size)
+	Nonce         [12]byte     // 12-byte nonce
+	Mac           [16]byte     // 16-byte authentication tag
+	EncryptedData []byte       // AES-CCM encrypted data (variable size)
+
 }
 
 // 0x0006
@@ -92,7 +95,7 @@ func (datumHeader *DatumHeader) Process(raw []byte) error {
 	if len(raw) < 8 {
 		return errors.New("metadata entry buffer too small")
 	}
-
+	datumHeader.Raw = append([]byte(nil), raw[:8]...)
 	if _, err := utils.Unmarshal(raw[:8], datumHeader); err != nil {
 		return err
 	}
@@ -126,6 +129,10 @@ func (key *FVEKey) GetInfo() string {
 		key.Header.GetInfo(), key.EncryptionMethod, len(key.KeyData))
 }
 
+func (key *FVEKey) GetHeader() *DatumHeader {
+	return key.Header
+}
+
 func (unicodeStr *FVEUnicodeString) Process(raw []byte) error {
 
 	unicodeStr.Value = utils.DecodeUTF16(raw[:])
@@ -134,6 +141,10 @@ func (unicodeStr *FVEUnicodeString) Process(raw []byte) error {
 
 func (unicodeStr *FVEUnicodeString) SetHeader(header *DatumHeader) {
 	unicodeStr.Header = header
+}
+
+func (unicodeStr *FVEUnicodeString) GetHeader() *DatumHeader {
+	return unicodeStr.Header
 }
 
 func (unicodeStr *FVEUnicodeString) GetInfo() string {
@@ -157,11 +168,15 @@ func (stretch *FVEStretchKey) GetInfo() string {
 		stretch.Header.GetInfo(), stretch.EncryptionMethod, stretch.Salt, len(stretch.EncryptedKey))
 }
 
+func (stretch *FVEStretchKey) GetHeader() *DatumHeader {
+	return stretch.Header
+}
+
 func (aesccm *FVEAESCCMKey) Process(raw []byte) error {
 	if _, err := utils.Unmarshal(raw, aesccm); err != nil {
 		return err
 	}
-	aesccm.EncryptedData = append([]byte(nil), raw[12:]...)
+	aesccm.EncryptedData = append([]byte(nil), raw[28:]...)
 	return nil
 }
 
@@ -169,9 +184,23 @@ func (aesccm *FVEAESCCMKey) SetHeader(header *DatumHeader) {
 	aesccm.Header = header
 }
 
+func (aesccm FVEAESCCMKey) GetNonceTime() string {
+	nonceTime := new(utils.WindowsTime)
+	utils.Unmarshal(aesccm.Nonce[:12], nonceTime)
+	return nonceTime.ConvertToIsoTime()
+}
+
+func (aesccm FVEAESCCMKey) GetNonceCounter() uint32 {
+	return utils.ToUint32(aesccm.Nonce[12:])
+}
+
 func (aesccm *FVEAESCCMKey) GetInfo() string {
 	return fmt.Sprintf("Header info %s   Encrypted Data Length: %d bytes Time %s",
-		aesccm.Header.GetInfo(), len(aesccm.EncryptedData), aesccm.NonceTime.ConvertToIsoTime())
+		aesccm.Header.GetInfo(), len(aesccm.EncryptedData), aesccm.GetNonceTime())
+}
+
+func (aesccm *FVEAESCCMKey) GetHeader() *DatumHeader {
+	return aesccm.Header
 }
 
 func (external *FVEExternalKey) Process(raw []byte) error {
@@ -185,6 +214,10 @@ func (external *FVEExternalKey) Process(raw []byte) error {
 
 func (external *FVEExternalKey) SetHeader(header *DatumHeader) {
 	external.Header = header
+}
+
+func (external *FVEExternalKey) GetHeader() *DatumHeader {
+	return external.Header
 }
 
 func (external *FVEExternalKey) GetInfo() string {
@@ -202,6 +235,10 @@ func (headerBlock *FVEVolumeHeaderBlock) Process(raw []byte) error {
 
 func (headerBlock *FVEVolumeHeaderBlock) SetHeader(header *DatumHeader) {
 	headerBlock.Header = header
+}
+
+func (headerBlock *FVEVolumeHeaderBlock) GetHeader() *DatumHeader {
+	return headerBlock.Header
 }
 
 func (headerBlock *FVEVolumeHeaderBlock) GetInfo() string {
@@ -222,6 +259,10 @@ func (useKey *FVEUseKey) SetHeader(header *DatumHeader) {
 
 func (useKey FVEUseKey) GetInfo() string {
 	return fmt.Sprintf("algo %d", useKey.Algorithm)
+}
+
+func (useKey *FVEUseKey) GetHeader() *DatumHeader {
+	return useKey.Header
 }
 
 func CreateDatum(dh DatumHeader, raw []byte) (Datum, error) {
