@@ -4,7 +4,9 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/aarsakian/FileSystemForensics/disk/Bitlocker/datums"
 	datum "github.com/aarsakian/FileSystemForensics/disk/Bitlocker/datums"
+	ccm "github.com/aarsakian/FileSystemForensics/disk/Bitlocker/decryption"
 	"github.com/aarsakian/FileSystemForensics/readers"
 	"github.com/aarsakian/FileSystemForensics/utils"
 )
@@ -340,28 +342,60 @@ func (volume *Volume) Process(hD readers.DiskReader, volumeStartOffset int64) er
 		}
 	}
 
-	/*for _, metadataBlock := range volume.MetadataBlocks {
-
-		datasetData, _ := hD.ReadFile(int64(metadataBlock.Header.VolumeHeaderOffset)+volumeStartOffset, size)
-		dataset := new(FVEMetadataHeaderV3)
-		utils.Unmarshal(datasetData, dataset)
-
-
-	}*/
-
-	/*for _, datum := range volume.MetadataBlocks[0].Datums {
-		fmt.Printf("%s\n", datum.GetInfo())
-	}*/
 	return nil
 }
 
 func (metadataBlockHeader *FVEMetadataBlockHeaderV2) Process(data []byte) {
 	utils.Unmarshal(data, metadataBlockHeader)
-	dataset := new(FVEMetadataHeaderV3)
-	utils.Unmarshal(data[64:], dataset)
-	metadataBlockHeader.DataSets = dataset
-	dataset.ShowInfo()
 
+}
+
+func (volume Volume) DecryptVMK() ([]byte, error) {
+	var key []byte
+	for _, metadataBlock := range volume.MetadataBlocks {
+		for _, datum := range metadataBlock.Datums {
+			vmk, ok := datum.(*datums.FVEVolumeMasterKey)
+			if ok {
+
+				for _, vmkDatum := range vmk.Datums {
+					if fvekey, ok := vmkDatum.(*datums.FVEKey); ok {
+						key = fvekey.KeyData
+						if vmk.GetProtectionType() == "Clear Key" {
+							return key, nil
+						}
+					} else if aesccmKey, ok := vmkDatum.(*datums.FVEAESCCMKey); ok {
+						nonce := aesccmKey.EncryptedData[:12]
+						ct := aesccmKey.EncryptedData[12:44]
+						tag := aesccmKey.EncryptedData[44:60]
+						aad := vmkDatum.GetHeader().Raw
+						return ccm.OpenCCM(key, nonce, aad, append(ct, tag...))
+					}
+				}
+			}
+		}
+	}
+	return nil, errors.New("VMK key not found")
+}
+
+func (volume Volume) DecryptFVEK(vmkKey []byte) ([]byte, error) {
+	for _, metadataBlock := range volume.MetadataBlocks {
+		for _, datum := range metadataBlock.Datums {
+
+			// Skip VMK entry entirely
+			if _, isVMK := datum.(*datums.FVEVolumeMasterKey); isVMK {
+				continue
+			}
+
+			if aesccmKey, ok := datum.(*datums.FVEAESCCMKey); ok {
+				nonce := aesccmKey.Nonce[:]
+				ct := aesccmKey.EncryptedData
+				tag := aesccmKey.Mac[:]
+				aad := datum.GetHeader().Raw
+				return ccm.OpenCCM(vmkKey, nonce, aad, append(ct, tag...))
+			}
+		}
+	}
+	return nil, errors.New("FVEK not found")
 }
 
 func (dataset FVEMetadataHeaderV3) ShowInfo() {
