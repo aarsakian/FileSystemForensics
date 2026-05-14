@@ -125,8 +125,8 @@ func (key *FVEKey) SetHeader(header *DatumHeader) {
 }
 
 func (key *FVEKey) GetInfo() string {
-	return fmt.Sprintf("Header info %s FVEKey: Encryption Method: 0x%08X, Key Data Length: %d bytes",
-		key.Header.GetInfo(), key.EncryptionMethod, len(key.KeyData))
+	return fmt.Sprintf("Header info %s FVEKey: Encryption Method: %s Key Data Length: %d bytes",
+		key.Header.GetInfo(), GetEncryptionMethod(key.EncryptionMethod), len(key.KeyData))
 }
 
 func (key *FVEKey) GetHeader() *DatumHeader {
@@ -152,7 +152,7 @@ func (unicodeStr *FVEUnicodeString) GetInfo() string {
 }
 
 func (stretch *FVEStretchKey) Process(raw []byte) error {
-	if _, err := utils.Unmarshal(raw, &stretch); err != nil {
+	if _, err := utils.Unmarshal(raw, stretch); err != nil {
 		return err
 	}
 	stretch.EncryptedKey = append([]byte(nil), raw[20:]...)
@@ -164,8 +164,8 @@ func (stretch *FVEStretchKey) SetHeader(header *DatumHeader) {
 }
 
 func (stretch *FVEStretchKey) GetInfo() string {
-	return fmt.Sprintf("Header info %s FVEStretchKey: Encryption Method: 0x%08X, Salt: %X, Encrypted Key Length: %d bytes",
-		stretch.Header.GetInfo(), stretch.EncryptionMethod, stretch.Salt, len(stretch.EncryptedKey))
+	return fmt.Sprintf("Header info %s FVEStretchKey: Encryption Method: %s, Salt: %X, Encrypted Key Length: %d bytes",
+		stretch.Header.GetInfo(), GetEncryptionMethod(stretch.EncryptionMethod), stretch.Salt, len(stretch.EncryptedKey))
 }
 
 func (stretch *FVEStretchKey) GetHeader() *DatumHeader {
@@ -324,7 +324,7 @@ func (dh DatumHeader) GetEntryType() string {
 	case MetadataEntryTypeVolumeHeader:
 		return "Volume header block entry"
 	default:
-		return "Unknown entry type"
+		return fmt.Sprintf("unknown type %x", dh.EntryType)
 	}
 }
 
@@ -361,21 +361,40 @@ func (dh DatumHeader) GetValueType() string {
 	}
 }
 
-func (vmk FVEVolumeMasterKey) GetProtectionType() string {
-	switch vmk.ProtectionType {
-	case VMKProtectionTypeClearKey:
-		return "Clear Key"
-	case VMKProtectionTypeTPM:
-		return "TPM"
-	case VMKProtectionTypeStartupKey:
-		return "Startup Key"
-	case VMKProtectionTypeTPMPIN:
-		return "TPMIN"
-	case VMKProtectionTypeRecoveryPW:
-		return "Recovery PW"
-	case VMKProtectionTypePassword:
-		return "Password"
+func GetEncryptionMethod(encryptionMethod uint32) string {
+	switch encryptionMethod {
+	case EncryptionMethodUnknown:
+		return "EncryptionMethodUnknown"
+	case EncryptionMethodStretchKey1:
+		return "EncryptionMethodStretchKey1"
+	case EncryptionMethodStretchKey2:
+		return "EncryptionMethodStretchKey2"
+	case EncryptionMethodAESCCM1:
+		return "EncryptionMethodAESCCM1"
+	case EncryptionMethodAESCCM2:
+		return "EncryptionMethodAESCCM2"
+	case EncryptionMethodAESCCM3:
+		return "EncryptionMethodAESCCM3"
+	case EncryptionMethodAESCCM4:
+		return "EncryptionMethodAESCCM4"
+	case EncryptionMethodAESCCM5:
+		return "EncryptionMethodAESCCM5"
+	case EncryptionMethodAESCCM6:
+		return "EncryptionMethodAESCCM6"
+	case EncryptionMethodAESCBCElephant128:
+		return "EncryptionMethodAESCBCElephant128"
+	case EncryptionMethodAESCBCElephant256:
+		return "EncryptionMethodAESCBCElephant256"
+	case EncryptionMethodAESCBC128:
+		return "EncryptionMethodAESCBC128"
+	case EncryptionMethodAESCBC256:
+		return "EncryptionMethodAESCBC256"
+	case EncryptionMethodAESXTS128:
+		return "EncryptionMethodAESXTS128"
+	case EncryptionMethodAESXTS256:
+		return "EncryptionMethodAESXTS256"
 	default:
-		return "Unknown value type"
+		return "Unknown encryption type"
+
 	}
 }
