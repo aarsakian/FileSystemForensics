@@ -221,7 +221,8 @@ func (external *FVEExternalKey) GetHeader() *DatumHeader {
 }
 
 func (external *FVEExternalKey) GetInfo() string {
-	return fmt.Sprintf("Header info %s FVEExternalKey: Properties Length: %d bytes", external.Header.GetInfo(), len(external.Properties))
+	return fmt.Sprintf("Header info %s FVEExternalKey: Properties Length: %d bytes",
+		external.Header.GetInfo(), len(external.Properties))
 }
 
 func (headerBlock *FVEVolumeHeaderBlock) Process(raw []byte) error {
@@ -362,39 +363,36 @@ func (dh DatumHeader) GetValueType() string {
 }
 
 func GetEncryptionMethod(encryptionMethod uint32) string {
-	switch encryptionMethod {
-	case EncryptionMethodUnknown:
-		return "EncryptionMethodUnknown"
+	//remove high 16 bits which may contain flags
+	switch encryptionMethod & 0xFFFF {
 	case EncryptionMethodStretchKey1:
-		return "EncryptionMethodStretchKey1"
+		return "Stretch key variant 1"
 	case EncryptionMethodStretchKey2:
-		return "EncryptionMethodStretchKey2"
+		return "Stretch key variant 2"
 	case EncryptionMethodAESCCM1:
-		return "EncryptionMethodAESCCM1"
+		return "AES-CCM 256-bit"
 	case EncryptionMethodAESCCM2:
-		return "EncryptionMethodAESCCM2"
+		return "AES-CCM 256-bit variant 1"
 	case EncryptionMethodAESCCM3:
-		return "EncryptionMethodAESCCM3"
+		return "AES-CCM 256-bit variant 2"
 	case EncryptionMethodAESCCM4:
-		return "EncryptionMethodAESCCM4"
+		return "AES-CCM 256-bit variant 3"
 	case EncryptionMethodAESCCM5:
-		return "EncryptionMethodAESCCM5"
+		return "AES-CCM 256-bit variant 4"
 	case EncryptionMethodAESCCM6:
-		return "EncryptionMethodAESCCM6"
+		return "AES-CCM 256-bit variant 5"
 	case EncryptionMethodAESCBCElephant128:
-		return "EncryptionMethodAESCBCElephant128"
+		return "AES-CBC 128-bit with Elephant Diffuser"
 	case EncryptionMethodAESCBCElephant256:
-		return "EncryptionMethodAESCBCElephant256"
+		return "AES-CBC 256-bit with Elephant Diffuser"
 	case EncryptionMethodAESCBC128:
-		return "EncryptionMethodAESCBC128"
+		return "AES-CBC 128-bit"
 	case EncryptionMethodAESCBC256:
-		return "EncryptionMethodAESCBC256"
+		return "AES-CBC 256-bit"
 	case EncryptionMethodAESXTS128:
-		return "EncryptionMethodAESXTS128"
+		return "AES-XTS 128-bit"
 	case EncryptionMethodAESXTS256:
-		return "EncryptionMethodAESXTS256"
-	default:
-		return "Unknown encryption type"
-
+		return "AES-XTS 256-bit"
 	}
+	return fmt.Sprintf("Unknown encryption method: 0x%08x", encryptionMethod)
 }
