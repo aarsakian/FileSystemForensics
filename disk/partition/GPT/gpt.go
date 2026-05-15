@@ -129,10 +129,17 @@ func (partition *Partition) LocateVolume(hD readers.DiskReader) {
 		if bytes.Equal(data[3:7], []byte("NTFS")) {
 
 			ntfs.ProcessHeader(data)
-		} else if bytes.Equal(data[3:11], []byte("-FVE-FS-")) {
+		} else if bytes.Equal(data[3:11], []byte("-FVE-FS-")) { //Bitlocker metadata signature
 			bitlockerVolume := new(bitlocker.Volume)
 			bitlockerVolume.ProcessHeader(data)
 			bitlockerVolume.Process(hD, int64(partitionOffetB))
+
+			bitlockerVolume.ShowInfo()
+			vmkKey, err := bitlockerVolume.DecryptVMK()
+			if err != nil {
+				return
+			}
+			bitlockerVolume.DecryptFVEK(vmkKey)
 		}
 		partition.Volume = ntfs
 	} else if partition.GetPartitionType() == "Linux RAID" {
