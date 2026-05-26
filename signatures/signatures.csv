@@ -1,0 +1,4 @@
+signature,offset,description,extension
+54 41 50 45,0,Microsoft Tape Format, BAK
+54 44 45 46,0,Telegram Desktop Encrypted File, TDEF
+54 44 46 24,0,Telegram Desktop File,TDF$ 
