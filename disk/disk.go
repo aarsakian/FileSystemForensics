@@ -279,7 +279,11 @@ func (disk Disk) ProcessJrnl(recordsPerPartition map[int][]metadata.Record, part
 
 func (disk Disk) ProcessLogFile(recordsPerPartition map[int][]metadata.Record, partitionNum int) {
 
-	physicalToLogicalMap, _ := disk.GetLogicalToPhysicalMap(partitionNum)
+	physicalToLogicalMap, err := disk.GetLogicalToPhysicalMap(partitionNum)
+	if err != nil {
+		fmt.Printf("Error occurred while fetching logical to physical map: %v\n", err)
+		return
+	}
 	partition := disk.Partitions[partitionNum]
 
 	clusterSizeB := int(partition.GetVolume().GetBytesPerSector() * uint64(partition.GetVolume().GetSectorsPerCluster()))
@@ -499,7 +503,7 @@ func (disk Disk) Worker(wg *sync.WaitGroup, records []metadata.Record, results c
 	if err != nil {
 		return
 	}
-
+	fmt.Printf("Reading records data\n")
 	for _, record := range records {
 
 		if record.IsFolder() {
@@ -512,7 +516,10 @@ func (disk Disk) Worker(wg *sync.WaitGroup, records []metadata.Record, results c
 
 		lSize := int(record.GetLogicalFileSize())
 		buf := make([]byte, lSize)
-		fmt.Printf("extracting data file %s Id %d %d MB\n", record.GetFname(), record.GetID(), lSize/1024/1024)
+		if logger.FSLogger.IsActive() {
+			msg := fmt.Sprintf("extracting data file %s Id %d %d MB\n", record.GetFname(), record.GetID(), lSize/1024/1024)
+			logger.FSLogger.Info(msg)
+		}
 
 		if len(linkedRecords) == 0 {
 			record.LocateData(disk.Handler, partitionOffsetB, sectorsPerCluster*bytesPerSector, buf[:lSize], physicalToLogicalMap)
