@@ -12,3 +12,37 @@ D0 CF 11 E0 A1 B1 1A E1,0,Object Linking and Embedding (OLE) Compound File (CF),
 D0 CF 11 E0 A1 B1 1A E1,0,Object Linking and Embedding (OLE) Compound File (CF),PPT
 37 7A,0,7zip,7z
 25 50 44 46 2D,0,Adobe Portable Document Format,PDF
+89 50 4E 47 0D 0A 1A 0A,0,Portable Network Graphics,PNG
+FF D8 FF,0,Joint Photographic Experts Group,JPG
+47 49 46 38 37 61,0,Graphics Interchange Format,GIF
+47 49 46 38 39 61,0,Graphics Interchange Format,GIF
+1F 8B 08,0,GZip Compressed Archive,GZ
+50 4B 03 04,0,ZIP Archive,ZIP
+52 49 46 46,0,AVI Video,AVI
+49 44 33,0,MP3 Audio,MP3
+7F 45 4C 46,0,Executable and Linkable Format,ELF
+42 4D,0,BMP Image,BMP
+FF D8 FF E0,0,JPEG Image,JPEG
+FF D8 FF E1,0,Exif JPEG,JPEG
+52 61 72 21 1A 07 00,0,RAR Archive,RAR
+1F 8B,0,GZIP Archive,GZ
+78 01,0,Deflate/PKZIP,ZIP
+78 9C,0,Deflate/GZIP,GZ
+78 DA,0,Deflate/zlib,ZLIB
+30 82,0,DER/ASN.1 Certificate,CER
+30 82 02 01,0,DER Certificate,CER
+4D 5A 90 00,0,PE Executable,EXE
+4D 5A 50 00,0,PE32+ Executable,EXE
+FF FB,0,MP3 Audio,MP3
+FF F3,0,MP3 Audio,MP3
+FF F2,0,MP3 Audio,MP3
+52 49 46 46 24 08 00 00 57 41 56 45,0,RIFF WAVE Audio,WAV
+46 4C 56,0,Flash Video,FLV
+1A 45 DF A3,0,Matroska / WebM,MKV
+4F 67 67 53,0,Ogg Container,OGG
+00 00 01 00,0,Windows Icon,ICO
+50 4B 05 06,0,ZIP Empty Archive,ZIP
+50 4B 07 08,0,ZIP Spanned Archive,ZIP
+53 50 4C 49 54 45 20 33 00,0,SQLite Database,DB
+78 61 73 74 65 72,0,Microsoft XZ Archive,XZ
+52 61 72 21 1A 07 01 00,0,RAR5 Archive,RAR
