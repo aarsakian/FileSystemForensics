@@ -182,6 +182,7 @@ func (record NTFSRecord) LocateData(hD readers.DiskReader, partitionOffset int64
 	p := message.NewPrinter(language.Greek)
 
 	writeOffset := 0
+	var data []byte
 
 	if record.HasResidentDataAttr() {
 		copy(dataToRead, record.GetResidentData())
@@ -206,7 +207,12 @@ func (record NTFSRecord) LocateData(hD readers.DiskReader, partitionOffset int64
 			}
 
 			if runlist.Offset != 0 && runlist.Length > 0 {
-				data, _ := hD.ReadFile(offset, int(runlist.Length)*clusterSizeB)
+				if int(runlist.Length)*clusterSizeB > len(dataToRead)-writeOffset {
+					data, _ = hD.ReadFile(offset, len(dataToRead)-writeOffset)
+				} else {
+					data, _ = hD.ReadFile(offset, int(runlist.Length)*clusterSizeB)
+				}
+
 				copy(dataToRead[writeOffset:], data)
 				res := p.Sprintf("%d", (offset-partitionOffset)/int64(clusterSizeB))
 
