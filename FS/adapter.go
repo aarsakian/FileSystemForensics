@@ -9,6 +9,7 @@ import (
 	"github.com/aarsakian/FileSystemForensics/FS/NTFS/MFT"
 	"github.com/aarsakian/FileSystemForensics/logger"
 	"github.com/aarsakian/FileSystemForensics/readers"
+	"github.com/aarsakian/FileSystemForensics/signatures"
 	"github.com/aarsakian/FileSystemForensics/utils"
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
@@ -168,6 +169,13 @@ func (record BTRFSRecord) LocateData(hD readers.DiskReader, partitionOffsetB int
 	//results <- utils.AskedFile{Fname: record.GetFname(), Content: buf.Bytes()[:lSize], Id: int(record.Id)}
 }
 
+func (record BTRFSRecord) HasSignatures(sgm signatures.SignatureManager,
+	clusterSizeB int, partitionOffset int64, physicalToLogicalMap map[uint64]Chunk,
+	handler readers.DiskReader) bool {
+	return false
+
+}
+
 func (record NTFSRecord) LocateData(hD readers.DiskReader, partitionOffset int64,
 	clusterSizeB int, dataToRead []byte,
 	physicalToLogicalMap map[uint64]Chunk) {
@@ -217,9 +225,48 @@ func (record NTFSRecord) LocateData(hD readers.DiskReader, partitionOffset int64
 
 			runlist = runlist.Next
 			writeOffset += int(runlist.Length) * clusterSizeB
+			if writeOffset >= len(dataToRead) {
+				break
+			}
 		}
 
 	}
 	//truncate buf grows over len?
+
+}
+
+func (record NTFSRecord) HasSignatures(sgm signatures.SignatureManager,
+	clusterSizeB int, partitionOffset int64, physicalToLogicalMap map[uint64]Chunk, handler readers.DiskReader) bool {
+	var fileHeader []byte
+	if record.IsFolder() {
+		msg := fmt.Sprintf("Record %s Id %d is folder! No data to export.", record.GetFname(), record.GetID())
+		logger.FSLogger.Warning(msg)
+		return false
+	}
+
+	linkedRecords := record.GetLinkedRecords()
+
+	lSize := int(record.GetLogicalFileSize())
+	if lSize < 512 {
+		fileHeader = make([]byte, lSize)
+	} else {
+		fileHeader = make([]byte, 512)
+	}
+
+	if lSize == 0 {
+		return false
+	}
+
+	fmt.Printf("Checking signatures %s %d \n", record.GetFname(), record.GetID())
+
+	if len(linkedRecords) == 0 {
+		record.LocateData(handler, partitionOffset, clusterSizeB, fileHeader, physicalToLogicalMap)
+	} else {
+		// attribute runlist only need first bytes
+		linkedRecords[0].LocateData(handler, partitionOffset, clusterSizeB, fileHeader, physicalToLogicalMap)
+
+	}
+
+	return sgm.HasSignature(fileHeader)
 
 }
