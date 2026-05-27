@@ -20,7 +20,8 @@ type SignatureNode struct {
 }
 
 type SignatureManager struct {
-	Root *SignatureNode
+	Root              *SignatureNode
+	SignaturesToCheck []string
 }
 
 // FindSignature positionally tracks depth perfectly with the byte index
@@ -31,25 +32,32 @@ func (sgm SignatureManager) FindSignature(fileHeader []byte) string {
 	for i := 0; i < len(fileHeader); i++ {
 		targetByte := fileHeader[i]
 
-		for nextNode != nil {
-			child, ok := nextNode.Children[targetByte]
-			if ok {
-				nextNode = child
+		child, ok := nextNode.Children[targetByte]
+		if ok {
+			nextNode = child
 
-			} else {
-				break
-			}
+		} else {
+			break
+		}
 
-			// If this specific length yields a valid file format, check it
-			if nextNode.IsTerminal {
-				return nextNode.FormatName
-			}
-
+		// If this specific length yields a valid file format, check it
+		if nextNode.IsTerminal {
+			return nextNode.FormatName
 		}
 
 	}
 
 	return "Unknown Format"
+}
+
+func (sgm SignatureManager) HasSignature(fileHeader []byte) bool {
+	return sgm.FindSignature(fileHeader) != "Unknown Format"
+}
+
+func (sgm *SignatureManager) RegisterSignature(formatNames []string) {
+	for _, formatName := range formatNames {
+		sgm.SignaturesToCheck = append(sgm.SignaturesToCheck, formatName)
+	}
 }
 
 func (sgm *SignatureManager) BuildSignatureTree(signatures map[string][]byte) {
@@ -80,7 +88,7 @@ func (node *SignatureNode) Insert(signature []byte, formatName string) {
 
 }
 
-func ReadSignatures() map[string][]byte {
+func ReadSignatures(selectedSignatures []string) map[string][]byte {
 	signatures := make(map[string][]byte)
 	f, err := signaturesFS.Open("signatures.csv")
 	if err != nil {
@@ -92,9 +100,16 @@ func ReadSignatures() map[string][]byte {
 	if err != nil {
 		log.Fatal(err)
 	}
+	selectedSignaturesMap := make(map[string]bool)
+	for _, sig := range selectedSignatures {
+		selectedSignaturesMap[sig] = true
+	}
 
 	for rowid, row := range signaturesContent {
 		if rowid == 0 {
+			continue
+		}
+		if len(selectedSignatures) > 1 && !selectedSignaturesMap[strings.ToLower(row[3])] {
 			continue
 		}
 		//expand the singature in case offset (row[1])>0
