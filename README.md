@@ -19,6 +19,10 @@ or by using as input an expert witness format image
 
 e.g. *-evidence path_to_evidence -partition 1*.
 
+To filter exported records to those whose file headers match known signatures, add:
+
+e.g. *-evidence path_to_evidence -partition 1 -verifysignatures*.
+
 ##### Usage information  type: FileSystemForensics.exe -h #####
 
  
@@ -151,6 +155,10 @@ e.g. *-evidence path_to_evidence -partition 1*.
 
   -vmdk string
         path to vmdk file (Sparse formats are supported)
+
+  -verifysignatures
+        verify file system records by file signatures; non-matching records are omitted
+        (see signatures/signatures.csv for the current signature catalog)
 
   -volinfo
         show volume information
