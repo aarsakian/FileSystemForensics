@@ -2,6 +2,8 @@ package filters
 
 import (
 	metadata "github.com/aarsakian/FileSystemForensics/FS"
+	"github.com/aarsakian/FileSystemForensics/disk"
+	"github.com/aarsakian/FileSystemForensics/signatures"
 )
 
 type Filter interface {
@@ -10,6 +12,23 @@ type Filter interface {
 
 type NameFilter struct {
 	Filenames []string
+}
+
+type SignatureFilter struct {
+	Sgm         signatures.SignatureManager
+	Disk        disk.Disk
+	PartitionId int
+}
+
+func (signatureFilter SignatureFilter) Execute(records []metadata.Record) []metadata.Record {
+	physicalToLogicalMap, _ := signatureFilter.Disk.GetLogicalToPhysicalMap(signatureFilter.PartitionId)
+	partition := signatureFilter.Disk.Partitions[signatureFilter.PartitionId]
+
+	clusterSizeB := int(partition.GetVolume().GetBytesPerSector() * uint64(partition.GetVolume().GetSectorsPerCluster()))
+	partitionOffset := int64(partition.GetOffset() * partition.GetVolume().GetBytesPerSector())
+
+	return metadata.FilterBySignatures(records, signatureFilter.Sgm,
+		clusterSizeB, partitionOffset, physicalToLogicalMap, signatureFilter.Disk.Handler)
 }
 
 func (nameFilter NameFilter) Execute(records []metadata.Record) []metadata.Record {
