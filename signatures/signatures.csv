@@ -1,4 +1,14 @@
 signature,offset,description,extension
-54 41 50 45,0,Microsoft Tape Format, BAK
-54 44 45 46,0,Telegram Desktop Encrypted File, TDEF
+54 41 50 45,0,Microsoft Tape Format,BAK
+54 44 45 46,0,Telegram Desktop Encrypted File,TDEF
 54 44 46 24,0,Telegram Desktop File,TDF$ 
+4D 5A,0,Windows/DOS executable file,EXE
+50 4B 03 04 50 4B 05,0,Microsoft Office Open XML Format,DOCX
+50 4B 03 04 50 4B 05,0,Microsoft Office Open XML Format,XLSX
+00 01 00 00 53 74 61,0,Microsoft Acess,MDB
+7B 5C 72 74 66,0,Rich text format word processing,RTF
+D0 CF 11 E0 A1 B1 1A E1,0,Object Linking and Embedding (OLE) Compound File (CF),DOC
+D0 CF 11 E0 A1 B1 1A E1,0,Object Linking and Embedding (OLE) Compound File (CF),XLS
+D0 CF 11 E0 A1 B1 1A E1,0,Object Linking and Embedding (OLE) Compound File (CF),PPT
+37 7A,0,7zip,7z
+25 50 44 46 2D,0,Adobe Portable Document Format,PDF
