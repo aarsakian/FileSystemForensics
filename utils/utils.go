@@ -101,36 +101,41 @@ func Truncate(fname string, size int64) {
 
 func GetStructSize(v interface{}, size int) int {
 	val := reflect.ValueOf(v)
+	if !val.IsValid() {
+		return size
+	}
+
 	if val.Kind() == reflect.Ptr {
+		if val.IsNil() {
+			return size
+		}
 		val = val.Elem() // get the value pointed to
 	}
 
 	if val.Kind() == reflect.Struct {
 		for i := 0; i < val.NumField(); i++ {
-			field := val.Field(i) //StructField type
-
-			switch field.Kind() {
-
-			case reflect.Pointer:
-				size += GetStructSize(field.Elem().Interface(), size)
-			case reflect.Uint8:
-				size += 1
-			case reflect.Uint16:
-				size += 2
-			case reflect.Int32:
-				size += 4
-			case reflect.Uint32:
-				size += 4
-			case reflect.Uint64:
-				size += 8
-			case reflect.Int64:
-				size += 8
+			field := val.Field(i)
+			fieldType := val.Type().Field(i).Type
+			fmt.Println("field", val.Type().Field(i).Name, "type", fieldType, size)
+			switch fieldType.Kind() {
+			case reflect.Struct:
+				size += GetStructSize(field.Interface(), 0)
+			case reflect.Ptr:
+				elemType := fieldType.Elem()
+				if elemType.Kind() == reflect.Struct {
+					size += GetStructSize(reflect.New(elemType).Interface(), 0)
+				} else {
+					size += int(fieldType.Size())
+				}
+			case reflect.Array:
+				size += fieldType.Len() * int(fieldType.Elem().Size())
+			default:
+				size += int(fieldType.Size())
 			}
 		}
 	}
 
 	return size
-
 }
 
 func ToUint32(data []byte) uint32 {
