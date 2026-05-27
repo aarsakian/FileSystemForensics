@@ -26,6 +26,7 @@ import (
 	"github.com/aarsakian/FileSystemForensics/filters"
 	FSLogger "github.com/aarsakian/FileSystemForensics/logger"
 	"github.com/aarsakian/FileSystemForensics/reporter"
+	"github.com/aarsakian/FileSystemForensics/signatures"
 	"github.com/aarsakian/FileSystemForensics/tree"
 	"github.com/aarsakian/FileSystemForensics/utils"
 	VHDXLogger "github.com/aarsakian/VHD_Reader/logger"
@@ -92,6 +93,8 @@ func main() {
 	listPartitions := flag.Bool("listpartitions", false, "list partitions")
 	listUnallocated := flag.Bool("listunallocated", false, "list unallocated clusters")
 	fileExtensions := flag.String("extensions", "", "search file system records by extensions use comma as a seperator")
+	verifySignatures := flag.Bool("verifysignatures", false,
+		"verify file system records by file signatures, non verified records will be omitted. (check signatures.csv for the list of files)")
 	collectUnallocated := flag.Bool("unallocated", false, "collect unallocated area of a volume")
 	hashFiles := flag.String("hash", "", "hash exported files, enter md5 or sha1")
 	volinfo := flag.Bool("volinfo", false, "show volume information")
@@ -110,6 +113,7 @@ func main() {
 	var usnjrnlRecords UsnJrnl.Records
 	var shadowVol *VssLib.ShadowVolume
 	var fileNamesToExport []string
+	var sgm signatures.SignatureManager
 
 	var err error
 	var recordsPerPartition map[int][]metadata.Record
@@ -190,6 +194,13 @@ func main() {
 		flm.Register(filters.DeletedFilter{Include: *deleted})
 	}
 
+	if *verifySignatures {
+		sigs := signatures.ReadSignatures(strings.Split(*fileExtensions, ","))
+		sgm = signatures.SignatureManager{}
+		sgm.BuildSignatureTree(sigs)
+
+	}
+
 	if (*evidencefile != "" || *physicalDrive != -1 || *vmdkfile != "") && *logical == "" {
 		dsk := new(disk.Disk)
 		dsk.Initialize(*evidencefile, *physicalDrive, *vmdkfile)
@@ -261,7 +272,10 @@ func main() {
 		}
 
 		for partitionId, records := range recordsPerPartition {
-
+			if *verifySignatures {
+				flm.Register(filters.SignatureFilter{Sgm: sgm, Disk: *dsk,
+					PartitionId: partitionId})
+			}
 			records = flm.ApplyFilters(records)
 
 			if *usnjrnl {
