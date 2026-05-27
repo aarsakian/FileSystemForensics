@@ -2,6 +2,7 @@ package metadata
 
 import (
 	"github.com/aarsakian/FileSystemForensics/readers"
+	"github.com/aarsakian/FileSystemForensics/signatures"
 	"github.com/aarsakian/FileSystemForensics/utils"
 )
 
@@ -12,6 +13,8 @@ type Chunk interface {
 }
 
 type Record interface {
+	HasSignatures(signatures.SignatureManager, int, int64, map[uint64]Chunk,
+		readers.DiskReader) bool
 	HasFilenameExtension(string) bool
 	HasFilenames([]string) bool
 	HasPath(string) bool
@@ -59,6 +62,14 @@ func FilterByExtension(records []Record, extension string) []Record {
 		return record.HasFilenameExtension(extension)
 	})
 
+}
+
+func FilterBySignatures(records []Record, sgm signatures.SignatureManager, clusterSizeB int,
+	partitionOffset int64, physicalToLogicalMap map[uint64]Chunk, diskHandler readers.DiskReader) []Record {
+	return utils.Filter(records, func(record Record) bool {
+		return record.HasSignatures(sgm, clusterSizeB, partitionOffset, physicalToLogicalMap,
+			diskHandler)
+	})
 }
 
 func FilterByNames(records []Record, filenames []string) []Record {
