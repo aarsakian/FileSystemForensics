@@ -28,6 +28,7 @@ var ErrNTFSVol = errors.New("NTFS volume discovered instead of MBR")
 type Partition interface {
 	GetOffset() uint64
 	LocateVolume(readers.DiskReader)
+	DecryptVolume(string, string)
 	GetVolume() volume.Volume
 	GetInfo() string
 	GetVolInfo() string
@@ -547,6 +548,17 @@ func (disk Disk) ShowVolumeInfo() {
 		}
 		fmt.Printf("%s \n", partition.GetVolInfo())
 	}
+}
+
+func (disk Disk) DecryptVolumes(password string, recoverykey string, partitionNum int) {
+	for idx := range disk.Partitions {
+		if partitionNum != -1 && partitionNum != idx {
+			continue
+		}
+		partition := disk.Partitions[idx]
+		partition.DecryptVolume(password, recoverykey)
+	}
+
 }
 
 func (disk Disk) ListPartitions() {
