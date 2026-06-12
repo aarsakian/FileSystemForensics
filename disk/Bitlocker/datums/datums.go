@@ -60,7 +60,6 @@ type FVEUseKey struct {
 type FVEAESCCMKey struct {
 	Header        *DatumHeader // Common header for all entries
 	Nonce         [12]byte     // 12-byte nonce
-	Mac           [16]byte     // 16-byte authentication tag
 	EncryptedData []byte       // AES-CCM encrypted data (variable size)
 
 }
@@ -173,15 +172,22 @@ func (stretch *FVEStretchKey) GetHeader() *DatumHeader {
 }
 
 func (aesccm *FVEAESCCMKey) Process(raw []byte) error {
-	if _, err := utils.Unmarshal(raw, aesccm); err != nil {
-		return err
-	}
-	aesccm.EncryptedData = append([]byte(nil), raw[28:]...)
+	copy(aesccm.Nonce[:], raw[:12])
+	aesccm.EncryptedData = raw[12:]
+
 	return nil
 }
 
 func (aesccm *FVEAESCCMKey) SetHeader(header *DatumHeader) {
 	aesccm.Header = header
+}
+
+func (aesccm *FVEAESCCMKey) GetMac() []byte {
+	return aesccm.EncryptedData[:16]
+}
+
+func (aesccm *FVEAESCCMKey) VerifyTag(tag []byte) bool {
+	return equal16(aesccm.GetMac(), tag)
 }
 
 func (aesccm FVEAESCCMKey) GetNonceTime() string {
@@ -395,4 +401,15 @@ func GetEncryptionMethod(encryptionMethod uint32) string {
 		return "AES-XTS 256-bit"
 	}
 	return fmt.Sprintf("Unknown encryption method: 0x%08x", encryptionMethod)
+}
+
+func equal16(a, b []byte) bool {
+	if len(a) != 16 || len(b) != 16 {
+		return false
+	}
+	var v byte
+	for i := 0; i < 16; i++ {
+		v |= a[i] ^ b[i]
+	}
+	return v == 0
 }
