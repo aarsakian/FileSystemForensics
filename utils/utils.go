@@ -449,6 +449,16 @@ func DecodeUTF16(b []byte) string {
 
 }
 
+func PasswordUTF16LE(pw string) []byte {
+	u := utf16.Encode([]rune(pw))
+	b := make([]byte, len(u)*2)
+	for i, v := range u {
+		b[i*2] = byte(v)        // low byte
+		b[i*2+1] = byte(v >> 8) // high byte
+	}
+	return b
+}
+
 func WriteToCSV(file *os.File, data string) {
 	_, err := file.WriteString(data)
 	if err != nil {
