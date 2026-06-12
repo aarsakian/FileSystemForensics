@@ -22,10 +22,9 @@ type FVEAESCCMEncryptedKey struct {
 // key, ciphertext, associated data, and tag in order to compute the plaintext
 // and associated data, and it fails if either C or A has been corrupt
 // s AD(K, C, A, T, N) = (P, A), where N is thenonce used to create C and T.
-func OpenCCM(key, nonce, aad, ctTag []byte) ([]byte, error) {
+func OpenCCM(key, aesccmCiphertext, nonce []byte) ([]byte, error) {
 	const (
 		nonceLen = 12
-		tagLen   = 16
 	)
 
 	if len(key) != 32 {
@@ -34,129 +33,136 @@ func OpenCCM(key, nonce, aad, ctTag []byte) ([]byte, error) {
 	if len(nonce) != nonceLen {
 		return nil, errors.New("nonce must be 12 bytes")
 	}
-	if len(ctTag) < tagLen {
-		return nil, errors.New("ciphertext+tag too short")
-	}
-
-	ct := ctTag[:len(ctTag)-tagLen]
-	tag := ctTag[len(ctTag)-tagLen:]
 
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, err
 	}
 
-	// 1. Decrypt ciphertext using CTR with counters starting at 1
-	pt := make([]byte, len(ct))
-	stream := newCTR(block, nonce, 1)
-	stream.XORKeyStream(pt, ct)
+	decryptedKey := make([]byte, len(aesccmCiphertext))
+	stream := newCTR(block, nonce, 0)
+	stream.XORKeyStream(decryptedKey, aesccmCiphertext)
 
-	// 2. Compute CBC‑MAC over B0 || AAD || P
-	mac, err := cbcMac(block, nonce, aad, pt)
+	return decryptedKey, nil
+}
+
+func GetExpectedTag(key, nonce, aad, plainText, tag []byte) ([]byte, error) {
+	if len(tag) != 16 {
+		return nil, errors.New("tag must be 16 bytes")
+	}
+
+	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, err
 	}
+	a0 := make([]byte, 16)
+	counterLen := 16 - len(nonce) - 1
+	a0[0] = byte(counterLen - 1)
+	copy(a0[1:1+len(nonce)], nonce)
+	s0 := make([]byte, 16)
+	block.Encrypt(s0, a0)
 
-	// 3. Compute S0 = E_K(A0) and derive expected tag = mac XOR S0
-	s0 := ctrBlock(block, nonce, 0)
-	expectedTag := xor16(mac, s0)
-
-	// 4. Verify tag
-	if !equal16(expectedTag, tag) {
-		return nil, errors.New("ccm: authentication failed")
+	x, err := cbcMac(block, nonce, aad, plainText)
+	if err != nil {
+		return nil, err
 	}
-
-	return pt, nil
+	//encrypt Tag = X XOR S0
+	return xor16(x, s0), nil
 }
 
 // cbcMac computes CBC‑MAC over B0 || AAD || C.
-func cbcMac(block cipher.Block, nonce, aad, ct []byte) ([]byte, error) {
+func cbcMac(block cipher.Block, nonce, aad, data []byte) ([]byte, error) {
 	const (
 		tagLen   = 16
-		L        = 2 // length field size
 		adataBit = 1 << 6
+		L        = 3
 	)
+
+	counterLen := 16 - len(nonce) - 1
 
 	if len(nonce) != 12 {
 		return nil, errors.New("nonce must be 12 bytes")
 	}
 
-	// Build B0
 	b0 := make([]byte, 16)
-	// Flags: Adata present + M' + L'
-	// M' = (tagLen-2)/2 = 7, L' = L-1 = 1
-	b0[0] = adataBit | (7 << 3) | (L - 1)
-	copy(b0[1:1+12], nonce)
-	msgLen := len(ct)
-	b0[13] = byte(msgLen >> 8)
-	b0[14] = byte(msgLen)
 
-	// Start CBC‑MAC
-	x := make([]byte, 16) // X0 = 0
-	buf := make([]byte, 16)
+	Mprime := (tagLen - 2) / 2
+	Lprime := L - 1
 
-	// Process B0
-	xorBlock(buf, x, b0)
-	block.Encrypt(x, buf)
-
-	// Process AAD (length‑prefixed, then padded)
+	flags := byte((Mprime << 3) | Lprime)
 	if len(aad) > 0 {
-		// Encode AAD length as 2 bytes (enough for our use)
-		aadLenBlock := make([]byte, 0, 16)
-		aadLenBlock = append(aadLenBlock, byte(len(aad)>>8), byte(len(aad)))
-		aadLenBlock = append(aadLenBlock, aad...)
-		// Pad to 16‑byte blocks
-		for len(aadLenBlock)%16 != 0 {
-			aadLenBlock = append(aadLenBlock, 0)
+		flags |= adataBit
+	}
+	b0[0] = flags
+	copy(b0[1:13], nonce)
+
+	msgLen := len(data)
+	for i := 0; i < counterLen; i++ {
+		b0[15-i] = byte(msgLen >> (8 * i))
+	}
+	//x1 = AES(0 XOR B0)
+	x := make([]byte, 16)
+	block.Encrypt(x, xor16(make([]byte, 16), b0))
+
+	if len(aad) > 0 {
+		b1 := make([]byte, 0, 2+len(aad))
+		b1 = append(b1, byte(len(aad)>>8), byte(len(aad)))
+		b1 = append(b1, aad...)
+		for len(b1)%16 != 0 {
+			b1 = append(b1, 0)
 		}
-		for i := 0; i < len(aadLenBlock); i += 16 {
-			xorBlock(buf, x, aadLenBlock[i:i+16])
-			block.Encrypt(x, buf)
+		for step := 0; step < len(b1); step += 16 {
+			blockBuf := make([]byte, 16)
+			end := step + 16
+			if end > len(b1) {
+				end = len(b1)
+			}
+			copy(blockBuf, b1[step:end])
+			block.Encrypt(x, xor16(x, blockBuf))
 		}
 	}
 
-	// Process ciphertext
-	if len(ct) > 0 {
-		ctPadded := ct
-		if len(ctPadded)%16 != 0 {
-			ctPadded = append(append([]byte{}, ctPadded...), make([]byte, 16-len(ctPadded)%16)...)
+	for step := 0; step < len(data); step += 16 {
+		blockBuf := make([]byte, 16)
+		end := step + 16
+		if end > len(data) {
+			end = len(data)
 		}
-		for i := 0; i < len(ctPadded); i += 16 {
-			xorBlock(buf, x, ctPadded[i:i+16])
-			block.Encrypt(x, buf)
-		}
+		copy(blockBuf, data[step:end])
+		block.Encrypt(x, xor16(x, blockBuf))
 	}
 
-	return x[:tagLen], nil
+	return x[:16], nil
 }
 
-// ctrBlock computes E_K(Ai) where Ai is the counter block with given counter.
-func ctrBlock(block cipher.Block, nonce []byte, counter uint16) []byte {
-	const L = 2
+// ctrBlock computes E_K(Ai) where Ai is the counter block with given counter => KSi.
+func ctrBlock(block cipher.Block, nonce []byte, counter uint32) []byte {
+	L := 16 - len(nonce) - 1
 	a := make([]byte, 16)
 	// Flags: only L' in CTR mode
-	a[0] = (L - 1)
-	copy(a[1:1+12], nonce)
-	a[13] = byte(counter >> 8)
-	a[14] = byte(counter)
-	// a[15] unused for our sizes
+	a[0] = byte(L - 1)
+	copy(a[1:1+len(nonce)], nonce)
+	for i := 0; i < L; i++ {
+		a[15-i] = byte(counter >> (8 * i))
+	}
 	block.Encrypt(a, a)
 	return a
 }
 
 // newCTR returns a CTR stream starting at given counter.
-func newCTR(block cipher.Block, nonce []byte, startCounter uint16) cipher.Stream {
+func newCTR(block cipher.Block, nonce []byte, startCounter uint32) cipher.Stream {
 	iv := make([]byte, 16)
-	const L = 2
-	iv[0] = (L - 1)
-	copy(iv[1:1+12], nonce)
-	iv[13] = byte(startCounter >> 8)
-	iv[14] = byte(startCounter)
+	L := 16 - len(nonce) - 1
+	iv[0] = byte(L - 1)
+	copy(iv[1:1+len(nonce)], nonce)
+	for i := 0; i < L; i++ {
+		iv[15-i] = byte(startCounter >> (8 * i))
+	}
 	return cipher.NewCTR(block, iv)
 }
 
 func xorBlock(dst, a, b []byte) {
-	for i := 0; i < 16; i++ {
+	for i := 0; i < len(b); i++ {
 		dst[i] = a[i] ^ b[i]
 	}
 }
@@ -167,15 +173,4 @@ func xor16(a, b []byte) []byte {
 		out[i] = a[i] ^ b[i]
 	}
 	return out
-}
-
-func equal16(a, b []byte) bool {
-	if len(a) != 16 || len(b) != 16 {
-		return false
-	}
-	var v byte
-	for i := 0; i < 16; i++ {
-		v |= a[i] ^ b[i]
-	}
-	return v == 0
 }
