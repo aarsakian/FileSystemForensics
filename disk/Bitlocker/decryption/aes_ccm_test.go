@@ -32,9 +32,8 @@ func TestOpenCCM_Roundtrip(t *testing.T) {
 	}
 
 	tag := xor16(mac, ctrBlock(block, nonce, 0))
-	ctTag := append(ciphertext, tag...)
 
-	result, err := OpenCCM(key, nonce, aad, ctTag)
+	result, err := OpenCCM(key, ciphertext, nonce, aad, tag)
 	if err != nil {
 		t.Fatalf("OpenCCM returned error: %v", err)
 	}
