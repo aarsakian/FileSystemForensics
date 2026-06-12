@@ -109,7 +109,7 @@ func encryptXTS128(key, tweak, plaintext []byte) ([]byte, error) {
 
 	for i := 0; i < fullBlocks-1; i++ {
 		ciphertext = append(ciphertext, encryptXTSBlock(dataBlock, t, plaintext[i*16:(i+1)*16])...) //nolint:gocritic
-		extsMulByX(t)
+		xtsMulByX(t)
 	}
 
 	lastPlainBlock := plaintext[(fullBlocks-1)*16 : fullBlocks*16]
