@@ -1,8 +1,13 @@
 package bitlocker
 
 import (
+	"crypto/sha256"
+	"encoding/binary"
 	"errors"
 	"fmt"
+	"math"
+	"strings"
+	"unicode/utf16"
 
 	"github.com/aarsakian/FileSystemForensics/disk/Bitlocker/datums"
 	ccm "github.com/aarsakian/FileSystemForensics/disk/Bitlocker/decryption"
@@ -128,6 +133,7 @@ type VolumeHeaderVista struct {
 type Volume struct {
 	Header         VolumeHeaderWindows7 // Works for Windows 7+ (includes Windows 8/10)
 	MetadataBlocks []MetadataBlock
+	Key            []byte // Decrypted FVEK (File Volume Encryption Key) after decryption
 }
 
 //========================================================================
@@ -265,7 +271,94 @@ func (volume *Volume) Process(hD readers.DiskReader, volumeStartOffset int64) er
 	return nil
 }
 
-func (volume Volume) DecryptVMK() ([]byte, error) {
+func DeriveKeyFromRecoveryKey(key string) ([]byte, error) {
+	derivedKey := make([]byte, 16)
+	for groupId, group := range strings.Split(key, "-") {
+
+		utf16Units := utf16.Encode([]rune(group))
+		value := 0
+		for i, cu := range utf16Units {
+			if cu < '0' || cu > '9' {
+				msg := fmt.Sprintf("invalid digit %d at index %d", cu, i)
+				return nil, errors.New(msg)
+			}
+			//code unit -> numeric digit
+			digit := int(cu - '0')
+			//accumulate
+			value = value*10 + digit
+		}
+		if value%11 != 0 {
+			break
+		}
+		value /= 11
+		if value > math.MaxUint16 {
+			break
+		}
+		binary.LittleEndian.PutUint16(derivedKey[groupId*2:groupId*2+2], uint16(value))
+
+	}
+	return derivedKey, nil
+
+}
+
+type PasswordBasedKey struct {
+	LastSHA256Hash    [32]byte // Last calculated SHA256 hash
+	InitialSHA256Hash [32]byte // Initial calculated SHA256 hash from the password
+	Salt              [16]byte // Salt for key stretching
+	IterationCount    uint64   // Iteration count for key stretching
+}
+
+func StretchKey(baseVal []byte, salt []byte, iterations int) []byte {
+	var lastHash [32]byte
+	saltArray := [16]byte{}
+	copy(saltArray[:], salt)
+	initialHash := sha256.Sum256(baseVal)
+	initialHash = sha256.Sum256(initialHash[:])
+
+	buf := make([]byte, 88)
+
+	copy(buf[32:64], initialHash[:])
+	copy(buf[64:80], saltArray[:])
+
+	for i := uint64(0); i < uint64(iterations); i++ {
+		binary.LittleEndian.PutUint64(buf[80:88], uint64(i))
+		lastHash = sha256.Sum256(buf[:])
+		copy(buf[:32], lastHash[:])
+
+	}
+
+	return lastHash[:]
+}
+
+func (volume *Volume) Decrypt(password string, recoverykey string) error {
+
+	vmkKey, err := volume.DecryptVMK(password, recoverykey)
+	if err != nil {
+		return err
+	}
+	version := utils.ToUint16(vmkKey[20:])
+	dataSize := utils.ToUint16(vmkKey[16:])
+	if version == 1 && dataSize == 44 {
+
+		vmkKey = vmkKey[28:]
+
+	}
+	fvekKey, err := volume.DecryptFVEK(vmkKey)
+	if err != nil {
+		return err
+	}
+	version = utils.ToUint16(fvekKey[20:])
+	dataSize = utils.ToUint16(fvekKey[16:])
+	if version == 1 && dataSize == 44 {
+
+		fvekKey = fvekKey[28:]
+
+	}
+	volume.Key = fvekKey
+	return nil
+}
+
+func (volume Volume) DecryptVMK(password string, recoverykey string) ([]byte, error) {
 	var key []byte
 	for _, metadataBlock := range volume.MetadataBlocks {
 		for _, datum := range metadataBlock.Datums {
@@ -282,14 +375,35 @@ func (volume Volume) DecryptVMK() ([]byte, error) {
 							return key, nil
 						}
 					} else if stretchkey, ok := vmkDatum.(*datums.FVEStretchKey); ok {
-						return stretchkey.EncryptedKey, nil
+						if datums.GetEncryptionMethod(stretchkey.EncryptionMethod) == "Stretch key variant 2" {
+							if password != "" {
+								key = StretchKey(utils.PasswordUTF16LE(password), stretchkey.Salt[:], 0x100000)
+
+							} else if recoverykey != "" {
+								stretchedKey, err := DeriveKeyFromRecoveryKey(recoverykey)
+								if err != nil {
+									return nil, err
+								}
+								key = StretchKey(stretchedKey, stretchkey.Salt[:], 0x100000)
+							}
+
+						}
 					} else if aesccmKey, ok := vmkDatum.(*datums.FVEAESCCMKey); ok {
 
-						nonce := aesccmKey.EncryptedData[:12]
-						ct := aesccmKey.EncryptedData[12:44]
-						tag := aesccmKey.EncryptedData[44:60]
 						aad := vmkDatum.GetHeader().Raw
-						return ccm.OpenCCM(key, nonce, aad, append(ct, tag...))
+						fmt.Printf("key: %x aesccmKey.EncryptedData[:] %x nonce %x aad %x mac %x\n",
+							key, aesccmKey.EncryptedData[:], aesccmKey.Nonce[:], aad, aesccmKey.GetMac())
+						decryptedVMKKey, err := ccm.OpenCCM(key, aesccmKey.EncryptedData[:], aesccmKey.Nonce[:])
+						if err != nil {
+							return nil, err
+						}
+						expectedTag, err := ccm.GetExpectedTag(key, aesccmKey.Nonce[:], aad, decryptedVMKKey[16:], aesccmKey.GetMac())
+						if err != nil {
+							return nil, err
+						}
+
+						aesccmKey.VerifyTag(expectedTag)
+						return decryptedVMKKey, nil
 					}
 				}
 			}
@@ -308,11 +422,8 @@ func (volume Volume) DecryptFVEK(vmkKey []byte) ([]byte, error) {
 			}
 
 			if aesccmKey, ok := datum.(*datums.FVEAESCCMKey); ok {
-				nonce := aesccmKey.Nonce[:]
-				ct := aesccmKey.EncryptedData
-				tag := aesccmKey.Mac[:]
-				aad := datum.GetHeader().Raw
-				return ccm.OpenCCM(vmkKey, nonce, aad, append(ct, tag...))
+
+				return ccm.OpenCCM(vmkKey, aesccmKey.EncryptedData[:], aesccmKey.Nonce[:])
 			}
 		}
 	}
