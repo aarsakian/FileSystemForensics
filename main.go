@@ -104,6 +104,8 @@ func main() {
 	strategy := flag.String("strategy", "overwrite", "what strategy will be used for files sharing the same name, default is ovewrite, or use Id")
 	usnjrnl := flag.Bool("usnjrnl", false, "show usnjrnl information about changes to files and folders")
 	logfile := flag.Bool("logfile", false, "parse and show $logfile")
+	password := flag.String("password", "", "password for Bitlocker volumes")
+	recoverykey := flag.String("recoverykey", "", "recovery key for Bitlocker volumes")
 
 	profile := flag.Bool("profile", false, "profile memory usage")
 
@@ -255,6 +257,10 @@ func main() {
 
 		if *collectUnallocated {
 			exp.ExportUnallocated(*dsk)
+		}
+
+		if *password != "" || *recoverykey != "" {
+			dsk.DecryptVolumes(*password, *recoverykey, *partitionNum-1)
 		}
 
 		if *clusters != "" {
