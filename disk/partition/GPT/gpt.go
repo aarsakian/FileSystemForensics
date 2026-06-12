@@ -52,6 +52,7 @@ type Partition struct {
 	Name              string
 	Volume            volume.Volume
 	Raid              *mdraid.Superblock
+	BitLockerVolume   *bitlocker.Volume
 }
 
 func (partition Partition) GetPartitionType() string {
@@ -118,6 +119,12 @@ func (partition Partition) GetVolInfo() string {
 
 }
 
+func (partition *Partition) DecryptVolume(password string, recoverykey string) {
+	if partition.BitLockerVolume != nil {
+		partition.BitLockerVolume.Decrypt(password, recoverykey)
+	}
+}
+
 func (partition *Partition) LocateVolume(hD readers.DiskReader) {
 	partitionOffetB := uint64(partition.GetOffset() * 512)
 
@@ -129,19 +136,17 @@ func (partition *Partition) LocateVolume(hD readers.DiskReader) {
 		if bytes.Equal(data[3:7], []byte("NTFS")) {
 
 			ntfs.ProcessHeader(data)
+			partition.Volume = ntfs
 		} else if bytes.Equal(data[3:11], []byte("-FVE-FS-")) { //Bitlocker metadata signature
 			bitlockerVolume := new(bitlocker.Volume)
 			bitlockerVolume.ProcessHeader(data)
 			bitlockerVolume.Process(hD, int64(partitionOffetB))
 
 			bitlockerVolume.ShowInfo()
-			vmkKey, err := bitlockerVolume.DecryptVMK()
-			if err != nil {
-				return
-			}
-			bitlockerVolume.DecryptFVEK(vmkKey)
+			partition.BitLockerVolume = bitlockerVolume
+
 		}
-		partition.Volume = ntfs
+
 	} else if partition.GetPartitionType() == "Linux RAID" {
 		data, _ := hD.ReadFile(int64(partitionOffetB+8*512), 512)  //8 sectors after superblock
 		if bytes.Equal(data[:4], []byte{0xfc, 0x4e, 0x2b, 0xa9}) { //valid ?

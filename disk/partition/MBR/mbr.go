@@ -45,6 +45,10 @@ func (partition Partition) GetPartitionType() string {
 	return PartitionTypes[partition.Type]
 }
 
+func (partition Partition) DecryptVolume(password string, recoverykey string) {
+
+}
+
 func (partition *Partition) LocateVolume(hD readers.DiskReader) {
 
 	switch partition.Type {
@@ -176,4 +180,7 @@ func (extPartition ExtendedPartition) GetInfo() string {
 
 func (extpartition ExtendedPartition) GetVolInfo() string {
 	return ""
+}
+
+func (extpartition ExtendedPartition) DecryptVolume(password string, recoverykey string) {
 }
