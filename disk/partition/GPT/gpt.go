@@ -120,6 +120,13 @@ func (partition Partition) GetVolInfo() string {
 }
 
 func (partition *Partition) DecryptVolume(password string, recoverykey string) {
+	if partition.Volume == nil {
+		return
+	}
+	if dec, ok := partition.Volume.(interface{ Decrypt(string, string) error }); ok {
+		_ = dec.Decrypt(password, recoverykey)
+		return
+	}
 	if partition.BitLockerVolume != nil {
 		partition.BitLockerVolume.Decrypt(password, recoverykey)
 	}
@@ -132,18 +139,15 @@ func (partition *Partition) LocateVolume(hD readers.DiskReader) {
 
 		data, _ := hD.ReadFile(int64(partitionOffetB), 512)
 
-		ntfs := new(volume.NTFS)
 		if bytes.Equal(data[3:7], []byte("NTFS")) {
-
+			ntfs := new(volume.NTFS)
 			ntfs.ProcessHeader(data)
 			partition.Volume = ntfs
 		} else if bytes.Equal(data[3:11], []byte("-FVE-FS-")) { //Bitlocker metadata signature
-			bitlockerVolume := new(bitlocker.Volume)
+			bitlockerVolume := new(volume.Bitlocker)
 			bitlockerVolume.ProcessHeader(data)
-			bitlockerVolume.Process(hD, int64(partitionOffetB))
 
-			bitlockerVolume.ShowInfo()
-			partition.BitLockerVolume = bitlockerVolume
+			partition.Volume = bitlockerVolume
 
 		}
 
