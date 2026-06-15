@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	bitlockerPkg "github.com/aarsakian/FileSystemForensics/disk/Bitlocker"
 	volume "github.com/aarsakian/FileSystemForensics/disk/volume"
 	"github.com/aarsakian/FileSystemForensics/logger"
 	"github.com/aarsakian/FileSystemForensics/readers"
@@ -45,16 +46,23 @@ func (partition Partition) GetPartitionType() string {
 	return PartitionTypes[partition.Type]
 }
 
-func (partition Partition) DecryptVolume(password string, recoverykey string) {
-
-}
-
 func (partition *Partition) LocateVolume(hD readers.DiskReader) {
 
 	switch partition.Type {
 	case 0x07, 0x17:
 		partitionOffetB := uint64(partition.GetOffset() * 512)
 		data, _ := hD.ReadFile(int64(partitionOffetB), 512)
+		// Detect BitLocker header first
+		if len(data) >= 11 && string(data[3:11]) == "-FVE-FS-" {
+			bl := new(bitlockerPkg.Volume)
+			// process metadata blocks (offset is partition start in bytes)
+			_ = bl.Process(hD, int64(partitionOffetB))
+			bvol := new(volume.Bitlocker)
+			bvol.BL = bl
+			partition.Volume = bvol
+			return
+		}
+
 		ntfs := new(volume.NTFS)
 		ntfs.ProcessHeader(data)
 
@@ -183,4 +191,17 @@ func (extpartition ExtendedPartition) GetVolInfo() string {
 }
 
 func (extpartition ExtendedPartition) DecryptVolume(password string, recoverykey string) {
+	if extpartition.Partition != nil {
+		extpartition.Partition.DecryptVolume(password, recoverykey)
+	}
+}
+
+func (partition Partition) DecryptVolume(password string, recoverykey string) {
+	if partition.Volume == nil {
+		return
+	}
+	// If the volume supports Decrypt(password, recoverykey) call it
+	if dec, ok := partition.Volume.(interface{ Decrypt(string, string) error }); ok {
+		_ = dec.Decrypt(password, recoverykey)
+	}
 }
