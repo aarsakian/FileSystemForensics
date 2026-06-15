@@ -188,7 +188,8 @@ func (disk *Disk) SearchFileSystemCH(fstype string, startOffset int) map[int][]m
 
 }
 
-func (disk *Disk) Process(partitionNum int, MFTentries []int, fromMFTEntry int, toMFTEntry int) (map[int][]metadata.Record, error) {
+func (disk *Disk) Process(partitionNum int, entries []int, fromEntry int,
+	toEntry int) (map[int][]metadata.Record, error) {
 
 	err := disk.DiscoverPartitions()
 	if errors.Is(err, ErrNTFSVol) {
@@ -198,9 +199,8 @@ func (disk *Disk) Process(partitionNum int, MFTentries []int, fromMFTEntry int, 
 
 		disk.CreatePseudoMBR("NTFS")
 	}
-	disk.ProcessPartitions(partitionNum)
+	disk.ProcessPartitions(partitionNum, entries, fromEntry, toEntry)
 
-	disk.DiscoverFileSystems(MFTentries, fromMFTEntry, toMFTEntry)
 	return disk.GetFileSystemMetadata(), err
 }
 
@@ -329,21 +329,6 @@ func (disk Disk) hasProtectiveMBR() bool {
 	return disk.MBR.IsProtective()
 }
 
-func (disk *Disk) DiscoverFileSystems(MFTentries []int, fromMFTEntry int, toMFTEntry int) {
-	for idx := range disk.Partitions {
-
-		vol := disk.Partitions[idx].GetVolume()
-		if vol == nil {
-			continue
-		}
-		partitionOffsetB := int64(disk.Partitions[idx].GetOffset() * 512)
-		fmt.Printf("Processing partition %d at %d ================================================\n",
-			idx+1, partitionOffsetB)
-		vol.Process(disk.Handler, partitionOffsetB, MFTentries, fromMFTEntry, toMFTEntry)
-
-	}
-}
-
 func (disk *Disk) populateMBR() error {
 	var mbr mbrLib.MBR
 	physicalOffset := int64(0)
@@ -422,7 +407,7 @@ func (disk *Disk) DiscoverPartitions() error {
 	return nil
 }
 
-func (disk *Disk) ProcessPartitions(partitionNum int) {
+func (disk *Disk) ProcessPartitions(partitionNum int, entries []int, fromEntry int, toEntry int) {
 
 	for idx := range disk.Partitions {
 		if partitionNum != -1 && partitionNum != idx {
@@ -430,16 +415,22 @@ func (disk *Disk) ProcessPartitions(partitionNum int) {
 		}
 		disk.Partitions[idx].LocateVolume(disk.Handler)
 
-		partitionOffset := disk.Partitions[idx].GetOffset()
+		partitionOffsetB := int64(disk.Partitions[idx].GetOffset() * 512)
 		vol := disk.Partitions[idx].GetVolume()
+
 		if vol == nil {
 			msg := "No Known Volume at partition %d (Currently supported NTFS BTRFS)."
 			logger.FSLogger.Error(fmt.Sprintf(msg, idx))
 			continue //fs not found
 		}
+
+		fmt.Printf("Processing partition %d at %d ================================================\n",
+			idx+1, partitionOffsetB)
+		vol.Process(disk.Handler, partitionOffsetB, entries, fromEntry, toEntry)
+
 		msg := "Partition %d  %s at %d sector"
-		fmt.Printf(msg+"\n", idx+1, vol.GetSignature(), partitionOffset)
-		logger.FSLogger.Info(fmt.Sprintf(msg, idx+1, vol.GetSignature(), partitionOffset))
+		fmt.Printf(msg+"\n", idx+1, vol.GetSignature(), partitionOffsetB)
+		logger.FSLogger.Info(fmt.Sprintf(msg, idx+1, vol.GetSignature(), partitionOffsetB))
 
 	}
 
