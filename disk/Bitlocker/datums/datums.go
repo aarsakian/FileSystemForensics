@@ -372,9 +372,9 @@ func GetEncryptionMethod(encryptionMethod uint32) string {
 	//remove high 16 bits which may contain flags
 	switch encryptionMethod & 0xFFFF {
 	case EncryptionMethodStretchKey1:
-		return "Stretch key variant 1"
+		return "Recovery key stretching variant 2"
 	case EncryptionMethodStretchKey2:
-		return "Stretch key variant 2"
+		return "Password stretching variant 2"
 	case EncryptionMethodAESCCM1:
 		return "AES-CCM 256-bit"
 	case EncryptionMethodAESCCM2:
