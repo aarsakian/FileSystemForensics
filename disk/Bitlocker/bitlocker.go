@@ -308,12 +308,10 @@ type PasswordBasedKey struct {
 	IterationCount    uint64   // Iteration count for key stretching
 }
 
-func StretchKey(baseVal []byte, salt []byte, iterations int) []byte {
+func StretchKey(initialHash []byte, salt []byte, iterations int) []byte {
 	var lastHash [32]byte
 	saltArray := [16]byte{}
 	copy(saltArray[:], salt)
-	initialHash := sha256.Sum256(baseVal)
-	initialHash = sha256.Sum256(initialHash[:])
 
 	buf := make([]byte, 88)
 
@@ -375,21 +373,28 @@ func (volume Volume) DecryptVMK(password string, recoverykey string) ([]byte, er
 							return key, nil
 						}
 					} else if stretchkey, ok := vmkDatum.(*datums.FVEStretchKey); ok {
-						if datums.GetEncryptionMethod(stretchkey.EncryptionMethod) == "Stretch key variant 2" {
-							if password != "" {
-								key = StretchKey(utils.PasswordUTF16LE(password), stretchkey.Salt[:], 0x100000)
+						if datums.GetEncryptionMethod(stretchkey.EncryptionMethod) ==
+							"Password stretching variant 2" && password != "" {
 
-							} else if recoverykey != "" {
-								stretchedKey, err := DeriveKeyFromRecoveryKey(recoverykey)
-								if err != nil {
-									return nil, err
-								}
-								key = StretchKey(stretchedKey, stretchkey.Salt[:], 0x100000)
+							initialHash := sha256.Sum256(utils.PasswordUTF16LE(password))
+							initialHash = sha256.Sum256(initialHash[:])
+							key = StretchKey(initialHash[:], stretchkey.Salt[:], 0x100000)
+
+						} else if datums.GetEncryptionMethod(stretchkey.EncryptionMethod) ==
+							"Recovery key stretching variant 2" && recoverykey != "" {
+							stretchedKey, err := DeriveKeyFromRecoveryKey(recoverykey)
+							if err != nil {
+								return nil, err
 							}
+							initialHash := sha256.Sum256(stretchedKey)
+							key = StretchKey(initialHash[:], stretchkey.Salt[:], 0x100000)
 
 						}
 					} else if aesccmKey, ok := vmkDatum.(*datums.FVEAESCCMKey); ok {
-
+						//cannot decrypt
+						if key == nil {
+							continue
+						}
 						aad := vmkDatum.GetHeader().Raw
 						fmt.Printf("key: %x aesccmKey.EncryptedData[:] %x nonce %x aad %x mac %x\n",
 							key, aesccmKey.EncryptedData[:], aesccmKey.Nonce[:], aad, aesccmKey.GetMac())
