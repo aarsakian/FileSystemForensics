@@ -223,7 +223,8 @@ func main() {
 			recordsPerPartition = dsk.SearchFileSystemCH(*searchFS, *searchOffset)
 
 		} else {
-			recordsPerPartition, err = dsk.Process(*partitionNum-1, entries, *fromMFTEntry, *toMFTEntry)
+			recordsPerPartition, err = dsk.Process(*partitionNum-1, entries, *fromMFTEntry, *toMFTEntry,
+				*password, *recoverykey)
 			if err != nil {
 				fmt.Println(err)
 				return
@@ -257,10 +258,6 @@ func main() {
 
 		if *collectUnallocated {
 			exp.ExportUnallocated(*dsk)
-		}
-
-		if *password != "" || *recoverykey != "" {
-			dsk.DecryptVolumes(*password, *recoverykey, *partitionNum-1)
 		}
 
 		if *clusters != "" {
