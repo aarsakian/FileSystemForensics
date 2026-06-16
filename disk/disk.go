@@ -28,7 +28,6 @@ var ErrNTFSVol = errors.New("NTFS volume discovered instead of MBR")
 type Partition interface {
 	GetOffset() uint64
 	LocateVolume(readers.DiskReader)
-	DecryptVolume(string, string)
 	GetVolume() volume.Volume
 	GetInfo() string
 	GetVolInfo() string
@@ -189,7 +188,7 @@ func (disk *Disk) SearchFileSystemCH(fstype string, startOffset int) map[int][]m
 }
 
 func (disk *Disk) Process(partitionNum int, entries []int, fromEntry int,
-	toEntry int) (map[int][]metadata.Record, error) {
+	toEntry int, password string, recoveryKey string) (map[int][]metadata.Record, error) {
 
 	err := disk.DiscoverPartitions()
 	if errors.Is(err, ErrNTFSVol) {
@@ -199,7 +198,7 @@ func (disk *Disk) Process(partitionNum int, entries []int, fromEntry int,
 
 		disk.CreatePseudoMBR("NTFS")
 	}
-	disk.ProcessPartitions(partitionNum, entries, fromEntry, toEntry)
+	disk.ProcessPartitions(partitionNum, entries, fromEntry, toEntry, password, recoveryKey)
 
 	return disk.GetFileSystemMetadata(), err
 }
@@ -407,7 +406,8 @@ func (disk *Disk) DiscoverPartitions() error {
 	return nil
 }
 
-func (disk *Disk) ProcessPartitions(partitionNum int, entries []int, fromEntry int, toEntry int) {
+func (disk *Disk) ProcessPartitions(partitionNum int, entries []int, fromEntry, toEntry int,
+	password, recoveryKey string) {
 
 	for idx := range disk.Partitions {
 		if partitionNum != -1 && partitionNum != idx {
@@ -427,6 +427,14 @@ func (disk *Disk) ProcessPartitions(partitionNum int, entries []int, fromEntry i
 		fmt.Printf("Processing partition %d at %d ================================================\n",
 			idx+1, partitionOffsetB)
 		vol.Process(disk.Handler, partitionOffsetB, entries, fromEntry, toEntry)
+
+		if password != "" || recoveryKey != "" {
+			if dec, ok := vol.(interface{ Decrypt(string, string) error }); ok {
+				_ = dec.Decrypt(password, recoveryKey)
+
+			}
+
+		}
 
 		msg := "Partition %d  %s at %d sector"
 		fmt.Printf(msg+"\n", idx+1, vol.GetSignature(), partitionOffsetB)
@@ -539,17 +547,6 @@ func (disk Disk) ShowVolumeInfo() {
 		}
 		fmt.Printf("%s \n", partition.GetVolInfo())
 	}
-}
-
-func (disk Disk) DecryptVolumes(password string, recoverykey string, partitionNum int) {
-	for idx := range disk.Partitions {
-		if partitionNum != -1 && partitionNum != idx {
-			continue
-		}
-		partition := disk.Partitions[idx]
-		partition.DecryptVolume(password, recoverykey)
-	}
-
 }
 
 func (disk Disk) ListPartitions() {
