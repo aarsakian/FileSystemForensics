@@ -119,19 +119,6 @@ func (partition Partition) GetVolInfo() string {
 
 }
 
-func (partition *Partition) DecryptVolume(password string, recoverykey string) {
-	if partition.Volume == nil {
-		return
-	}
-	if dec, ok := partition.Volume.(interface{ Decrypt(string, string) error }); ok {
-		_ = dec.Decrypt(password, recoverykey)
-		return
-	}
-	if partition.BitLockerVolume != nil {
-		partition.BitLockerVolume.Decrypt(password, recoverykey)
-	}
-}
-
 func (partition *Partition) LocateVolume(hD readers.DiskReader) {
 	partitionOffetB := uint64(partition.GetOffset() * 512)
 
