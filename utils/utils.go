@@ -349,10 +349,15 @@ func Unmarshal(data []byte, v interface{}) (int, error) {
 					uint64(data[idx+5])<<40
 				idx += 6
 			case "ChildVCN":
-				len := val.FieldByName("Len").Uint()
+				fieldLen := val.FieldByName("Len").Uint()
 				flags := val.FieldByName("Flags").Uint()
+				if fieldLen >= uint64(len(data)) {
+					return idx, errors.New("exceeded available buffer")
+				} else if fieldLen < 8 {
+					return idx, errors.New("invalid field length")
+				}
 				if flags == 1 {
-					binary.Read(bytes.NewReader(data[len-8:len]), binary.LittleEndian, &temp)
+					binary.Read(bytes.NewReader(data[fieldLen-8:fieldLen]), binary.LittleEndian, &temp)
 
 				}
 
