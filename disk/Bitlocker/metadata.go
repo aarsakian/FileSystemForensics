@@ -43,7 +43,7 @@ type FVEMetadataHeaderV1 struct {
 	MetadataSizeCopy   uint32            // 0x0C: Copy of metadata size
 	VolumeIdentifier   [16]byte          // 0x10: Volume GUID identifier
 	NextNonceCounter   uint32            // 0x20: Next nonce counter for AES-CCM
-	EncryptionMethod   uint32            // 0x24: Encryption method (see EncryptionMethods)
+	EncryptionMethod   [4]byte           // 0x24: Encryption method (see EncryptionMethods)
 	CreationTime       utils.WindowsTime // 0x28: Creation time (Windows FILETIME)
 }
 
@@ -61,7 +61,7 @@ type FVEMetadataHeaderV3 struct {
 	MetadataSizeCopy   uint32            // 0x0C: Copy of metadata size
 	VolumeIdentifier   [16]byte          // 0x10: Volume GUID identifier
 	NextNonceCounter   uint32            // 0x20: Next nonce counter for AES-CCM
-	EncryptionMethod   uint32            // 0x24: Encryption method
+	EncryptionMethod   [4]byte           // 0x24: Encryption method
 	CreationTime       utils.WindowsTime // 0x28: Creation time (Windows FILETIME)
 	// Additional fields may follow in Windows 8+ versions
 }
@@ -105,13 +105,13 @@ func (metadataBlockHeader *FVEMetadataBlockHeaderV2) Process(data []byte) {
 func (dataset FVEMetadataHeaderV1) ShowInfo() {
 	fmt.Printf("V1 Creation Time: %s GUID %s Encryption Method: %s\n",
 		dataset.CreationTime.ConvertToIsoTime(), utils.StringifyGUID(dataset.VolumeIdentifier[:]),
-		datums.GetEncryptionMethod(dataset.EncryptionMethod))
+		datums.GetEncryptionMethod(dataset.EncryptionMethod[:]))
 }
 
 func (dataset FVEMetadataHeaderV3) ShowInfo() {
 	fmt.Printf("V3 Creation Time: %s GUID %s Encryption Method: %s\n",
 		dataset.CreationTime.ConvertToIsoTime(), utils.StringifyGUID(dataset.VolumeIdentifier[:]),
-		datums.GetEncryptionMethod(dataset.EncryptionMethod))
+		datums.GetEncryptionMethod(dataset.EncryptionMethod[:]))
 }
 
 func (metadataBlock *MetadataBlock) ParseEntries(raw []byte) error {
