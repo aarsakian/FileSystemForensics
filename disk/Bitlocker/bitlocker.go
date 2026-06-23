@@ -361,12 +361,12 @@ func (volume Volume) DecryptVMK(password string, recoverykey string) ([]byte, er
 
 				for _, vmkDatum := range vmk.Datums {
 					if fvekey, ok := vmkDatum.(*datums.FVEKey); ok {
-						key = fvekey.KeyData
+
 						if datums.GetEncryptionMethod(fvekey.EncryptionMethod[:]) != "AES-CCM 256-bit" {
 							return nil, errors.New("unsupported VMK encryption method")
 						}
 						if vmk.GetProtectionType() == "Clear Key" {
-							return key, nil
+							key = fvekey.KeyData
 						}
 					} else if stretchkey, ok := vmkDatum.(*datums.FVEStretchKey); ok {
 						if datums.GetEncryptionMethod(stretchkey.EncryptionMethod[:]) ==
