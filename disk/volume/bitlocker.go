@@ -119,6 +119,7 @@ func (b *Bitlocker) Decrypt(password string, recoverykey string) error {
 		return errors.New("no BitLocker metadata parsed")
 	}
 	if err := b.BL.Decrypt(password, recoverykey); err != nil {
+		fmt.Printf("Failed to decrypt BitLocker volume: %v\n", err)
 		return err
 	}
 
