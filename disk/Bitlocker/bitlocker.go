@@ -331,25 +331,31 @@ func (volume *Volume) Decrypt(password string, recoverykey string) error {
 	}
 	version := utils.ToUint16(vmkKey[20:])
 	dataSize := utils.ToUint16(vmkKey[16:])
+	counter := int(vmkKey[24])
 	if version == 1 && dataSize == 44 {
 
 		vmkKey = vmkKey[28:]
 
 	}
-	fvekKey, err := volume.DecryptFVEK(vmkKey)
+	candidateFVEKeys, err := volume.DecryptFVEK(vmkKey)
 	if err != nil {
 		return err
 	}
-	version = utils.ToUint16(fvekKey[20:])
-	dataSize = utils.ToUint16(fvekKey[16:])
-	if version == 1 && dataSize == 44 {
+	for _, fvekKey := range candidateFVEKeys {
+		version = utils.ToUint16(fvekKey[20:])
+		dataSize = utils.ToUint16(fvekKey[16:])
+		fvecounter := int(fvekKey[24])
+		if version == 1 && dataSize == 44 && fvecounter > counter {
 
-		fvekKey = fvekKey[28:]
-
+			fvekKey = fvekKey[28:]
+			fmt.Printf("Decrypted fve key %x", fvekKey)
+			volume.Key = fvekKey
+			return nil
+		}
 	}
-	fmt.Printf("Decrypted fve key %x", fvekKey)
-	volume.Key = fvekKey
-	return nil
+
+	return errors.New("failed to decrypt FVEK with provided password or recovery key")
+
 }
 
 func (volume Volume) DecryptVMK(password string, recoverykey string) ([]byte, error) {
@@ -415,22 +421,26 @@ func (volume Volume) DecryptVMK(password string, recoverykey string) ([]byte, er
 	return nil, errors.New("VMK key not found")
 }
 
-func (volume Volume) DecryptFVEK(vmkKey []byte) ([]byte, error) {
-	for _, metadataBlock := range volume.MetadataBlocks {
-		for _, datum := range metadataBlock.Datums {
+func (volume Volume) DecryptFVEK(vmkKey []byte) ([][]byte, error) {
+	candidateKeys := [][]byte{vmkKey}
+	for _, datum := range volume.MetadataBlocks[0].Datums {
 
-			// Skip VMK entry entirely
-			if _, isVMK := datum.(*datums.FVEVolumeMasterKey); isVMK {
-				continue
+		// Skip VMK entry entirely
+		if _, isVMK := datum.(*datums.FVEVolumeMasterKey); isVMK {
+			continue
+		}
+
+		if aesccmKey, ok := datum.(*datums.FVEAESCCMKey); ok {
+
+			decryptedFVEK, err := ccm.OpenCCM(vmkKey, aesccmKey.EncryptedData[:], aesccmKey.Nonce[:])
+			if err != nil {
+				return nil, err
 			}
-
-			if aesccmKey, ok := datum.(*datums.FVEAESCCMKey); ok {
-
-				return ccm.OpenCCM(vmkKey, aesccmKey.EncryptedData[:], aesccmKey.Nonce[:])
-			}
+			candidateKeys = append(candidateKeys, decryptedFVEK)
 		}
 	}
-	return nil, errors.New("FVEK not found")
+
+	return candidateKeys, nil
 }
 
 func (volume Volume) GetEncryptionMethod() string {
