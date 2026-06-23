@@ -62,9 +62,9 @@ func OpenXTS(key, tweak, ciphertext []byte) ([]byte, error) {
 		for i := 0; i < fullBlocks; i++ {
 			ciphertextBlock := ciphertext[i*16 : (i+1)*16]
 			plaintext = append(plaintext, decryptXTSBlock(dataBlock, t, ciphertextBlock)...) //nolint:gocritic
-			if i+1 < fullBlocks {
-				xtsMulByX(t)
-			}
+
+			xtsMulByX(t)
+
 		}
 		return plaintext, nil
 	}
@@ -109,12 +109,14 @@ func decryptXTSBlock(block cipher.Block, tweak, ciphertext []byte) []byte {
 
 func xtsMulByX(tweak []byte) {
 	carry := byte(0)
-	for i := len(tweak) - 1; i >= 0; i-- {
-		newCarry := tweak[i] >> 7
-		tweak[i] = (tweak[i] << 1) | carry
-		carry = newCarry
+	for blockIndex := 0; blockIndex < 16; blockIndex++ {
+		val := (tweak[blockIndex] << 1) | carry
+
+		carry = tweak[blockIndex] >> 7
+		tweak[blockIndex] = val
+
 	}
-	if carry != 0 {
-		tweak[len(tweak)-1] ^= 0x87
+	if carry > 0 {
+		tweak[0] ^= 0x87
 	}
 }
