@@ -1,6 +1,7 @@
 package bitlocker
 
 import (
+	"crypto/aes"
 	"crypto/sha256"
 	"encoding/binary"
 	"errors"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/aarsakian/FileSystemForensics/disk/Bitlocker/datums"
 	ccm "github.com/aarsakian/FileSystemForensics/disk/Bitlocker/decryption"
+	"github.com/aarsakian/FileSystemForensics/logger"
 	"github.com/aarsakian/FileSystemForensics/readers"
 	"github.com/aarsakian/FileSystemForensics/utils"
 )
@@ -301,13 +303,6 @@ func DeriveKeyFromRecoveryKey(key string) ([]byte, error) {
 
 }
 
-type PasswordBasedKey struct {
-	LastSHA256Hash    [32]byte // Last calculated SHA256 hash
-	InitialSHA256Hash [32]byte // Initial calculated SHA256 hash from the password
-	Salt              [16]byte // Salt for key stretching
-	IterationCount    uint64   // Iteration count for key stretching
-}
-
 func StretchKey(initialHash []byte, salt []byte, iterations int) []byte {
 	var lastHash [32]byte
 	saltArray := [16]byte{}
@@ -352,6 +347,7 @@ func (volume *Volume) Decrypt(password string, recoverykey string) error {
 		fvekKey = fvekKey[28:]
 
 	}
+	fmt.Printf("Decrypted fve key %x", fvekKey)
 	volume.Key = fvekKey
 	return nil
 }
@@ -366,21 +362,21 @@ func (volume Volume) DecryptVMK(password string, recoverykey string) ([]byte, er
 				for _, vmkDatum := range vmk.Datums {
 					if fvekey, ok := vmkDatum.(*datums.FVEKey); ok {
 						key = fvekey.KeyData
-						if datums.GetEncryptionMethod(fvekey.EncryptionMethod) != "AES-CCM 256-bit" {
+						if datums.GetEncryptionMethod(fvekey.EncryptionMethod[:]) != "AES-CCM 256-bit" {
 							return nil, errors.New("unsupported VMK encryption method")
 						}
 						if vmk.GetProtectionType() == "Clear Key" {
 							return key, nil
 						}
 					} else if stretchkey, ok := vmkDatum.(*datums.FVEStretchKey); ok {
-						if datums.GetEncryptionMethod(stretchkey.EncryptionMethod) ==
+						if datums.GetEncryptionMethod(stretchkey.EncryptionMethod[:]) ==
 							"Password stretching variant 2" && password != "" {
 
 							initialHash := sha256.Sum256(utils.PasswordUTF16LE(password))
 							initialHash = sha256.Sum256(initialHash[:])
 							key = StretchKey(initialHash[:], stretchkey.Salt[:], 0x100000)
 
-						} else if datums.GetEncryptionMethod(stretchkey.EncryptionMethod) ==
+						} else if datums.GetEncryptionMethod(stretchkey.EncryptionMethod[:]) ==
 							"Recovery key stretching variant 2" && recoverykey != "" {
 							stretchedKey, err := DeriveKeyFromRecoveryKey(recoverykey)
 							if err != nil {
@@ -396,9 +392,11 @@ func (volume Volume) DecryptVMK(password string, recoverykey string) ([]byte, er
 							continue
 						}
 						aad := vmkDatum.GetHeader().Raw
-						fmt.Printf("key: %x aesccmKey.EncryptedData[:] %x nonce %x aad %x mac %x\n",
+						msg := fmt.Sprintf("key: %x aesccmKey.EncryptedData[:] %x nonce %x aad %x mac %x\n",
 							key, aesccmKey.EncryptedData[:], aesccmKey.Nonce[:], aad, aesccmKey.GetMac())
 						decryptedVMKKey, err := ccm.OpenCCM(key, aesccmKey.EncryptedData[:], aesccmKey.Nonce[:])
+						logger.FSLogger.Info(msg)
+
 						if err != nil {
 							return nil, err
 						}
@@ -433,4 +431,50 @@ func (volume Volume) DecryptFVEK(vmkKey []byte) ([]byte, error) {
 		}
 	}
 	return nil, errors.New("FVEK not found")
+}
+
+func (volume Volume) GetEncryptionMethod() string {
+	return datums.GetEncryptionMethod(volume.MetadataBlocks[0].MetadataV1.EncryptionMethod[:])
+}
+
+func (volume Volume) GetVolumeOffset() int64 {
+	return int64(volume.MetadataBlocks[0].Header.VolumeHeaderOffset)
+}
+
+func (volume Volume) DecryptData(sectorOffset int) error {
+	blockKey := make([]byte, 16)
+	binary.LittleEndian.PutUint64(blockKey, uint64(uint16(sectorOffset)/volume.Header.BytesPerSector))
+	IV := make([]byte, 16)
+
+	sectorKey := make([]byte, 32)
+
+	/* uint8_t sector_key_data[ 32 ];*/
+	if volume.GetEncryptionMethod() == "AES-CBC 128-bit with Elephant Diffuser" ||
+		volume.GetEncryptionMethod() == "AES-CBC 256-bit with Elephant Diffuser" ||
+		volume.GetEncryptionMethod() == "AES-CBC 128-bit" ||
+		volume.GetEncryptionMethod() == "AES-CBC 256-bit" {
+
+		block, err := aes.NewCipher(volume.Key)
+		if err != nil {
+			return err
+		}
+		// Use IV for decryption of sector data with AES-CBC or AES-CBC with Elephant Diffuser
+		// Decrypt the sector data using the derived IV and the FVEK
+		block.Encrypt(IV, blockKey)
+
+		if volume.GetEncryptionMethod() == "AES-CBC 128-bit with Elephant Diffuser" ||
+			volume.GetEncryptionMethod() == "AES-CBC 256-bit with Elephant Diffuser" {
+
+			block.Encrypt(sectorKey, blockKey)
+			blockKey[15] = 0x80
+
+			block.Encrypt(sectorKey[16:], blockKey)
+		}
+	} else if volume.GetEncryptionMethod() == "AES-XTS 128-bit" ||
+		volume.GetEncryptionMethod() == "AES-XTS 256-bit" {
+		copy(IV, blockKey)
+
+	}
+	return nil
+
 }
