@@ -3,6 +3,7 @@ package volume
 import (
 	"errors"
 	"fmt"
+	"math"
 
 	metadata "github.com/aarsakian/FileSystemForensics/FS"
 	bitlockerPkg "github.com/aarsakian/FileSystemForensics/disk/Bitlocker"
@@ -17,6 +18,7 @@ type Bitlocker struct {
 	BL             *bitlockerPkg.Volume
 	Inner          Volume
 	partitionStart int64
+	handler        readers.DiskReader
 }
 
 func (b *Bitlocker) Process(hD readers.DiskReader, partitionOffsetB int64, MFTSelectedEntries []int,
@@ -29,6 +31,7 @@ func (b *Bitlocker) Process(hD readers.DiskReader, partitionOffsetB int64, MFTSe
 		return err
 	}
 	b.partitionStart = partitionOffsetB
+	b.handler = hD
 	logger.FSLogger.Info(fmt.Sprintf("BitLocker volume discovered at %d", partitionOffsetB))
 	// Underlying FS processing happens after decrypt/unlock (Decrypt method)
 	return nil
@@ -59,6 +62,13 @@ func (b *Bitlocker) GetBytesPerSector() uint64 {
 		return uint64(b.BL.Header.BytesPerSector)
 	}
 	return 512
+}
+
+func (b *Bitlocker) ReadFile(offset int64, size int) ([]byte, error) {
+	if b.handler == nil {
+		return nil, errors.New("no reader available for BitLocker volume")
+	}
+	return b.handler.ReadFile(offset, size)
 }
 
 func (b *Bitlocker) GetInfo() string {
@@ -111,10 +121,77 @@ func (b *Bitlocker) Decrypt(password string, recoverykey string) error {
 	if err := b.BL.Decrypt(password, recoverykey); err != nil {
 		return err
 	}
-	// At this point b.BL.Key contains the decrypted FVEK. To continue, a
-	// transparent decrypting reader must be created that wraps the original
-	// readers.DiskReader and decrypts read blocks using the FVEK. Implementing
-	// that layer is non-trivial and is left for a follow-up change.
-	logger.FSLogger.Info("BitLocker unlocked (FVEK available) - instantiate underlying FS next")
+
+	if b.handler == nil {
+		return errors.New("no disk reader available for BitLocker decryption")
+	}
+
+	sectorSize := int64(b.BL.Header.BytesPerSector)
+	if sectorSize == 0 {
+		sectorSize = 512
+	}
+
+	decryptingReader, err := readers.NewDecryptingReader(
+		b.handler,
+		b.BL.Key,
+		sectorSize,
+		b.partitionStart,
+		b.BL.GetEncryptionMethod(),
+	)
+	if err != nil {
+		return err
+	}
+
+	// Replace the handler with the decrypting reader so subsequent reads
+	// on the BitLocker volume return decrypted data.
+	b.handler = decryptingReader
+
+	// If the underlying volume has already been detected, create it here.
+	nativeVol, err := b.detectInnerVolume()
+	if err != nil {
+		return err
+	}
+	b.Inner = nativeVol
+
+	// If the inner volume is an NTFS or BTRFS volume, process it now so the
+	// filesystem metadata can be populated through the BitLocker wrapper.
+	if b.Inner != nil {
+		if err := b.Inner.Process(b.handler, b.partitionStart, []int{}, 0, math.MaxUint32); err != nil {
+			return err
+		}
+	}
+
+	logger.FSLogger.Info("BitLocker unlocked and decrypting reader instantiated")
 	return nil
+}
+
+func (b *Bitlocker) detectInnerVolume() (Volume, error) {
+	partitionOffsetB := b.partitionStart
+	volumeOffsetB := b.BL.GetVolumeOffset()
+	if volumeOffsetB > 0 {
+		partitionOffsetB += volumeOffsetB
+	}
+	data, err := b.handler.ReadFile(partitionOffsetB, 512)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(data) >= 11 && string(data[3:11]) == "-FVE-FS-" {
+		return nil, errors.New("nested BitLocker volumes are not supported")
+	}
+
+	if len(data) >= 11 && string(data[3:7]) == "NTFS" {
+		ntfs := new(NTFS)
+		ntfs.ProcessHeader(data)
+		return ntfs, nil
+	}
+
+	btrfs := new(BTRFS)
+	if len(data) >= 11 {
+		if err := btrfs.ParseSuperblock(data); err == nil && btrfs.HasValidSignature() {
+			return btrfs, nil
+		}
+	}
+
+	return nil, errors.New("unsupported or unknown decrypted filesystem")
 }
