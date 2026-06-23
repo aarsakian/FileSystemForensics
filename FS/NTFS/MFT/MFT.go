@@ -201,6 +201,13 @@ func ProcessNoNResidentAttributesWorker(records chan *Record, hD readers.DiskRea
 			if cap(scratch) < runLength {
 				scratch = make([]byte, runLength)
 			}
+			if runLength <= 0 {
+				logger.FSLogger.Warning("non resident attribute has non positive runlist length")
+				continue
+			} else if len(scratch) < runLength {
+				logger.FSLogger.Warning("scratch buffer length is less than runlist length, skipping attribute")
+				continue
+			}
 
 			buf := scratch[:runLength]
 
