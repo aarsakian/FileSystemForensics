@@ -29,7 +29,7 @@ type DatumHeader struct {
 // FVEKey represents a key with encryption method and key data.
 type FVEKey struct {
 	Header           *DatumHeader // Common header for all entries
-	EncryptionMethod uint32       // Encryption method used
+	EncryptionMethod [4]byte      // Encryption method used
 	KeyData          []byte       // Variable-length key data
 }
 
@@ -43,7 +43,7 @@ type FVEUnicodeString struct {
 // Value type: 0x0003
 type FVEStretchKey struct {
 	Header           *DatumHeader // Common header for all entries
-	EncryptionMethod uint32       // Encryption method
+	EncryptionMethod [4]byte      // Encryption method
 	Salt             [16]byte     // 16-byte salt
 	EncryptedKey     []byte       // AES-CCM encrypted key follows (variable size)
 }
@@ -125,7 +125,7 @@ func (key *FVEKey) SetHeader(header *DatumHeader) {
 
 func (key *FVEKey) GetInfo() string {
 	return fmt.Sprintf("Header info %s FVEKey: Encryption Method: %s Key Data Length: %d bytes",
-		key.Header.GetInfo(), GetEncryptionMethod(key.EncryptionMethod), len(key.KeyData))
+		key.Header.GetInfo(), GetEncryptionMethod(key.EncryptionMethod[:]), len(key.KeyData))
 }
 
 func (key *FVEKey) GetHeader() *DatumHeader {
@@ -164,7 +164,7 @@ func (stretch *FVEStretchKey) SetHeader(header *DatumHeader) {
 
 func (stretch *FVEStretchKey) GetInfo() string {
 	return fmt.Sprintf("Header info %s FVEStretchKey: Encryption Method: %s, Salt: %X, Encrypted Key Length: %d bytes",
-		stretch.Header.GetInfo(), GetEncryptionMethod(stretch.EncryptionMethod), stretch.Salt, len(stretch.EncryptedKey))
+		stretch.Header.GetInfo(), GetEncryptionMethod(stretch.EncryptionMethod[:]), stretch.Salt, len(stretch.EncryptedKey))
 }
 
 func (stretch *FVEStretchKey) GetHeader() *DatumHeader {
@@ -368,9 +368,9 @@ func (dh DatumHeader) GetValueType() string {
 	}
 }
 
-func GetEncryptionMethod(encryptionMethod uint32) string {
+func GetEncryptionMethod(encryptionMethod []byte) string {
 	//remove high 16 bits which may contain flags
-	switch encryptionMethod & 0xFFFF {
+	switch utils.ToUint16(encryptionMethod[:2]) {
 	case EncryptionMethodStretchKey1:
 		return "Recovery key stretching variant 2"
 	case EncryptionMethodStretchKey2:
