@@ -348,7 +348,7 @@ func (volume *Volume) Decrypt(password string, recoverykey string) error {
 		if version == 1 && dataSize == 44 && fvecounter > counter {
 
 			fvekKey = fvekKey[28:]
-			fmt.Printf("Decrypted fve key %x", fvekKey)
+			fmt.Printf("Decrypted fve key %x\n", fvekKey)
 			volume.Key = fvekKey
 			return nil
 		}
