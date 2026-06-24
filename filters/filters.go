@@ -97,3 +97,14 @@ func (prefSufFilter PrefixesSuffixesFilter) Execute(records []metadata.Record) [
 	return records
 
 }
+
+type EntriesFilter struct {
+	Entries []int
+}
+
+func (ef EntriesFilter) Execute(records []metadata.Record) []metadata.Record {
+	for _, entry := range ef.Entries {
+		records = metadata.FilterByEntries(records, entry)
+	}
+	return records
+}
