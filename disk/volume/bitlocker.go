@@ -15,10 +15,10 @@ import (
 // Bitlocker is a wrapper volume that represents a BitLocker-encrypted volume
 // and (after unlocking) delegates calls to the underlying filesystem volume.
 type Bitlocker struct {
-	BL             *bitlockerPkg.Volume
-	Inner          Volume
-	partitionStart int64
-	handler        readers.DiskReader
+	BL              *bitlockerPkg.Volume
+	Inner           Volume
+	partitionStartB int64
+	handler         readers.DiskReader
 }
 
 func (b *Bitlocker) Process(hD readers.DiskReader, partitionOffsetB int64, MFTSelectedEntries []int,
@@ -30,7 +30,7 @@ func (b *Bitlocker) Process(hD readers.DiskReader, partitionOffsetB int64, MFTSe
 	if err := b.BL.Process(hD, partitionOffsetB); err != nil {
 		return err
 	}
-	b.partitionStart = partitionOffsetB
+	b.partitionStartB = partitionOffsetB
 	b.handler = hD
 	logger.FSLogger.Info(fmt.Sprintf("BitLocker volume discovered at %d", partitionOffsetB))
 	// Underlying FS processing happens after decrypt/unlock (Decrypt method)
@@ -133,10 +133,10 @@ func (b *Bitlocker) Decrypt(password string, recoverykey string) error {
 	}
 
 	decryptingReader, err := readers.NewDecryptingReader(
-		b.handler,
+		b.handler, //original handler
 		b.BL.Key,
 		sectorSize,
-		b.partitionStart,
+		b.partitionStartB,
 		b.BL.GetEncryptionMethod(),
 	)
 	if err != nil {
@@ -157,17 +157,20 @@ func (b *Bitlocker) Decrypt(password string, recoverykey string) error {
 	// If the inner volume is an NTFS or BTRFS volume, process it now so the
 	// filesystem metadata can be populated through the BitLocker wrapper.
 	if b.Inner != nil {
-		if err := b.Inner.Process(b.handler, b.partitionStart, []int{}, 0, math.MaxUint32); err != nil {
+		if err := b.Inner.Process(b.handler, b.partitionStartB, []int{}, 0, math.MaxUint32); err != nil {
 			return err
 		}
 	}
 
-	logger.FSLogger.Info("BitLocker unlocked and decrypting reader instantiated")
+	msg := "BitLocker unlocked and decrypting reader instantiated"
+
+	logger.FSLogger.Info(msg)
+	fmt.Printf("%s\n", msg)
 	return nil
 }
 
 func (b *Bitlocker) detectInnerVolume() (Volume, error) {
-	partitionOffsetB := b.partitionStart
+	partitionOffsetB := b.partitionStartB
 	volumeOffsetB := b.BL.GetVolumeOffset()
 	if volumeOffsetB > 0 {
 		partitionOffsetB += volumeOffsetB
@@ -195,4 +198,8 @@ func (b *Bitlocker) detectInnerVolume() (Volume, error) {
 	}
 
 	return nil, errors.New("unsupported or unknown decrypted filesystem")
+}
+
+func (b Bitlocker) GetHandler() readers.DiskReader {
+	return b.handler
 }
