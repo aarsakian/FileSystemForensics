@@ -12,14 +12,14 @@ import (
 )
 
 type DecryptingReader struct {
-	underlying      DiskReader
-	fvek            []byte
-	sectorSize      int64
-	partitionOffset int64
-	method          string
+	underlying       DiskReader
+	fvek             []byte
+	sectorSize       int64
+	partitionOffsetB int64
+	method           string
 }
 
-func NewDecryptingReader(underlying DiskReader, fvek []byte, sectorSize int64, partitionOffset int64, method string) (*DecryptingReader, error) {
+func NewDecryptingReader(underlying DiskReader, fvek []byte, sectorSize int64, partitionOffsetB int64, method string) (*DecryptingReader, error) {
 	cleanMethod := strings.ToUpper(strings.TrimSpace(method))
 	if cleanMethod == "" {
 		return nil, errors.New("encryption method is required")
@@ -42,11 +42,11 @@ func NewDecryptingReader(underlying DiskReader, fvek []byte, sectorSize int64, p
 	}
 
 	return &DecryptingReader{
-		underlying:      underlying,
-		fvek:            append([]byte(nil), fvek...),
-		sectorSize:      sectorSize,
-		partitionOffset: partitionOffset,
-		method:          cleanMethod,
+		underlying:       underlying,
+		fvek:             append([]byte(nil), fvek...),
+		sectorSize:       sectorSize,
+		partitionOffsetB: partitionOffsetB,
+		method:           cleanMethod,
 	}, nil
 }
 
@@ -63,7 +63,9 @@ func (dr *DecryptingReader) ReadFile(offset int64, size int) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-
+	if offset < dr.partitionOffsetB {
+		return data, nil
+	}
 	if strings.Contains(dr.method, "XTS") {
 		return dr.decryptXTS(offset, data)
 	}
@@ -86,7 +88,7 @@ func (dr *DecryptingReader) decryptXTS(offset int64, data []byte) ([]byte, error
 		return plaintext, nil
 	}
 
-	firstSector := (offset - dr.partitionOffset) / dr.sectorSize
+	firstSector := (offset - dr.partitionOffsetB) / dr.sectorSize
 	if firstSector < 0 {
 		return nil, errors.New("read offset before partition start")
 	}
@@ -124,7 +126,7 @@ func (dr *DecryptingReader) decryptCBC(offset int64, data []byte) ([]byte, error
 		return nil, fmt.Errorf("ciphertext length must be multiple of %d", aes.BlockSize)
 	}
 
-	sectorNum := (offset - dr.partitionOffset) / dr.sectorSize
+	sectorNum := (offset - dr.partitionOffsetB) / dr.sectorSize
 	if sectorNum < 0 {
 		return nil, errors.New("read offset before partition start")
 	}
