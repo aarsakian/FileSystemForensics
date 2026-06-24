@@ -429,9 +429,13 @@ func (disk *Disk) ProcessPartitions(partitionNum int, entries []int, fromEntry, 
 		vol.Process(disk.Handler, partitionOffsetB, entries, fromEntry, toEntry)
 
 		if password != "" || recoveryKey != "" {
-			if dec, ok := vol.(interface{ Decrypt(string, string) error }); ok {
-				_ = dec.Decrypt(password, recoveryKey)
-
+			dec, ok := vol.(*volume.Bitlocker)
+			if ok {
+				err := dec.Decrypt(password, recoveryKey)
+				if err == nil {
+					//reasssign
+					disk.Handler = dec.GetHandler()
+				}
 			}
 
 		}
