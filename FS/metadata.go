@@ -129,3 +129,9 @@ func FilterDeleted(records []Record, includeDeleted bool) []Record {
 
 	})
 }
+
+func FilterByEntries(records []Record, entry int) []Record {
+	return utils.Filter(records, func(record Record) bool {
+		return record.GetID() == entry
+	})
+}

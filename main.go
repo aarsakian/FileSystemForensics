@@ -51,7 +51,7 @@ func main() {
 
 	exportLocation := flag.String("export", "", "the path to export files")
 	recreatePath := flag.Bool("recreatepath", false, "recreate file path")
-	MFTSelectedEntries := flag.String("entries", "", "select file system records by entering its id, use comma as a seperator")
+	selectedEntries := flag.String("entries", "", "select file system records by entering its id, use comma as a seperator")
 	showFileName := flag.String("showfilename", "", "show the name of the filename attribute of MFT records: enter (Any, Win32, Dos)")
 	exportFiles := flag.String("filenames", "", "files to export use comma as a seperator")
 	exportFilesPath := flag.String("path", "", "base path of files to exported must be absolute e.g. C:\\MYFILES\\ABC translates to MYFILES\\ABC")
@@ -120,7 +120,7 @@ func main() {
 	var err error
 	var recordsPerPartition map[int][]metadata.Record
 
-	entries := utils.GetEntriesInt(*MFTSelectedEntries)
+	entries := utils.GetEntriesInt(*selectedEntries)
 
 	recordsTree := tree.Tree{}
 	if *profile {
@@ -186,6 +186,10 @@ func main() {
 
 	if *exportFilesPath != "" {
 		flm.Register(filters.PathFilter{NamePath: *exportFilesPath})
+	}
+
+	if len(entries) > 0 {
+		flm.Register(filters.EntriesFilter{Entries: entries})
 	}
 
 	if *orphans {
