@@ -607,6 +607,7 @@ func (record Record) ShowIndexTimestamps(attrName string, childRecordEntry uint3
 }
 
 func (record Record) ShowInfo() {
+
 	fmt.Printf("record %d type %s\n", record.Entry, record.getType())
 	for _, attribute := range record.Attributes {
 		attribute.ShowInfo()
@@ -634,9 +635,9 @@ func (record Record) ShowRunList() {
 
 	}
 
-	for idx, nonResidentAttr := range record.FindNonResidentAttributes() {
+	for _, nonResidentAttr := range record.FindNonResidentAttributes() {
 
-		fmt.Printf("%d - %s: \t", idx, nonResidentAttr.FindType())
+		fmt.Printf("%s: \t", nonResidentAttr.FindType())
 		if nonResidentAttr.GetHeader().ATRrecordNoNResident.RunList == nil {
 			continue
 		}
@@ -648,13 +649,14 @@ func (record Record) ShowRunList() {
 
 			fmt.Printf(" offs. %d cl len %d cl  logical offset %d cl clusters %d \n",
 				runlist.Offset, runlist.Length, logicalOffset, totalClusters)
+
+			logicalOffset += runlist.Offset
+			totalClusters += int(runlist.Length)
+			nofFragments += 1
 			if runlist.Next == nil {
 				break
 			}
 			runlist = *runlist.Next
-			logicalOffset += runlist.Offset
-			totalClusters += int(runlist.Length)
-			nofFragments += 1
 		}
 		fmt.Printf("Total Clusters %d Total Fragments %d\n", totalClusters, nofFragments)
 
@@ -911,7 +913,7 @@ func (record *Record) Process(bs []byte) error {
 			var atrNoNRecordResident *MFTAttributes.ATRrecordNoNResident = new(MFTAttributes.ATRrecordNoNResident)
 			utils.Unmarshal(bs[ReadPtr+16:ReadPtr+64], atrNoNRecordResident)
 
-			if int(ReadPtr+atrNoNRecordResident.RunOff+attrHeader.AttrLen) < len(bs) &&
+			if int(ReadPtr+attrHeader.AttrLen) < len(bs) &&
 				atrNoNRecordResident.RunOff < attrHeader.AttrLen {
 				var runlist *MFTAttributes.RunList = new(MFTAttributes.RunList)
 				lengthcl := runlist.Process(bs[ReadPtr+
