@@ -3,6 +3,8 @@ package metadata
 import (
 	"bytes"
 	"fmt"
+	"path/filepath"
+	"strings"
 
 	fstree "github.com/aarsakian/FileSystemForensics/FS/BTRFS"
 	attr "github.com/aarsakian/FileSystemForensics/FS/BTRFS/attributes"
@@ -110,7 +112,7 @@ func (record BTRFSRecord) LocateDataORG(hD readers.DiskReader, partitionOffsetB 
 
 func (record BTRFSRecord) LocateData(hD readers.DiskReader, partitionOffsetB int64,
 	blockSizeB int, dataToRead []byte,
-	physicalToLogicalMap map[uint64]Chunk) {
+	physicalToLogicalMap map[uint64]Chunk) int {
 
 	/*if fileDirEntry.HasResidentDataAttr() {
 		buf.Write(fileDirEntry.GetResidentData())
@@ -164,12 +166,12 @@ func (record BTRFSRecord) LocateData(hD readers.DiskReader, partitionOffsetB int
 		totalReadBytes += int(toRead)
 
 	}
-
+	return totalReadBytes
 	//truncate buf grows over len?
 	//results <- utils.AskedFile{Fname: record.GetFname(), Content: buf.Bytes()[:lSize], Id: int(record.Id)}
 }
 
-func (record BTRFSRecord) HasSignatures(sgm signatures.SignatureManager,
+func (record BTRFSRecord) HasSignatures(sgm signatures.SignatureManager, permissiveLevel string,
 	clusterSizeB int, partitionOffset int64, physicalToLogicalMap map[uint64]Chunk,
 	handler readers.DiskReader) bool {
 	return false
@@ -178,10 +180,10 @@ func (record BTRFSRecord) HasSignatures(sgm signatures.SignatureManager,
 
 func (record NTFSRecord) LocateData(hD readers.DiskReader, partitionOffset int64,
 	clusterSizeB int, dataToRead []byte,
-	physicalToLogicalMap map[uint64]Chunk) {
+	physicalToLogicalMap map[uint64]Chunk) int {
 	p := message.NewPrinter(language.Greek)
 
-	writeOffset := 0
+	readBytes := 0
 	var data []byte
 
 	if record.HasResidentDataAttr() {
@@ -191,7 +193,7 @@ func (record NTFSRecord) LocateData(hD readers.DiskReader, partitionOffset int64
 
 		runlist, err := record.GetRunList("DATA")
 		if err != nil {
-			return
+			return 0
 		}
 
 		offset := partitionOffset // partition in bytes
@@ -207,20 +209,23 @@ func (record NTFSRecord) LocateData(hD readers.DiskReader, partitionOffset int64
 			}
 
 			if runlist.Offset != 0 && runlist.Length > 0 {
-				if int(runlist.Length)*clusterSizeB > len(dataToRead)-writeOffset {
-					data, _ = hD.ReadFile(offset, len(dataToRead)-writeOffset)
+				if int(runlist.Length)*clusterSizeB > len(dataToRead)-readBytes {
+					data, _ = hD.ReadFile(offset, len(dataToRead)-readBytes)
 				} else {
 					data, _ = hD.ReadFile(offset, int(runlist.Length)*clusterSizeB)
 				}
 
-				copy(dataToRead[writeOffset:], data)
+				copy(dataToRead[readBytes:], data)
+				readBytes += len(data)
 				res := p.Sprintf("%d", (offset-partitionOffset)/int64(clusterSizeB))
 
-				msg := fmt.Sprintf("offset %s cl len %d cl. write offset %d", res, runlist.Length, writeOffset)
+				msg := fmt.Sprintf("offset %s cl len %d cl. write offset %d", res, runlist.Length, readBytes)
 				logger.FSLogger.Info(msg)
 			} else if runlist.Offset == 0 && runlist.Length > 0 {
 				//sparse not allocated generate zeros
-				copy(dataToRead[writeOffset:], make([]byte, int(runlist.Length)*clusterSizeB))
+				copy(dataToRead[readBytes:], make([]byte, int(runlist.Length)*clusterSizeB))
+				readBytes += int(runlist.Length) * clusterSizeB
+
 				msg := fmt.Sprintf("sparse  len %d cl.", runlist.Length)
 				logger.FSLogger.Info(msg)
 			}
@@ -230,18 +235,15 @@ func (record NTFSRecord) LocateData(hD readers.DiskReader, partitionOffset int64
 			}
 
 			runlist = runlist.Next
-			writeOffset += int(runlist.Length) * clusterSizeB
-			if writeOffset >= len(dataToRead) {
-				break
-			}
+
 		}
 
 	}
-	//truncate buf grows over len?
+	return readBytes
 
 }
 
-func (record NTFSRecord) HasSignatures(sgm signatures.SignatureManager,
+func (record NTFSRecord) HasSignatures(sgm signatures.SignatureManager, permissiveLevel string,
 	clusterSizeB int, partitionOffset int64, physicalToLogicalMap map[uint64]Chunk, handler readers.DiskReader) bool {
 	var fileHeader []byte
 	if record.IsFolder() {
@@ -272,7 +274,15 @@ func (record NTFSRecord) HasSignatures(sgm signatures.SignatureManager,
 		linkedRecords[0].LocateData(handler, partitionOffset, clusterSizeB, fileHeader, physicalToLogicalMap)
 
 	}
-
-	return sgm.HasSignature(fileHeader)
+	signatureExt := sgm.FindSignature(fileHeader)
+	switch permissiveLevel {
+	case "permissive":
+		return signatureExt != "Unknown Extension"
+	case "strict":
+		return signatureExt == strings.ReplaceAll(strings.ToLower(filepath.Ext(record.GetFname())), ".", "")
+	default:
+		fmt.Printf("unknown permissive level %s\n", permissiveLevel)
+		return false
+	}
 
 }
