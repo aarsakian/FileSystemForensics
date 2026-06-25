@@ -13,7 +13,7 @@ type Chunk interface {
 }
 
 type Record interface {
-	HasSignatures(signatures.SignatureManager, int, int64, map[uint64]Chunk,
+	HasSignatures(signatures.SignatureManager, string, int, int64, map[uint64]Chunk,
 		readers.DiskReader) bool
 	HasFilenameExtension(string) bool
 	HasFilenames([]string) bool
@@ -44,7 +44,7 @@ type Record interface {
 	GetPath(int) string
 	ShowAllocatedClusters()
 	GetAllocatedClusters() []int
-	LocateData(readers.DiskReader, int64, int, []byte, map[uint64]Chunk)
+	LocateData(readers.DiskReader, int64, int, []byte, map[uint64]Chunk) int
 	LocateDataAsync(readers.DiskReader, int64, int, chan<- []byte)
 }
 
@@ -64,10 +64,12 @@ func FilterByExtension(records []Record, extension string) []Record {
 
 }
 
-func FilterBySignatures(records []Record, sgm signatures.SignatureManager, clusterSizeB int,
-	partitionOffset int64, physicalToLogicalMap map[uint64]Chunk, diskHandler readers.DiskReader) []Record {
+func FilterBySignatures(records []Record, sgm signatures.SignatureManager, permissiveLevel string,
+	clusterSizeB int,
+	partitionOffset int64, physicalToLogicalMap map[uint64]Chunk,
+	diskHandler readers.DiskReader) []Record {
 	return utils.Filter(records, func(record Record) bool {
-		return record.HasSignatures(sgm, clusterSizeB, partitionOffset, physicalToLogicalMap,
+		return record.HasSignatures(sgm, permissiveLevel, clusterSizeB, partitionOffset, physicalToLogicalMap,
 			diskHandler)
 	})
 }
