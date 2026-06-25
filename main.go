@@ -93,8 +93,8 @@ func main() {
 	listPartitions := flag.Bool("listpartitions", false, "list partitions")
 	listUnallocated := flag.Bool("listunallocated", false, "list unallocated clusters")
 	fileExtensions := flag.String("extensions", "", "search file system records by extensions use comma as a seperator")
-	verifySignatures := flag.Bool("verifysignatures", false,
-		"verify file system records by file signatures, non verified records will be omitted. (check signatures.csv for the list of files)")
+	verifySignatures := flag.String("verifysignatures", "",
+		"verify file system records by file signatures, non verified records will be omitted, allowed values are strict|permissive. (strict filters out mismatched extensions) (check signatures.csv for the list of files)")
 	collectUnallocated := flag.Bool("unallocated", false, "collect unallocated area of a volume")
 	hashFiles := flag.String("hash", "", "hash exported files, enter md5 or sha1")
 	volinfo := flag.Bool("volinfo", false, "show volume information")
@@ -200,7 +200,7 @@ func main() {
 		flm.Register(filters.DeletedFilter{Include: *deleted})
 	}
 
-	if *verifySignatures {
+	if *verifySignatures != "" {
 		sigs := signatures.ReadSignatures(strings.Split(*fileExtensions, ","))
 		sgm = signatures.SignatureManager{}
 		sgm.BuildSignatureTree(sigs)
@@ -279,9 +279,9 @@ func main() {
 		}
 
 		for partitionId, records := range recordsPerPartition {
-			if *verifySignatures {
+			if *verifySignatures != "" {
 				flm.Register(filters.SignatureFilter{Sgm: sgm, Disk: *dsk,
-					PartitionId: partitionId})
+					PartitionId: partitionId, Level: *verifySignatures})
 			}
 			records = flm.ApplyFilters(records)
 
