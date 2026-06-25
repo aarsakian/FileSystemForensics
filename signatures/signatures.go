@@ -14,7 +14,7 @@ var signaturesFS embed.FS
 
 type SignatureNode struct {
 	IsTerminal  bool   // True if a signature ends exactly at this byte depth
-	FormatName  string // The matched extension/MIME
+	Extension   string // The matched extension/MIME
 	Occurrences int    // Localized heuristic weight
 	Children    map[byte]*SignatureNode
 }
@@ -42,16 +42,12 @@ func (sgm SignatureManager) FindSignature(fileHeader []byte) string {
 
 		// If this specific length yields a valid file format, check it
 		if nextNode.IsTerminal {
-			return nextNode.FormatName
+			return nextNode.Extension
 		}
 
 	}
 
-	return "Unknown Format"
-}
-
-func (sgm SignatureManager) HasSignature(fileHeader []byte) bool {
-	return sgm.FindSignature(fileHeader) != "Unknown Format"
+	return "Unknown Extension"
 }
 
 func (sgm *SignatureManager) RegisterSignature(formatNames []string) {
@@ -63,20 +59,21 @@ func (sgm *SignatureManager) RegisterSignature(formatNames []string) {
 func (sgm *SignatureManager) BuildSignatureTree(signatures map[string][]byte) {
 	//var prevNode *SignatureNode
 	sgm.Root = &SignatureNode{Children: map[byte]*SignatureNode{}}
-	for formatName, signature := range signatures {
-		sgm.Root.Insert(signature, formatName)
+	for extension, signature := range signatures {
+		sgm.Root.Insert(signature, extension)
 	}
 
 }
 
-func (node *SignatureNode) Insert(signature []byte, formatName string) {
+func (node *SignatureNode) Insert(signature []byte, extension string) {
 
 	for _, sigval := range signature {
 		childNode, ok := node.Children[sigval]
 		if ok {
 			childNode.Occurrences++
 		} else {
-			childNode = &SignatureNode{Occurrences: 1, Children: map[byte]*SignatureNode{}, IsTerminal: true}
+			childNode = &SignatureNode{Occurrences: 1, Children: map[byte]*SignatureNode{},
+				IsTerminal: true, Extension: extension}
 		}
 
 		node.Children[sigval] = childNode
@@ -84,7 +81,6 @@ func (node *SignatureNode) Insert(signature []byte, formatName string) {
 
 		node = childNode
 	}
-	node.FormatName = formatName
 
 }
 
@@ -119,7 +115,7 @@ func ReadSignatures(selectedSignatures []string) map[string][]byte {
 		b, _ := hex.DecodeString(strings.ReplaceAll(row[0], " ", ""))
 		signature = append(signature, b...)
 
-		signatures[row[2]] = signature
+		signatures[row[3]] = signature
 	}
 	return signatures
 
