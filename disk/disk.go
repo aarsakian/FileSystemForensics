@@ -528,9 +528,9 @@ func (disk Disk) Worker(wg *sync.WaitGroup, records []metadata.Record, results c
 		if len(linkedRecords) == 0 {
 			record.LocateData(disk.Handler, partitionOffsetB, sectorsPerCluster*bytesPerSector, buf[:lSize], physicalToLogicalMap)
 		} else { // attribute runlist
-
+			startOffset := 0
 			for _, linkedRecord := range linkedRecords {
-				linkedRecord.LocateData(disk.Handler, partitionOffsetB, sectorsPerCluster*bytesPerSector, buf[:lSize], physicalToLogicalMap)
+				startOffset += linkedRecord.LocateData(disk.Handler, partitionOffsetB, sectorsPerCluster*bytesPerSector, buf[startOffset:lSize], physicalToLogicalMap)
 
 			}
 		}
