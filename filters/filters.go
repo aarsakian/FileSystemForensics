@@ -18,6 +18,7 @@ type SignatureFilter struct {
 	Sgm         signatures.SignatureManager
 	Disk        disk.Disk
 	PartitionId int
+	Level       string
 }
 
 func (signatureFilter SignatureFilter) Execute(records []metadata.Record) []metadata.Record {
@@ -27,7 +28,7 @@ func (signatureFilter SignatureFilter) Execute(records []metadata.Record) []meta
 	clusterSizeB := int(partition.GetVolume().GetBytesPerSector() * uint64(partition.GetVolume().GetSectorsPerCluster()))
 	partitionOffset := int64(partition.GetOffset() * partition.GetVolume().GetBytesPerSector())
 
-	return metadata.FilterBySignatures(records, signatureFilter.Sgm,
+	return metadata.FilterBySignatures(records, signatureFilter.Sgm, signatureFilter.Level,
 		clusterSizeB, partitionOffset, physicalToLogicalMap, signatureFilter.Disk.Handler)
 }
 
