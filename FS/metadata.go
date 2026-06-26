@@ -29,6 +29,7 @@ type Record interface {
 	GetParentID() int
 	GetLinkedRecords() []Record
 	GetLogicalFileSize() int64
+	GetPhysicalFileSize() int64
 	GetSequence() int
 	FindAttribute(string) Attribute
 	ShowAttributes(string)

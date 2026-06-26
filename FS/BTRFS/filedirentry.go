@@ -67,6 +67,21 @@ func (fileDirEntry FileDirEntry) GetExtents() []*attributes.ExtentData {
 	return extents
 }
 
+func (fileDirEntry FileDirEntry) GetPhysicalFileSize() int64 {
+	physicalSize := int64(0)
+	for idx, item := range fileDirEntry.Items {
+		if !item.IsExtentData() {
+			continue
+		}
+		extData, ok := fileDirEntry.DataItems[idx].(*attributes.ExtentData)
+		if !ok {
+			continue
+		}
+		physicalSize += int64(extData.ExtentDataRem.LSize)
+	}
+	return physicalSize
+}
+
 func (fileDirEntry FileDirEntry) GetGroupedExtents() [][]*attributes.ExtentData {
 	var groupedExtents [][]*attributes.ExtentData
 	var extents []*attributes.ExtentData

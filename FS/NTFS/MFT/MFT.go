@@ -1008,6 +1008,17 @@ func (record Record) GetLogicalFileSize() int64 {
 	return int64(record.I30Size)
 }
 
+func (record Record) GetPhysicalFileSize() int64 {
+
+	attr := record.FindAttribute("FileName")
+	if attr != nil {
+		fnattr := attr.(*MFTAttributes.FNAttribute)
+		fmt.Println("AllocFsize: ", fnattr.AllocFsize)
+		return int64(fnattr.AllocFsize)
+	}
+	return 0
+}
+
 func (record Record) GetFnames() map[string]string {
 
 	fnAttributes := utils.Filter(record.Attributes, func(attribute Attribute) bool {
