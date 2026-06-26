@@ -107,9 +107,9 @@ func (exp Exporter) HashFiles(records []metadata.Record) {
 			continue
 		}
 		if strings.ToLower(exp.Hash) == "md5" {
-			fmt.Printf("File %s has %s %s \n", fname, exp.Hash, utils.GetMD5(data))
+			fmt.Printf("File %s %s %s \n", fname, exp.Hash, utils.GetMD5(data))
 		} else if strings.ToLower(exp.Hash) == "sha1" {
-			fmt.Printf("File %s has %s %s \n", fname, exp.Hash, utils.GetSHA1(data))
+			fmt.Printf("File %s %s %s \n", fname, exp.Hash, utils.GetSHA1(data))
 		} else {
 			fmt.Printf("Only Supported Hashes are MD5 or SHA1 and not %s!\n", exp.Hash)
 			return
