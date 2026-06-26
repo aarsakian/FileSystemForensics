@@ -440,9 +440,12 @@ func (disk *Disk) ProcessPartitions(partitionNum int, entries []int, fromEntry, 
 
 		}
 
-		msg := "Partition %d  %s at %d sector"
+		msg := "Partition %d  %s at sector %d "
 		fmt.Printf(msg+"\n", idx+1, vol.GetSignature(), partitionOffsetB)
 		logger.FSLogger.Info(fmt.Sprintf(msg, idx+1, vol.GetSignature(), partitionOffsetB))
+		if vol.GetSignature() == "BitLocker" && password == "" && recoveryKey == "" {
+			fmt.Printf("Bitlocker found. Please provide password or recovery key\n")
+		}
 
 	}
 
