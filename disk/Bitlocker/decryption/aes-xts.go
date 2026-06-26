@@ -74,26 +74,25 @@ func OpenXTS(key, tweak, ciphertext []byte) ([]byte, error) {
 	}
 
 	// Decrypt all blocks before the final ciphertext-stealing block.
-	for i := 0; i < fullBlocks-1; i++ {
+	for i := 0; i < fullBlocks; i++ {
 		ciphertextBlock := ciphertext[i*16 : (i+1)*16]
 		plaintext = append(plaintext, decryptXTSBlock(dataBlock, t, ciphertextBlock)...) //nolint:gocritic
 		xtsMulByX(t)
 	}
 
-	// The final full block is the stolen block Cn'. The partial ciphertext follows.
-	finalCiphertextBlock := ciphertext[(fullBlocks-1)*16 : fullBlocks*16]
-	partialCiphertext := ciphertext[fullBlocks*16:]
+	preFinalBlock := ciphertext[(fullBlocks-1)*16 : fullBlocks*16]
+	//stolen tail
+	stolenCipher := preFinalBlock[remainder:]
+	// The final full block
+	cLast := make([]byte, 0, 16)
+	cLast = append(cLast, ciphertext[fullBlocks*16:]...)
+	cLast = append(cLast, stolenCipher...)
 
-	pmPrime := decryptXTSBlock(dataBlock, t, finalCiphertextBlock)
-	partialPlaintext := append([]byte(nil), pmPrime[:remainder]...)
+	//temporary ciphertext
 
-	cLast := make([]byte, 16)
-	copy(cLast, partialCiphertext)
-	copy(cLast[remainder:], finalCiphertextBlock[remainder:])
-	ptLast := decryptXTSBlock(dataBlock, t, cLast)
+	lastPlain := decryptXTSBlock(dataBlock, t, cLast)
 
-	plaintext = append(plaintext, ptLast...)
-	plaintext = append(plaintext, partialPlaintext...)
+	plaintext = append(plaintext, lastPlain[:remainder]...)
 
 	return plaintext, nil
 }
