@@ -142,6 +142,11 @@ func main() {
 		fmt.Println("listvss option is only relevant when processing shadow volumes, ignoring it")
 	}
 
+	if *exportLocation == "" && *hashFiles != "" {
+		fmt.Println("Hashing files requires export flag to be set")
+		return
+	}
+
 	rp := reporter.Reporter{
 		ShowFileName:    *showFileName,
 		ShowAttributes:  *showAttributes,
