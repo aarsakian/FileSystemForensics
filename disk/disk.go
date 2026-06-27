@@ -523,10 +523,15 @@ func (disk Disk) Worker(wg *sync.WaitGroup, records []metadata.Record, results c
 
 		lSize := int(record.GetLogicalFileSize())
 		sectorBasedSizeB := int(math.Ceil(float64(lSize)/float64(bytesPerSector)) * float64(bytesPerSector))
-		fmt.Println("Sector-based size (bytes):", sectorBasedSizeB, "Logical size (bytes):", lSize)
+
 		buf := make([]byte, sectorBasedSizeB)
+
 		if logger.FSLogger.IsActive() {
-			msg := fmt.Sprintf("extracting data file %s Id %d %d MB\n", record.GetFname(), record.GetID(), lSize/1024/1024)
+			msg := fmt.Sprintf("Sector-based size (bytes): %d, Logical size (bytes): %d\n",
+				sectorBasedSizeB, lSize)
+			logger.FSLogger.Info(msg)
+			msg = fmt.Sprintf("extracting data file %s Id %d %d MB\n", record.GetFname(),
+				record.GetID(), lSize/1024/1024)
 			logger.FSLogger.Info(msg)
 		}
 
