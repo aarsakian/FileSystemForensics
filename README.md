@@ -1,13 +1,15 @@
 FileSystemForensics
 ============
 
-### a tool to inspect, extract, files and file system metadata. It currently supports NTFS,  BTRFS. 
+### a tool to inspect, extract files and file system metadata. It currently supports NTFS, BTRFS, and BitLocker-encrypted volumes.
 
 
 
-By using this tool, you can explore NTFS and its file system attributes. You can selectively extract filesystem information of a record, or for a range of records. In addition, you can export the contents of files. 
+By using this tool, you can explore NTFS and its file system attributes. You can selectively extract filesystem information of a record, or for a range of records. In addition, you can export the contents of files.
 
 Exporting files can be achieved either by mounting the evidence and providing its physical drive order and partition number or by using the acquired forensic image (Expert Witness Format), or a virtual machine disk format (VMDK) as input.
+
+For BitLocker volumes, provide the volume image/device together with `-password` or `-recoverykey` to unlock and process the encrypted volume.
 
 #### Examples #####
 you can explore NTFS or BTRFS by providing physical drive number and partition number 
