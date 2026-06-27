@@ -25,85 +25,98 @@ e.g. *-evidence path_to_evidence -partition 1 -verifysignatures*.
 
 ##### Usage information  type: FileSystemForensics.exe -h #####
 
- 
   -attributes string
         show file system attributes (write any for all attributes)
 
+  -benchmark
+        test HD speed
+
   -clusters string
         clusters to look for
- 
+
   -deleted
         show deleted records
- 
+
   -entries string
-        select file system records by entering its id, use comma as a seperator
- 
+        select file system records by entering its id, use comma as a separator
+
   -evidence string
         path to image file (EWF/VHDX/Raw formats are supported)
 
   -export string
         the path to export files
- 
- 
+
   -extensions string
-        search file system records by extensions use comma as a seperator
- 
+        search file system records by extensions, use comma as a separator
+
   -filenames string
-        files to export use comma as a seperator
- 
+        files to export, use comma as a separator
+
   -filesize
         show file size
- 
+
   -fromentry int
-        select file system record id to start processing (default -1)
- 
+        select file system record id to start processing (default 0)
+
   -hash string
         hash exported files, enter md5 or sha1
- 
+
   -listpartitions
         list partitions
- 
+
   -listunallocated
         list unallocated clusters
 
-   -listvss
-        list vss copied clusters
- 
+  -listvss
+        list VSS copied clusters
+
   -log
         enable logging
 
-   -logfile
+  -logfile
         parse and show $logfile
 
   -mftoffset int
-      physical offset to the  $MFT file 
+        physical offset to the $MFT file
 
   -orphans
         show information only for orphan records
- 
+
   -parent
         show information about parent record
- 
+
   -partition int
         select partition number
- 
+
   -path string
-        base path of files to exported must be absolute e.g. C:\MYFILES\ABC translates to MYFILES\ABC
- 
+        base path of files to export; must be absolute. e.g. C:\MYFILES\ABC translates to MYFILES\ABC
+
   -physicaldrive int
         select disk drive number (default -1)
 
   -physicaloffset int
         offset to volume (sectors) (default -1)
 
-   -profile
+  -profile
         profile memory usage
+
+  -recoverykey string
+        recovery key for Bitlocker volumes
+
+  -recreatepath
+        recreate file path when exporting files
 
   -resident
         check whether entry is resident
 
   -searchfs string
-      look for traces of the file system (NTFS is supported)
+        look for traces of the file system (NTFS is supported)
+
+  -searchoffset int
+        offset in bytes to search for file system structures
+
+  -showclusters
+        show allocated clusters of a record inside shadow volumes
 
   -showfilename string
         show the name of the filename attribute of MFT records: enter (Any, Win32, Dos)
@@ -132,17 +145,17 @@ e.g. *-evidence path_to_evidence -partition 1 -verifysignatures*.
   -showusn
         show information about NTFS usnjrnl records
 
-  -showclusters 
-      show allocated clusters of a record inside shadow volumes
+  -showvssclusters
+        show volume shadow relevant information for selected records
 
   -strategy string
-        what strategy will be used for files sharing the same name, default is ovewrite, or use Id (default "overwrite")
+        what strategy will be used for files sharing the same name, default is overwrite, or use Id (default "overwrite")
 
   -toentry int
         select file system record id to end processing (default 4294967295)
 
   -tree
-        reconstrut file system tree
+        reconstruct file system tree
 
   -unallocated
         collect unallocated area of a volume
@@ -156,15 +169,18 @@ e.g. *-evidence path_to_evidence -partition 1 -verifysignatures*.
   -vmdk string
         path to vmdk file (Sparse formats are supported)
 
-  -verifysignatures
-        verify file system records by file signatures; non-matching records are omitted
-        (see signatures/signatures.csv for the current signature catalog)
+  -verifysignatures string
+        verify file system records by file signatures, allowed values are strict|permissive
+        (strict filters out mismatched extensions) (check signatures/signatures.csv for the list of files)
 
   -volinfo
         show volume information
 
   -volume string
-        select directly the volume requires offset in bytes, (ntfs, lvm2)
+        select directly the volume; requires offset in bytes (ntfs, lvm2)
 
--vss (support experimental)
+  -vss
         process shadow volume copies
+
+  -password string
+        password for Bitlocker volumes
