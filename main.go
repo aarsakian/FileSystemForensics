@@ -55,7 +55,7 @@ func main() {
 	showFileName := flag.String("showfilename", "", "show the name of the filename attribute of MFT records: enter (Any, Win32, Dos)")
 	exportFiles := flag.String("filenames", "", "files to export use comma as a seperator")
 	exportFilesPath := flag.String("path", "", "base path of files to exported must be absolute e.g. C:\\MYFILES\\ABC translates to MYFILES\\ABC")
-	isResident := flag.Bool("resident", false, "check whether entry is resident")
+	isResident := flag.Bool("resident", false, "check whether has resident data attribute")
 	fromMFTEntry := flag.Int("fromentry", 0, "select file system record id to start processing")
 	toMFTEntry := flag.Int("toentry", math.MaxUint32, "select file system record id to end processing")
 
