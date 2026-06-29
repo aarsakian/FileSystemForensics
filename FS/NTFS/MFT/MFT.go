@@ -216,24 +216,17 @@ func ProcessNoNResidentAttributesWorker(records chan *Record, hD readers.DiskRea
 				continue
 			}
 
-			actualLen := int(attrHeader.ATRrecordNoNResident.ActualLength)
-
-			if actualLen > runLength {
-				msg := fmt.Sprintf("attribute  actual length exceeds the runlist length actual %d runlist %d.",
-					actualLen, runLength)
-				logger.FSLogger.Warning(msg)
-
-			} else {
-				attr.Parse(buf[:actualLen])
-				if attrHeader.IsAttrList() {
-					attrList := attr.(*MFTAttributes.AttributeListEntries)
-					record.LinkedRecordsInfo = append(record.LinkedRecordsInfo, attrList.GetLinkedRecordsInfo(record.Entry)...)
-				}
-
+			attr.Parse(buf[:])
+			if attrHeader.IsAttrList() {
+				attrList := attr.(*MFTAttributes.AttributeListEntries)
+				record.LinkedRecordsInfo = append(record.LinkedRecordsInfo, attrList.GetLinkedRecordsInfo(record.Entry)...)
 			}
+
 			if logger.FSLogger.IsActive() {
 				logger.FSLogger.Info(fmt.Sprintf("Processed non resident attribute record %d at pos %d", record.Entry, idx))
 			}
+			//reassign
+			record.Attributes[idx] = attr
 
 		}
 
@@ -500,9 +493,9 @@ func (record Record) GetAllocatedClusters() []int {
 
 func (record Record) ShowParentRecordInfo() {
 	if record.Parent == nil {
-		fmt.Printf("\n Record has no parent ")
+		fmt.Printf("Record has no parent ")
 	} else {
-		fmt.Printf("\n Record has parent ")
+		fmt.Printf("Record has parent ")
 
 		record.Parent.ShowFileName("win32")
 
@@ -512,7 +505,11 @@ func (record Record) ShowParentRecordInfo() {
 
 func (record Record) GetPath(partitionId int) string {
 	fullpath := record.GetFullPath()
-	return fmt.Sprintf("Partition%d%s%c", partitionId+1, fullpath, os.PathSeparator)
+	if len(fullpath) > 1 {
+		return fmt.Sprintf("Partition%d%s%c", partitionId+1, fullpath, os.PathSeparator)
+	} else {
+		return ""
+	}
 }
 
 func (record Record) ShowPath(partitionId int) {
@@ -532,6 +529,11 @@ func (record Record) ShowIndex() {
 	if indexAlloc != nil {
 		indexAlloc.ShowInfo()
 
+	}
+
+	fmt.Printf("Linked records \n")
+	for _, linkedRecord := range record.LinkedRecords {
+		linkedRecord.ShowIndex()
 	}
 
 }
@@ -708,8 +710,6 @@ func (record Record) ShowIsResident() {
 			fmt.Printf("NoN Resident")
 		}
 
-	} else {
-		fmt.Print("NO DATA attr")
 	}
 }
 
