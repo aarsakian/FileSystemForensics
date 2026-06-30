@@ -510,9 +510,11 @@ func (disk Disk) Worker(wg *sync.WaitGroup, records []metadata.Record, results c
 	if err != nil {
 		return
 	}
-	fmt.Printf("Reading records data\n")
-	for _, record := range records {
 
+	for _, record := range records {
+		msg := fmt.Sprintf("Reading %s Id %d ", record.GetFname(), record.GetID())
+		logger.FSLogger.Info(msg)
+		fmt.Printf("%s\n", msg)
 		if record.IsFolder() {
 			msg := fmt.Sprintf("Record %s Id %d is folder! No data to export.", record.GetFname(), record.GetID())
 			logger.FSLogger.Warning(msg)
