@@ -116,7 +116,7 @@ func (record Record) IsBase() bool {
 }
 
 func (record *Record) ProcessNoNResidentAttributes(hD readers.DiskReader,
-	partitionOffsetB int64, clusterSizeB int, dataToRead []byte) int {
+	partitionOffsetB int64, clusterSizeB int) int {
 
 	totalReadBytes := 0
 	logger.FSLogger.Info(fmt.Sprintf("Record %d has %d attributes", record.Entry, len(record.Attributes)))
@@ -138,6 +138,7 @@ func (record *Record) ProcessNoNResidentAttributes(hD readers.DiskReader,
 			logger.FSLogger.Warning(msg)
 			continue
 		}
+		dataToRead := make([]byte, length)
 		err := attrHeader.ATRrecordNoNResident.GetContent(hD, partitionOffsetB, clusterSizeB, dataToRead)
 
 		if err != nil {
@@ -912,7 +913,23 @@ func (record *Record) Process(bs []byte) error {
 		} else { //NoN Resident Attribute
 			var atrNoNRecordResident *MFTAttributes.ATRrecordNoNResident = new(MFTAttributes.ATRrecordNoNResident)
 			utils.Unmarshal(bs[ReadPtr+16:ReadPtr+64], atrNoNRecordResident)
-
+			if atrNoNRecordResident.StartVcn > atrNoNRecordResident.LastVcn {
+				msg = fmt.Sprintf("attribute %s at record %d has startVCN %d greater than lastVCN %d",
+					attrHeader.GetType(), record.Entry, atrNoNRecordResident.StartVcn, atrNoNRecordResident.LastVcn)
+				logger.FSLogger.Warning(msg)
+				break
+			} else if atrNoNRecordResident.RunOff > attrHeader.AttrLen {
+				msg = fmt.Sprintf("attribute %s at record %d has RunOff %d greater than AttrLen %d",
+					attrHeader.GetType(), record.Entry, atrNoNRecordResident.RunOff, attrHeader.AttrLen)
+				logger.FSLogger.Warning(msg)
+				break
+			} else if atrNoNRecordResident.RunOff < attrHeader.NameOff+uint16(2*attrHeader.Nlen) {
+				msg = fmt.Sprintf("attribute %s at record %d has RunOff %d less than NameOff+2*Nlen %d",
+					attrHeader.GetType(), record.Entry, atrNoNRecordResident.RunOff,
+					attrHeader.NameOff+uint16(2*attrHeader.Nlen))
+				logger.FSLogger.Warning(msg)
+				break
+			}
 			if int(ReadPtr+attrHeader.AttrLen) < len(bs) &&
 				atrNoNRecordResident.RunOff < attrHeader.AttrLen {
 				var runlist *MFTAttributes.RunList = new(MFTAttributes.RunList)
