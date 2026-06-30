@@ -542,6 +542,10 @@ func (disk Disk) Worker(wg *sync.WaitGroup, records []metadata.Record, results c
 		} else { // attribute runlist
 			startOffset := 0
 			for _, linkedRecord := range linkedRecords {
+				if startOffset >= lSize {
+					logger.FSLogger.Warning(fmt.Sprintf("Linked records exceed logical size for record %s Id %d. Stopping extraction.", record.GetFname(), record.GetID()))
+					break
+				}
 				startOffset += linkedRecord.LocateData(disk.Handler, partitionOffsetB, sectorsPerCluster*bytesPerSector, buf[startOffset:lSize], physicalToLogicalMap)
 
 			}
