@@ -113,11 +113,8 @@ func (mfttable *MFTTable) ProcessNonResidentRecords(hD readers.DiskReader, parti
 func (mfttable *MFTTable) ProcessNonResidentRecordsSync(hD readers.DiskReader, partitionOffsetB int64, clusterSizeB int) int {
 	totalReadBytes := 0
 
-	//allocate a large enough buffer
-	dataToRead := make([]byte, clusterSizeB)
-
 	for idx := range mfttable.Records {
-		totalReadBytes += mfttable.Records[idx].ProcessNoNResidentAttributes(hD, partitionOffsetB, clusterSizeB, dataToRead[totalReadBytes:])
+		totalReadBytes += mfttable.Records[idx].ProcessNoNResidentAttributes(hD, partitionOffsetB, clusterSizeB)
 	}
 	return totalReadBytes
 }
