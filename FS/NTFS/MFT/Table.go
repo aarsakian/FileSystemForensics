@@ -200,14 +200,10 @@ func (mfttable *MFTTable) CalculateFileSizes() {
 				if !mfttable.Records[idx].IsFolder() {
 					continue
 				}
-
-				if mfttable.Records[idx].HasAttr("Index Root") {
-					mfttable.SetI30Size(idx, "Index Root")
+				mfttable.CheckAndSetI30Size(int(mfttable.Records[idx].Entry))
+				for linkedIdx := range mfttable.Records[idx].LinkedRecords {
+					mfttable.CheckAndSetI30Size(int(mfttable.Records[idx].LinkedRecords[linkedIdx].Entry))
 				}
-				if mfttable.Records[idx].HasAttr("Index Allocation") {
-					mfttable.SetI30Size(idx, "Index Allocation")
-				}
-
 			}
 
 		}(&wg, recordIds)
@@ -218,6 +214,17 @@ func (mfttable *MFTTable) CalculateFileSizes() {
 
 	close(recordIds)
 	wg.Wait()
+
+}
+
+func (mfttable *MFTTable) CheckAndSetI30Size(idx int) {
+
+	if mfttable.Records[idx].HasAttr("Index Root") {
+		mfttable.SetI30Size(idx, "Index Root")
+	}
+	if mfttable.Records[idx].HasAttr("Index Allocation") {
+		mfttable.SetI30Size(idx, "Index Allocation")
+	}
 
 }
 
