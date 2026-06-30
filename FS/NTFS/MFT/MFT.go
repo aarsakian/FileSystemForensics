@@ -445,7 +445,7 @@ func (record Record) ShowAllocatedClusters() {
 
 		if runlist.Offset != 0 && runlist.Length > 0 {
 
-			fmt.Printf("offset %d cl.  offset %d cl\n", runlist.Length, offset)
+			fmt.Printf("Len %d cl.  offset %d cl\n", runlist.Length, offset)
 
 		} else if runlist.Offset == 0 && runlist.Length > 0 {
 
