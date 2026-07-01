@@ -80,6 +80,25 @@ func (disk Disk) ListVSS(partitionNum int) error {
 	return nil
 }
 
+func (disk Disk) ShowBitLocker(partitionNum int) error {
+	for idx := range disk.Partitions {
+		if partitionNum != -1 && idx != partitionNum {
+			continue
+		}
+
+		vol := disk.Partitions[idx].GetVolume()
+		if vol == nil {
+			continue
+		}
+		dec, ok := vol.(*volume.Bitlocker)
+		if ok {
+			dec.BL.ShowInfo()
+
+		}
+	}
+	return nil
+}
+
 func (disk *Disk) SearchFileSystem(fstype string) []MFT.CarvedRecord {
 
 	if fstype == "NTFS" {

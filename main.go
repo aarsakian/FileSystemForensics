@@ -79,6 +79,7 @@ func main() {
 	showUsnjrnl := flag.Bool("showusn", false, "show information about NTFS usnjrnl records")
 	showFull := flag.Bool("showfull", false, "show full information about record")
 	showreparse := flag.Bool("showreparse", false, "show information about reparse points")
+	showbitlocker := flag.Bool("showbitlocker", false, "show information about bitlocker volume")
 
 	clusters := flag.String("clusters", "", "clusters to look for")
 	listvss := flag.Bool("listvss", false, "list vss copied clusters")
@@ -283,6 +284,9 @@ func main() {
 			dsk.ListVSS(*partitionNum - 1)
 		}
 
+		if *showbitlocker {
+			dsk.ShowBitLocker(*partitionNum - 1)
+		}
 		for partitionId, records := range recordsPerPartition {
 			if *verifySignatures != "" {
 				flm.Register(filters.SignatureFilter{Sgm: sgm, Disk: *dsk,
