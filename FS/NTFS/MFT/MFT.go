@@ -172,9 +172,9 @@ func ProcessNoNResidentAttributesWorker(records chan *Record, hD readers.DiskRea
 	scratch := make([]byte, 1024*1024) //experience
 
 	defer wg.Done()
-
+	logActive := logger.FSLogger.IsActive()
 	for record := range records {
-		if logger.FSLogger.IsActive() {
+		if logActive {
 			logger.FSLogger.Info(fmt.Sprintf("Record %d has %d attributes", record.Entry, len(record.Attributes)))
 		}
 
@@ -201,6 +201,8 @@ func ProcessNoNResidentAttributesWorker(records chan *Record, hD readers.DiskRea
 
 			if cap(scratch) < runLength {
 				scratch = make([]byte, runLength)
+			} else {
+				scratch = scratch[:runLength]
 			}
 			if runLength <= 0 {
 				logger.FSLogger.Warning("non resident attribute has non positive runlist length")
@@ -210,7 +212,7 @@ func ProcessNoNResidentAttributesWorker(records chan *Record, hD readers.DiskRea
 				continue
 			}
 
-			buf := scratch[:runLength]
+			buf := scratch
 
 			err := attrHeader.ATRrecordNoNResident.GetContent(hD, partitionOffsetB, clusterSizeB, buf)
 			if err != nil {
@@ -223,7 +225,7 @@ func ProcessNoNResidentAttributesWorker(records chan *Record, hD readers.DiskRea
 				record.LinkedRecordsInfo = append(record.LinkedRecordsInfo, attrList.GetLinkedRecordsInfo(record.Entry)...)
 			}
 
-			if logger.FSLogger.IsActive() {
+			if logActive {
 				logger.FSLogger.Info(fmt.Sprintf("Processed non resident attribute record %d at pos %d", record.Entry, idx))
 			}
 			//reassign
