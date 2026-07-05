@@ -99,8 +99,8 @@ func (btrfs BTRFS) GetLogicalToPhysicalMap() map[uint64]metadata.Chunk {
 	return mapper
 }
 
-func (btrfs BTRFS) GetUnallocatedClusters(reader readers.DiskReader, partitionOffset uint64, blockSizeB int) []int {
-	return []int{}
+func (btrfs BTRFS) GetClustersStatus(reader readers.DiskReader, partitionOffset uint64, blockSizeB int) map[bool]int {
+	return make(map[bool]int)
 }
 
 func (btrfs BTRFS) GetSignature() string {

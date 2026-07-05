@@ -92,11 +92,12 @@ func (b *Bitlocker) GetFSOffset() int64 {
 	return 0
 }
 
-func (b *Bitlocker) GetUnallocatedClusters(reader readers.DiskReader, partitionOffsetB uint64, clusterSizeB int) []int {
+func (b *Bitlocker) GetClustersStatus(reader readers.DiskReader, partitionOffsetB uint64,
+	clusterSizeB int) map[bool]int {
 	if b.Inner != nil {
-		return b.Inner.GetUnallocatedClusters(reader, partitionOffsetB, clusterSizeB)
+		return b.Inner.GetClustersStatus(reader, partitionOffsetB, clusterSizeB)
 	}
-	return []int{}
+	return make(map[bool]int)
 }
 
 func (b *Bitlocker) GetSignature() string {
