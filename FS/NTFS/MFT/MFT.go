@@ -115,7 +115,7 @@ func (record Record) IsBase() bool {
 	return record.BaseRef == 0
 }
 
-func (record Record) ShowDeletionInfo(unallocatedClusters map[int]bool) {
+func (record Record) ShowDeletionInfo(clustersBitMap map[int]bool) {
 	for _, attr := range record.Attributes {
 		if !attr.IsNoNResident() {
 			continue
@@ -127,8 +127,12 @@ func (record Record) ShowDeletionInfo(unallocatedClusters map[int]bool) {
 
 		runlist := dataAttr.GetHeader().ATRrecordNoNResident.RunList
 
-		for runlist != nil {
+		offset := runlist.Offset
 
+		for runlist != nil {
+			if clustersBitMap[int(offset)] {
+				fmt.Printf("Cluster %d is already allocated\n", int(offset))
+			}
 		}
 	}
 
