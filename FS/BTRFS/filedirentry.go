@@ -122,6 +122,10 @@ func (fileDirEntry FileDirEntry) GetLogicalFileSize() int64 {
 	return int64(attr.StSize)
 }
 
+func (fileDirEntry FileDirEntry) ShowDeletionInfo(unallocatedClusters map[bool]int) {
+
+}
+
 func (fileDirEntry FileDirEntry) GetFname() string {
 	attrs := fileDirEntry.FindAttributes("INODE_REF")
 	if len(attrs) == 0 {
