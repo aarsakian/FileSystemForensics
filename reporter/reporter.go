@@ -26,10 +26,11 @@ type Reporter struct {
 	ShowTree        bool
 	ShowVSSClusters bool
 	ShowClusters    bool
+	ShowDeletion    bool
 }
 
 func (rp Reporter) Show(records []metadata.Record, usnjrnlRecords UsnJrnl.Records, partitionId int,
-	tree tree.Tree, shadowVol *VssLib.ShadowVolume) {
+	tree tree.Tree, shadowVol *VssLib.ShadowVolume, unallocatedClusters map[bool]int) {
 	for _, record := range records {
 
 		if record.GetID() == 0 {
@@ -95,6 +96,10 @@ func (rp Reporter) Show(records []metadata.Record, usnjrnlRecords UsnJrnl.Record
 					fmt.Printf("%d cl shadow offset cl %d\n", clusters[idx], offset)
 				}
 			}
+		}
+
+		if rp.ShowDeletion || rp.ShowFull {
+			record.ShowDeletionInfo(unallocatedClusters)
 		}
 
 	}
