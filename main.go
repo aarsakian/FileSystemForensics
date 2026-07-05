@@ -89,7 +89,7 @@ func main() {
 		"show volume shadow relevant information for selected records")
 
 	orphans := flag.Bool("orphans", false, "show information only for orphan records")
-	deleted := flag.Bool("deleted", false, "show deleted records")
+	deleted := flag.Bool("deleted", false, "show only deleted records")
 	vss := flag.Bool("vss", false, "process shadow volume copies")
 	listPartitions := flag.Bool("listpartitions", false, "list partitions")
 	listUnallocated := flag.Bool("listunallocated", false, "list unallocated clusters")
