@@ -302,9 +302,10 @@ func (ntfs NTFS) GetInfo() string {
 		ntfs.VBR.SectorsPerCluster)
 }
 
-func (ntfs NTFS) GetUnallocatedClusters(reader readers.DiskReader, partitionOffsetB uint64, clusterSizeB int) []int {
+func (ntfs NTFS) GetClustersStatus(reader readers.DiskReader, partitionOffsetB uint64,
+	clusterSizeB int) map[bool]int {
 	bitmapRecord := ntfs.MFT.Records[6]
-	return bitmapRecord.GetUnallocatedClusters(reader, partitionOffsetB, clusterSizeB)
+	return bitmapRecord.GetClustersStatus(reader, partitionOffsetB, clusterSizeB)
 }
 
 func (ntfs *NTFS) ProcessMFT(data []byte, MFTSelectedEntries []int,
