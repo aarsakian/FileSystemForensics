@@ -115,7 +115,22 @@ func (record Record) IsBase() bool {
 	return record.BaseRef == 0
 }
 
-func (record Record) ShowDeletionInfo(unallocatedClusters map[bool]int) {
+func (record Record) ShowDeletionInfo(unallocatedClusters map[int]bool) {
+	for _, attr := range record.Attributes {
+		if !attr.IsNoNResident() {
+			continue
+		}
+		if attr.FindType() != "DATA" {
+			continue
+		}
+		dataAttr := attr.(*MFTAttributes.DATA)
+
+		runlist := dataAttr.GetHeader().ATRrecordNoNResident.RunList
+
+		for runlist != nil {
+
+		}
+	}
 
 }
 
@@ -242,8 +257,8 @@ func ProcessNoNResidentAttributesWorker(records chan *Record, hD readers.DiskRea
 }
 
 func (record Record) GetClustersStatus(reader readers.DiskReader, partitionOffsetB uint64,
-	clusterSizeB int) map[bool]int {
-	clustersBitmap := make(map[bool]int)
+	clusterSizeB int) map[int]bool {
+	clustersBitmap := make(map[int]bool)
 	var bitmap []byte
 	pos := 0
 
@@ -271,11 +286,7 @@ func (record Record) GetClustersStatus(reader readers.DiskReader, partitionOffse
 			for bitmask < 128 {
 
 				bitmask = 1 << shifter
-				if byteval&bitmask == 0x00 {
-					clustersBitmap[false] = pos
-				} else {
-					clustersBitmap[true] = pos
-				}
+				clustersBitmap[pos] = byteval&bitmask != 0x00
 				pos++
 				shifter++
 			}
