@@ -606,7 +606,7 @@ func (disk Disk) ListPartitions() {
 
 }
 
-func (disk Disk) GetUnallocatedClusters(partitionId int) []int {
+func (disk Disk) GetClustersStatus(partitionId int) map[bool]int {
 	for idx, partition := range disk.Partitions {
 		if partitionId != -1 && idx != partitionId {
 			continue
@@ -615,21 +615,22 @@ func (disk Disk) GetUnallocatedClusters(partitionId int) []int {
 		if vol == nil {
 			continue
 		}
-		return vol.GetUnallocatedClusters(disk.Handler, partition.GetOffset()*vol.GetBytesPerSector(), vol.GetSectorsPerCluster()*int(vol.GetBytesPerSector()))
+		return vol.GetClustersStatus(disk.Handler, partition.GetOffset()*vol.GetBytesPerSector(), vol.GetSectorsPerCluster()*int(vol.GetBytesPerSector()))
 
 	}
-	return []int{}
+	return map[bool]int{}
 }
 
 func (disk Disk) ListUnallocated(partitionId int) {
 
-	for _, unallocatedCluster := range disk.GetUnallocatedClusters(partitionId) {
+	for _, unallocatedCluster := range disk.GetClustersStatus(partitionId) {
 		fmt.Printf("%d \t", unallocatedCluster)
 	}
 
 }
 
-func (disk Disk) CollectedUnallocated(blocks chan<- []byte) {
+func (disk Disk) CollectUnallocated(blocks chan<- []byte) {
+	var unallocatedClusters []int
 	for _, partition := range disk.Partitions {
 
 		vol := partition.GetVolume()
@@ -640,7 +641,14 @@ func (disk Disk) CollectedUnallocated(blocks chan<- []byte) {
 		bytesPerSector := int(vol.GetBytesPerSector())
 		partitionOffsetB := int64(partition.GetOffset()) * int64(bytesPerSector)
 
-		unallocatedClusters := vol.GetUnallocatedClusters(disk.Handler, uint64(partitionOffsetB), bytesPerSector)
+		clustersMap := vol.GetClustersStatus(disk.Handler, uint64(partitionOffsetB), bytesPerSector)
+
+		for isUnallocated, pos := range clustersMap {
+			if isUnallocated {
+				unallocatedClusters = append(unallocatedClusters, pos)
+			}
+		}
+
 		blockSize := 1 // nof consecutive clusters
 		prevClusterOffset := unallocatedClusters[0]
 
