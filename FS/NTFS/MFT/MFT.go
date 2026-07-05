@@ -129,7 +129,7 @@ func (record Record) ShowDeletionInfo(clustersBitMap map[int]bool) {
 
 		offset := runlist.Offset
 
-		for runlist != nil {
+		for runlist.Next != nil {
 			if clustersBitMap[int(offset)] {
 				fmt.Printf("Cluster %d is already allocated\n", int(offset))
 			}
