@@ -46,8 +46,7 @@ func main() {
 	//	save2DB := flag.Bool("db", false, "bool if set an sqlite file will be created, each table will corresponed to an MFT attribute")
 
 	mftOffset := flag.Int("mftoffset", 0, "physical offset to the  $MFT file")
-	evidencefile := flag.String("evidence", "", "path to image file (EWF/VHDX/Raw formats are supported)")
-	vmdkfile := flag.String("vmdk", "", "path to vmdk file (Sparse formats are supported)")
+	evidencefile := flag.String("evidence", "", "path to image file (EWF/VHDX/VMDK/Raw formats are supported)")
 
 	exportLocation := flag.String("export", "", "the path to export files")
 	recreatePath := flag.Bool("recreatepath", false, "recreate file path")
@@ -215,9 +214,9 @@ func main() {
 
 	}
 
-	if (*evidencefile != "" || *physicalDrive != -1 || *vmdkfile != "") && *logical == "" {
+	if (*evidencefile != "" || *physicalDrive != -1) && *logical == "" {
 		dsk := new(disk.Disk)
-		dsk.Initialize(*evidencefile, *physicalDrive, *vmdkfile)
+		dsk.Initialize(*evidencefile, *physicalDrive)
 		defer dsk.Close()
 
 		if *benchmark {
@@ -324,10 +323,10 @@ func main() {
 
 		}
 
-	} else if (*evidencefile != "" || *physicalDrive != -1 || *vmdkfile != "") && *logical == "lvm2" {
+	} else if (*evidencefile != "" || *physicalDrive != -1) && *logical == "lvm2" {
 
 		dsk2 := new(disk.Disk)
-		dsk2.Initialize(*evidencefile, *physicalDrive, *vmdkfile)
+		dsk2.Initialize(*evidencefile, *physicalDrive)
 
 		defer dsk2.Close()
 

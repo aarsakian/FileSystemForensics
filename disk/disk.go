@@ -40,7 +40,7 @@ type Disk struct {
 	Partitions []Partition
 }
 
-func (disk *Disk) Initialize(evidencefile string, physicaldrive int, vmdkfile string) {
+func (disk *Disk) Initialize(evidencefile string, physicaldrive int) {
 	var reader readers.DiskReader
 	if evidencefile != "" {
 		extension := path.Ext(evidencefile)
@@ -48,6 +48,8 @@ func (disk *Disk) Initialize(evidencefile string, physicaldrive int, vmdkfile st
 			reader = readers.GetHandler(evidencefile, "ewf")
 		} else if strings.ToLower(extension) == ".vhdx" || strings.ToLower(extension) == ".avhdx" {
 			reader = readers.GetHandler(evidencefile, "vhdx")
+		} else if strings.ToLower(extension) == ".vmdk" {
+			reader = readers.GetHandler(evidencefile, "vmdk")
 		} else {
 			reader = readers.GetHandler(evidencefile, "raw")
 		}
@@ -56,11 +58,8 @@ func (disk *Disk) Initialize(evidencefile string, physicaldrive int, vmdkfile st
 
 		reader = readers.GetHandler(fmt.Sprintf("\\\\.\\PHYSICALDRIVE%d", physicaldrive), "physicalDrive")
 
-	} else {
-
-		reader = readers.GetHandler(vmdkfile, "vmdk")
-
 	}
+
 	disk.Handler = reader
 }
 
