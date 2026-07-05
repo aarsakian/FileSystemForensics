@@ -12,7 +12,7 @@ type Volume interface {
 	GetInfo() string
 	GetFS() []metadata.Record
 	GetFSOffset() int64
-	GetUnallocatedClusters(readers.DiskReader, uint64, int) []int
+	GetClustersStatus(readers.DiskReader, uint64, int) map[bool]int
 	GetSignature() string
 	GetLogicalToPhysicalMap() map[uint64]metadata.Chunk
 }
