@@ -237,24 +237,45 @@ func ProcessNoNResidentAttributesWorker(records chan *Record, hD readers.DiskRea
 
 }
 
-func (record Record) GetUnallocatedClusters() []int {
+func (record Record) GetUnallocatedClusters(reader readers.DiskReader, partitionOffsetB uint64, clusterSizeB int) []int {
 	var unallocatedClusters []int
+	var bitmap []byte
 	pos := 0
-	bitmap := record.FindAttribute("DATA").(*MFTAttributes.DATA).Content
-	for _, byteval := range bitmap {
-		bitmask := uint8(0x01)
-		shifter := 0
-		for bitmask < 128 {
 
-			bitmask = 1 << shifter
-			if byteval&bitmask == 0x00 {
-				unallocatedClusters = append(unallocatedClusters, pos)
-			}
-			pos++
-			shifter++
+	for _, attr := range record.Attributes {
+		if attr.FindType() != "DATA" {
+			continue
 		}
+		if attr.IsNoNResident() {
+			header := attr.GetHeader()
+			length := int(header.ATRrecordNoNResident.RunListTotalLenCl) * clusterSizeB
+			if length == 0 { // no runlists found
+				msg := "non resident attribute has zero length runlist"
+				logger.FSLogger.Warning(msg)
+				continue
+			}
+			bitmap = make([]byte, length)
 
+			header.ATRrecordNoNResident.GetContent(reader, int64(partitionOffsetB), clusterSizeB, bitmap)
+		} else {
+			bitmap = attr.(*MFTAttributes.DATA).Content
+		}
+		for _, byteval := range bitmap {
+			bitmask := uint8(0x01)
+			shifter := 0
+			for bitmask < 128 {
+
+				bitmask = 1 << shifter
+				if byteval&bitmask == 0x00 {
+					unallocatedClusters = append(unallocatedClusters, pos)
+				}
+				pos++
+				shifter++
+			}
+
+		}
 	}
+
 	return unallocatedClusters
 }
 
