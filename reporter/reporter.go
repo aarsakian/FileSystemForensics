@@ -30,7 +30,7 @@ type Reporter struct {
 }
 
 func (rp Reporter) Show(records []metadata.Record, usnjrnlRecords UsnJrnl.Records, partitionId int,
-	tree tree.Tree, shadowVol *VssLib.ShadowVolume, unallocatedClusters map[bool]int) {
+	tree tree.Tree, shadowVol *VssLib.ShadowVolume, unallocatedClusters map[int]bool) {
 	for _, record := range records {
 
 		if record.GetID() == 0 {
