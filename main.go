@@ -120,6 +120,7 @@ func main() {
 
 	var err error
 	var recordsPerPartition map[int][]metadata.Record
+	var clustersBitMap map[bool]int
 
 	entries := utils.GetEntriesInt(*selectedEntries)
 
@@ -165,6 +166,7 @@ func main() {
 		ShowTree:        *showtree,
 		ShowVSSClusters: *showVSSClusters,
 		ShowClusters:    *showClusters,
+		ShowDeletion:    *deleted,
 	}
 
 	if *logactive {
@@ -288,16 +290,19 @@ func main() {
 			dsk.ShowBitLocker(*partitionNum - 1)
 		}
 
-		if *deleted {
-			dsk.GetUnallocatedClusters(*partitionNum - 1)
-		}
-
 		for partitionId, records := range recordsPerPartition {
 			if *verifySignatures != "" {
 				flm.Register(filters.SignatureFilter{Sgm: sgm, Disk: *dsk,
 					PartitionId: partitionId, Level: *verifySignatures})
 			}
 			records = flm.ApplyFilters(records)
+
+			if *deleted {
+				clustersBitMap = dsk.GetClustersStatus(*partitionNum - 1)
+				//gives information about deleted files and folders,
+				// and their corresponding clusters
+
+			}
 
 			if *usnjrnl {
 				dsk.ProcessJrnl(recordsPerPartition, partitionId)
@@ -315,7 +320,7 @@ func main() {
 
 			}
 
-			rp.Show(records, usnjrnlRecords, partitionId, recordsTree, shadowVol)
+			rp.Show(records, usnjrnlRecords, partitionId, recordsTree, shadowVol, clustersBitMap)
 
 		}
 
