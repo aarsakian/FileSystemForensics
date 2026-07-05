@@ -606,7 +606,7 @@ func (disk Disk) ListPartitions() {
 
 }
 
-func (disk Disk) GetClustersStatus(partitionId int) map[bool]int {
+func (disk Disk) GetClustersStatus(partitionId int) map[int]bool {
 	for idx, partition := range disk.Partitions {
 		if partitionId != -1 && idx != partitionId {
 			continue
@@ -618,7 +618,7 @@ func (disk Disk) GetClustersStatus(partitionId int) map[bool]int {
 		return vol.GetClustersStatus(disk.Handler, partition.GetOffset()*vol.GetBytesPerSector(), vol.GetSectorsPerCluster()*int(vol.GetBytesPerSector()))
 
 	}
-	return map[bool]int{}
+	return map[int]bool{}
 }
 
 func (disk Disk) ListUnallocated(partitionId int) {
@@ -643,9 +643,9 @@ func (disk Disk) CollectUnallocated(blocks chan<- []byte) {
 
 		clustersMap := vol.GetClustersStatus(disk.Handler, uint64(partitionOffsetB), bytesPerSector)
 
-		for isUnallocated, pos := range clustersMap {
-			if isUnallocated {
-				unallocatedClusters = append(unallocatedClusters, pos)
+		for cluster, allocated := range clustersMap {
+			if !allocated {
+				unallocatedClusters = append(unallocatedClusters, cluster)
 			}
 		}
 
