@@ -263,7 +263,7 @@ func main() {
 		}
 
 		if *listUnallocated {
-			dsk.ListUnallocated()
+			dsk.ListUnallocated(*partitionNum - 1)
 		}
 
 		if *collectUnallocated {
@@ -287,6 +287,11 @@ func main() {
 		if *showbitlocker {
 			dsk.ShowBitLocker(*partitionNum - 1)
 		}
+
+		if *deleted {
+			dsk.GetUnallocatedClusters(*partitionNum - 1)
+		}
+
 		for partitionId, records := range recordsPerPartition {
 			if *verifySignatures != "" {
 				flm.Register(filters.SignatureFilter{Sgm: sgm, Disk: *dsk,
