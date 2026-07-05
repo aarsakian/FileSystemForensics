@@ -40,7 +40,7 @@ type Record interface {
 	ShowVCNs()
 	ShowIndex()
 	ShowInfo()
-	ShowDeletionInfo(map[bool]int)
+	ShowDeletionInfo(map[int]bool)
 	ShowParentRecordInfo()
 	ShowPath(int)
 	GetPath(int) string
