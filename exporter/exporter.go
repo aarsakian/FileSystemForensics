@@ -41,7 +41,7 @@ func (exp Exporter) ExportData(wg *sync.WaitGroup, results <-chan utils.AskedFil
 func (exp Exporter) ExportUnallocated(physicalDisk disk.Disk) {
 
 	blocks := make(chan []byte) // write for consecutive blocks
-	go physicalDisk.CollectedUnallocated(blocks)
+	go physicalDisk.CollectUnallocated(blocks)
 	fullpath := filepath.Join(exp.Location, "Unallocated")
 	for block := range blocks {
 		utils.WriteFile(fullpath, block)
