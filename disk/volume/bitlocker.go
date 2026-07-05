@@ -93,11 +93,11 @@ func (b *Bitlocker) GetFSOffset() int64 {
 }
 
 func (b *Bitlocker) GetClustersStatus(reader readers.DiskReader, partitionOffsetB uint64,
-	clusterSizeB int) map[bool]int {
+	clusterSizeB int) map[int]bool {
 	if b.Inner != nil {
 		return b.Inner.GetClustersStatus(reader, partitionOffsetB, clusterSizeB)
 	}
-	return make(map[bool]int)
+	return make(map[int]bool)
 }
 
 func (b *Bitlocker) GetSignature() string {

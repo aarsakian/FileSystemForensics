@@ -303,7 +303,7 @@ func (ntfs NTFS) GetInfo() string {
 }
 
 func (ntfs NTFS) GetClustersStatus(reader readers.DiskReader, partitionOffsetB uint64,
-	clusterSizeB int) map[bool]int {
+	clusterSizeB int) map[int]bool {
 	bitmapRecord := ntfs.MFT.Records[6]
 	return bitmapRecord.GetClustersStatus(reader, partitionOffsetB, clusterSizeB)
 }
