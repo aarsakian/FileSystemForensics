@@ -25,7 +25,13 @@ To filter exported records to those whose file headers match known signatures, a
 
 e.g. *-evidence path_to_evidence -partition 1 -verifysignatures*.
 
-##### Usage information  type: FileSystemForensics.exe -h #####
+##### Usage information #####
+
+The current CLI flags can be reviewed with:
+
+  go run . --help
+
+Common options include:
 
   -attributes string
         show file system attributes (write any for all attributes)
@@ -40,7 +46,7 @@ e.g. *-evidence path_to_evidence -partition 1 -verifysignatures*.
         show deleted records
 
   -entries string
-        select file system records by entering its id, use comma as a separator
+        select file system records by entering their ID; use a comma as a separator
 
   -evidence string
         path to image file (EWF/VHDX/Raw formats are supported)
@@ -49,19 +55,19 @@ e.g. *-evidence path_to_evidence -partition 1 -verifysignatures*.
         the path to export files
 
   -extensions string
-        search file system records by extensions, use comma as a separator
+        search file system records by extension; use a comma as a separator
 
   -filenames string
-        files to export, use comma as a separator
+        files to export; use a comma as a separator
 
   -filesize
         show file size
 
   -fromentry int
-        select file system record id to start processing (default 0)
+        select file system record ID to start processing (default 0)
 
   -hash string
-        hash exported files, enter md5 or sha1
+        hash exported files; enter md5 or sha1
 
   -listpartitions
         list partitions
@@ -90,8 +96,11 @@ e.g. *-evidence path_to_evidence -partition 1 -verifysignatures*.
   -partition int
         select partition number
 
+  -password string
+        password for BitLocker volumes
+
   -path string
-        base path of files to export; must be absolute. e.g. C:\MYFILES\ABC translates to MYFILES\ABC
+        base path of files to export; must be absolute, e.g. C:\MYFILES\ABC translates to MYFILES\ABC
 
   -physicaldrive int
         select disk drive number (default -1)
@@ -103,7 +112,7 @@ e.g. *-evidence path_to_evidence -partition 1 -verifysignatures*.
         profile memory usage
 
   -recoverykey string
-        recovery key for Bitlocker volumes
+        recovery key for BitLocker volumes
 
   -recreatepath
         recreate file path when exporting files
@@ -117,11 +126,14 @@ e.g. *-evidence path_to_evidence -partition 1 -verifysignatures*.
   -searchoffset int
         offset in bytes to search for file system structures
 
+  -showbitlocker
+        show information about BitLocker volume
+
   -showclusters
         show allocated clusters of a record inside shadow volumes
 
   -showfilename string
-        show the name of the filename attribute of MFT records: enter (Any, Win32, Dos)
+        show the name of the filename attribute of MFT records: enter Any, Win32, or Dos
 
   -showfull
         show full information about record
@@ -151,10 +163,10 @@ e.g. *-evidence path_to_evidence -partition 1 -verifysignatures*.
         show volume shadow relevant information for selected records
 
   -strategy string
-        what strategy will be used for files sharing the same name, default is overwrite, or use Id (default "overwrite")
+        what strategy will be used for files sharing the same name; default is overwrite, or use Id (default "overwrite")
 
   -toentry int
-        select file system record id to end processing (default 4294967295)
+        select file system record ID to end processing (default 4294967295)
 
   -tree
         reconstruct file system tree
@@ -166,14 +178,14 @@ e.g. *-evidence path_to_evidence -partition 1 -verifysignatures*.
         show usnjrnl information about changes to files and folders
 
   -vcns
-        show the vcns of non resident file system attributes
+        show the vcns of non-resident file system attributes
 
   -vmdk string
-        path to vmdk file (Sparse formats are supported)
+        path to VMDK file (Sparse formats are supported)
 
   -verifysignatures string
-        verify file system records by file signatures, allowed values are strict|permissive
-        (strict filters out mismatched extensions) (check signatures/signatures.csv for the list of files)
+        verify file system records by file signatures; allowed values are strict|permissive
+        (strict filters out mismatched extensions; check signatures/signatures.csv for the list of files)
 
   -volinfo
         show volume information
@@ -183,6 +195,3 @@ e.g. *-evidence path_to_evidence -partition 1 -verifysignatures*.
 
   -vss
         process shadow volume copies
-
-  -password string
-        password for Bitlocker volumes
