@@ -122,7 +122,7 @@ func (fileDirEntry FileDirEntry) GetLogicalFileSize() int64 {
 	return int64(attr.StSize)
 }
 
-func (fileDirEntry FileDirEntry) ShowDeletionInfo(unallocatedClusters map[bool]int) {
+func (fileDirEntry FileDirEntry) ShowDeletionInfo(unallocatedClusters map[int]bool) {
 
 }
 
