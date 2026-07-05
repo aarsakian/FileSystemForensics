@@ -177,7 +177,7 @@ func (lvm2 LVM2) GetSignature() string {
 	return string(lvm2.Header.PhysicalVolLabelHeader.Signature[:])
 }
 
-func (lvm2 LVM2) GetUnallocatedClusters() []int {
+func (lvm2 LVM2) GetUnallocatedClusters(reader readers.DiskReader, partitionOffset uint64, blockSizeB int) []int {
 	return []int{}
 }
 

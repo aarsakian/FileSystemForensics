@@ -99,7 +99,7 @@ func (btrfs BTRFS) GetLogicalToPhysicalMap() map[uint64]metadata.Chunk {
 	return mapper
 }
 
-func (btrfs BTRFS) GetUnallocatedClusters() []int {
+func (btrfs BTRFS) GetUnallocatedClusters(reader readers.DiskReader, partitionOffset uint64, blockSizeB int) []int {
 	return []int{}
 }
 

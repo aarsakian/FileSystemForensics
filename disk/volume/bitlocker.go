@@ -92,9 +92,9 @@ func (b *Bitlocker) GetFSOffset() int64 {
 	return 0
 }
 
-func (b *Bitlocker) GetUnallocatedClusters() []int {
+func (b *Bitlocker) GetUnallocatedClusters(reader readers.DiskReader, partitionOffsetB uint64, clusterSizeB int) []int {
 	if b.Inner != nil {
-		return b.Inner.GetUnallocatedClusters()
+		return b.Inner.GetUnallocatedClusters(reader, partitionOffsetB, clusterSizeB)
 	}
 	return []int{}
 }
