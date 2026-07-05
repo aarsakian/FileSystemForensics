@@ -120,7 +120,7 @@ func main() {
 
 	var err error
 	var recordsPerPartition map[int][]metadata.Record
-	var clustersBitMap map[bool]int
+	var clustersBitMap map[int]bool
 
 	entries := utils.GetEntriesInt(*selectedEntries)
 
