@@ -91,13 +91,16 @@ func (mfttable *MFTTable) MFTWorker(data []byte, pos int, wg *sync.WaitGroup) {
 }
 
 func (mfttable *MFTTable) ProcessNonResidentRecords(hD readers.DiskReader, partitionOffsetB int64, clusterSizeB int) {
+	var records chan *Record
 
-	numWorker := 2 * runtime.NumCPU()
-
-	records := make(chan *Record, len(mfttable.Records))
+	if len(mfttable.Records) < 5000 {
+		records = make(chan *Record, 5000)
+	} else {
+		records = make(chan *Record, len(mfttable.Records))
+	}
 
 	var wg sync.WaitGroup
-	for w := 1; w <= numWorker; w++ {
+	for w := 1; w <= 2*runtime.NumCPU(); w++ {
 		wg.Add(1)
 		go ProcessNoNResidentAttributesWorker(records, hD, partitionOffsetB, clusterSizeB, &wg)
 	}
