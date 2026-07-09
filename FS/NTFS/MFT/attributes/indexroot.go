@@ -136,7 +136,7 @@ func Parse(data []byte) IndexEntries {
 func (idxEntry *IndexEntry) Parse(data []byte) {
 	utils.Unmarshal(data, idxEntry)
 
-	if idxEntry.ContentLen > 0 {
+	if idxEntry.ContentLen > 0 && 16+uint32(idxEntry.ContentLen) <= uint32(len(data)) {
 		var fnattrIDXEntry FNAttribute
 		utils.Unmarshal(data[16:16+uint32(idxEntry.ContentLen)],
 			&fnattrIDXEntry)
