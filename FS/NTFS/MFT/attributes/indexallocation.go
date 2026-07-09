@@ -81,20 +81,36 @@ func (idxAllocationRecs IndexAllocationRecords) ShowInfo() {
 }
 
 func (idxAllocation *IndexAllocationRecords) Parse(data []byte) {
-	//index record size 4096bytes
-	idxAllocation.Records = make([]IndexAllocation, len(data)/4096)
-	for i := 0; i < len(data); i = i + 4096 {
-		idxAllocation.Records[i/4096].Parse(data[i : i+4096])
+	const recordSize = 4096
+	if len(data) < recordSize {
+		idxAllocation.Records = nil
+		return
 	}
+
+	idxAllocationRecords := make([]IndexAllocation, 0, len(data)/recordSize)
+	for offset := 0; offset+recordSize <= len(data); offset += recordSize {
+		chunk := data[offset : offset+recordSize]
+		if chunk[0] != 'I' || chunk[1] != 'N' || chunk[2] != 'D' || chunk[3] != 'X' {
+			break
+		}
+
+		idxAllocationRecord := IndexAllocation{}
+		err := idxAllocationRecord.Parse(chunk)
+		if err != nil {
+			break
+		}
+		idxAllocationRecords = append(idxAllocationRecords, idxAllocationRecord)
+	}
+	idxAllocation.Records = idxAllocationRecords
 }
 
-func (idxAllocation *IndexAllocation) Parse(data []byte) {
+func (idxAllocation *IndexAllocation) Parse(data []byte) error {
 	utils.Unmarshal(data[:24], idxAllocation)
 
 	if idxAllocation.GetSignature() == "INDX" {
 		err := idxAllocation.ProcessFixUpArrays(data)
 		if err != nil {
-			return
+			return err
 		}
 		var nodeheader *NodeHeader = new(NodeHeader)
 		utils.Unmarshal(data[24:24+16], nodeheader)
@@ -116,15 +132,17 @@ func (idxAllocation *IndexAllocation) Parse(data []byte) {
 				msg := fmt.Sprintf("data buffer exceed by %d in parsing index allocation entry",
 					nodeheader.OffsetEndUsedEntryList-uint32(len(data)))
 				logger.FSLogger.Warning(msg)
-				return
+				return errors.New(msg)
 			}
 			idxAllocation.IndexEntries = Parse(data[idxEntryOffset : nodeheader.OffsetEndUsedEntryList+24])
 		}
 
 	} else {
-		logger.FSLogger.Warning("INDX signature not found in index allocation attribute")
+		msg := "INDX signature not found in index allocation attribute"
+		logger.FSLogger.Warning(msg)
+		return errors.New(msg)
 	}
-
+	return nil
 }
 
 func (idxAllocation *IndexAllocation) ProcessFixUpArrays(data []byte) error {
