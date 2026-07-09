@@ -196,7 +196,7 @@ func (record *Record) ProcessNoNResidentAttributes(hD readers.DiskReader,
 func ProcessNoNResidentAttributesWorker(records chan *Record, hD readers.DiskReader, partitionOffsetB int64,
 	clusterSizeB int, wg *sync.WaitGroup) {
 
-	scratch := make([]byte, 1024*1024) //experience
+	scratch := make([]byte, 4*1024) //experience
 
 	defer wg.Done()
 	logActive := logger.FSLogger.IsActive()
@@ -208,8 +208,8 @@ func ProcessNoNResidentAttributesWorker(records chan *Record, hD readers.DiskRea
 		for idx := range record.Attributes {
 			//all non resident attrs except DATA
 			//process $bitmap
-			attr := record.Attributes[idx]
-			attrHeader := attr.GetHeader()
+
+			attrHeader := record.Attributes[idx].GetHeader()
 			if !attrHeader.IsNoNResident() {
 				continue
 			}
@@ -228,8 +228,6 @@ func ProcessNoNResidentAttributesWorker(records chan *Record, hD readers.DiskRea
 
 			if cap(scratch) < runLength {
 				scratch = make([]byte, runLength)
-			} else {
-				scratch = scratch[:runLength]
 			}
 			if runLength <= 0 {
 				logger.FSLogger.Warning("non resident attribute has non positive runlist length")
@@ -241,22 +239,22 @@ func ProcessNoNResidentAttributesWorker(records chan *Record, hD readers.DiskRea
 
 			buf := scratch
 
-			err := attrHeader.ATRrecordNoNResident.GetContent(hD, partitionOffsetB, clusterSizeB, buf)
+			err := attrHeader.ATRrecordNoNResident.GetContent(hD, partitionOffsetB, clusterSizeB, buf[:runLength])
+
 			if err != nil {
 				continue
 			}
 
-			attr.Parse(buf[:])
+			record.Attributes[idx].Parse(buf[:])
+
 			if attrHeader.IsAttrList() {
-				attrList := attr.(*MFTAttributes.AttributeListEntries)
+				attrList := record.Attributes[idx].(*MFTAttributes.AttributeListEntries)
 				record.LinkedRecordsInfo = append(record.LinkedRecordsInfo, attrList.GetLinkedRecordsInfo(record.Entry)...)
 			}
 
 			if logActive {
-				logger.FSLogger.Info(fmt.Sprintf("Processed non resident attribute record %d at pos %d", record.Entry, idx))
+				logger.FSLogger.Info(fmt.Sprintf("Processed non resident attribute record %d at pos %d ", record.Entry, idx))
 			}
-			//reassign
-			record.Attributes[idx] = attr
 
 		}
 
