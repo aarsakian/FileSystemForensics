@@ -128,14 +128,19 @@ func (record Record) ShowDeletionInfo(clustersBitMap map[int]bool) {
 		runlist := dataAttr.GetHeader().ATRrecordNoNResident.RunList
 
 		offset := runlist.Offset
-
+		if clustersBitMap[int(offset)] {
+			fmt.Printf("Cluster %d is already allocated\n", int(offset))
+			return
+		}
 		for runlist.Next != nil {
+
+			runlist = runlist.Next
+
+			offset += runlist.Offset
 			if clustersBitMap[int(offset)] {
 				fmt.Printf("Cluster %d is already allocated\n", int(offset))
 				return
 			}
-			runlist = runlist.Next
-			offset += runlist.Offset
 		}
 	}
 	fmt.Print("All clusters are unallocated\n")
