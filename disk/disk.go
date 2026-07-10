@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"path"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -622,16 +623,16 @@ func (disk Disk) GetClustersStatus(partitionId int) map[int]bool {
 
 func (disk Disk) ListUnallocated(partitionId int) {
 
-	for _, unallocatedCluster := range disk.GetClustersStatus(partitionId) {
+	for unallocatedCluster := range disk.GetClustersStatus(partitionId) {
 		fmt.Printf("%d \t", unallocatedCluster)
 	}
 
 }
 
 func (disk Disk) CollectUnallocated(blocks chan<- []byte) {
-	var unallocatedClusters []int
-	for _, partition := range disk.Partitions {
+	defer close(blocks)
 
+	for _, partition := range disk.Partitions {
 		vol := partition.GetVolume()
 		if vol == nil {
 			continue
@@ -641,41 +642,50 @@ func (disk Disk) CollectUnallocated(blocks chan<- []byte) {
 		partitionOffsetB := int64(partition.GetOffset()) * int64(bytesPerSector)
 
 		clustersMap := vol.GetClustersStatus(disk.Handler, uint64(partitionOffsetB), bytesPerSector)
+		if len(clustersMap) == 0 {
+			continue
+		}
 
+		var unallocatedClusters []int
 		for cluster, allocated := range clustersMap {
 			if !allocated {
 				unallocatedClusters = append(unallocatedClusters, cluster)
 			}
 		}
+		if len(unallocatedClusters) == 0 {
+			continue
+		}
+		sort.Ints(unallocatedClusters)
 
-		blockSize := 1 // nof consecutive clusters
+		bytesPerCluster := int64(vol.GetSectorsPerCluster()) * int64(vol.GetBytesPerSector())
+		blockSize := 1
 		prevClusterOffset := unallocatedClusters[0]
-
-		ntfs := vol.(*volume.NTFS)
 
 		for idx, unallocatedCluster := range unallocatedClusters {
 			if idx == 0 {
 				continue
-			} else if idx == len(unallocatedClusters)-1 {
-				blockSize += 1
 			}
 
-			if unallocatedCluster-prevClusterOffset <= 1 && idx != len(unallocatedClusters)-1 { //last one break
+			if unallocatedCluster-prevClusterOffset <= 1 {
 				blockSize += 1
 			} else {
-
 				firstBlockCluster := unallocatedClusters[idx-blockSize]
-				offset := partitionOffsetB + int64(firstBlockCluster)*int64(ntfs.VBR.SectorsPerCluster)*int64(ntfs.VBR.BytesPerSector)
-				data, _ := disk.Handler.ReadFile(offset, blockSize*int(ntfs.VBR.SectorsPerCluster)*int(ntfs.VBR.BytesPerSector))
+				offset := partitionOffsetB + int64(firstBlockCluster)*bytesPerCluster
+				size := int(int64(blockSize) * bytesPerCluster)
+				data, _ := disk.Handler.ReadFile(offset, size)
 				blocks <- data
 				blockSize = 1
-
 			}
+
 			prevClusterOffset = unallocatedCluster
-
 		}
-		close(blocks)
 
+		if blockSize > 0 {
+			firstBlockCluster := unallocatedClusters[len(unallocatedClusters)-blockSize]
+			offset := partitionOffsetB + int64(firstBlockCluster)*bytesPerCluster
+			size := int(int64(blockSize) * bytesPerCluster)
+			data, _ := disk.Handler.ReadFile(offset, size)
+			blocks <- data
+		}
 	}
-
 }
