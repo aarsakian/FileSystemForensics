@@ -116,6 +116,7 @@ func (record Record) IsBase() bool {
 }
 
 func (record Record) ShowDeletionInfo(clustersBitMap map[int]bool) {
+	recordIsResident := true
 	for _, attr := range record.Attributes {
 		if !attr.IsNoNResident() {
 			continue
@@ -123,6 +124,7 @@ func (record Record) ShowDeletionInfo(clustersBitMap map[int]bool) {
 		if attr.FindType() != "DATA" {
 			continue
 		}
+		recordIsResident = false
 		dataAttr := attr.(*MFTAttributes.DATA)
 
 		runlist := dataAttr.GetHeader().ATRrecordNoNResident.RunList
@@ -143,7 +145,9 @@ func (record Record) ShowDeletionInfo(clustersBitMap map[int]bool) {
 			}
 		}
 	}
-	fmt.Print("All clusters are unallocated\n")
+	if !recordIsResident {
+		fmt.Print("All clusters are unallocated\n")
+	}
 
 }
 
