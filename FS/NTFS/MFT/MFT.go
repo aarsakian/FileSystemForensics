@@ -482,14 +482,6 @@ func (record Record) GetFullPath() string {
 	return filepath.Join(fullpath.String())
 }
 
-func (record Record) ShowVCNs() {
-	startVCN, lastVCN := record.getVCNs()
-	if startVCN != 0 || lastVCN != 0 {
-		fmt.Printf(" startVCN %d endVCN %d ", startVCN, lastVCN)
-	}
-
-}
-
 func (record Record) ShowAllocatedClusters() {
 	runlist, err := record.GetRunList("DATA")
 	if err != nil {
@@ -595,7 +587,7 @@ func (record Record) ShowIndex() {
 
 }
 
-func (record Record) getVCNs() (uint64, uint64) {
+func (record Record) GetVCNs() (uint64, uint64) {
 	for _, attribute := range record.Attributes {
 		if attribute.IsNoNResident() {
 			return attribute.GetHeader().ATRrecordNoNResident.StartVcn,
@@ -675,7 +667,7 @@ func (record Record) ShowInfo() {
 	fmt.Printf("================Runlists=============\n")
 	record.ShowRunList()
 	fmt.Printf("=================VCNs===============\n")
-	record.ShowVCNs()
+
 	fmt.Printf("=================Linked Records (Attribute lists)============\n")
 	for _, linkedRecord := range record.LinkedRecords {
 		linkedRecord.ShowInfo()
