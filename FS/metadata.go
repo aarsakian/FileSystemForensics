@@ -37,7 +37,7 @@ type Record interface {
 	ShowIsResident()
 	ShowRunList()
 	GetFileSize() (int64, int64)
-	ShowVCNs()
+	GetVCNs() (uint64, uint64)
 	ShowIndex()
 	ShowInfo()
 	ShowDeletionInfo(map[int]bool)
