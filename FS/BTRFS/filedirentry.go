@@ -263,10 +263,14 @@ func (fileDirEntry FileDirEntry) GetPath(pathtype int) string {
 	return fmt.Sprintf("%s%c", fileDirEntry.Path, os.PathSeparator)
 }
 
-func (fileDirEntry FileDirEntry) ShowRunList() {
+func (fileDirEntry FileDirEntry) GetRunLists() [][2]int {
+	var runlists [][2]int
 	for _, extent := range fileDirEntry.GetExtentsMap() {
-		fmt.Printf("%s \n", extent.GetInfo())
+
+		runlists = append(runlists, [2]int{int(extent.ExtentDataRem.LogicalAddress), int(extent.ExtentDataRem.LSize)})
+
 	}
+	return runlists
 }
 
 func (fileDirEntry FileDirEntry) ShowTimestamps() {

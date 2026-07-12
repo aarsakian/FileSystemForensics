@@ -35,7 +35,7 @@ type Record interface {
 	ShowAttributes(string)
 	GetTimestamps() []string
 	ShowIsResident()
-	ShowRunList()
+	GetRunLists() [][2]int
 	GetFileSize() (int64, int64)
 	GetVCNs() (uint64, uint64)
 	ShowIndex()

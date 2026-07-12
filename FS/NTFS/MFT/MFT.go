@@ -664,9 +664,6 @@ func (record Record) ShowInfo() {
 	for _, attribute := range record.Attributes {
 		attribute.ShowInfo()
 	}
-	fmt.Printf("================Runlists=============\n")
-	record.ShowRunList()
-	fmt.Printf("=================VCNs===============\n")
 
 	fmt.Printf("=================Linked Records (Attribute lists)============\n")
 	for _, linkedRecord := range record.LinkedRecords {
@@ -680,16 +677,17 @@ func (record Record) GetResidentData() []byte {
 
 }
 
-func (record Record) ShowRunList() {
+func (record Record) GetRunLists() [][2]int {
+	var runlists [][2]int
 
 	for _, linkedRecord := range record.LinkedRecords {
-		linkedRecord.ShowRunList()
+		innerRunlists := linkedRecord.GetRunLists()
+		runlists = append(runlists, innerRunlists...)
 
 	}
 
 	for _, nonResidentAttr := range record.FindNonResidentAttributes() {
 
-		fmt.Printf("%s: \t", nonResidentAttr.FindType())
 		if nonResidentAttr.GetHeader().ATRrecordNoNResident.RunList == nil {
 			continue
 		}
@@ -699,8 +697,7 @@ func (record Record) ShowRunList() {
 		totalClusters := 0
 		for (MFTAttributes.RunList{}) != runlist {
 
-			fmt.Printf(" offs. %d cl len %d cl  logical offset %d cl clusters %d \n",
-				runlist.Offset, runlist.Length, logicalOffset, totalClusters)
+			runlists = append(runlists, [2]int{int(logicalOffset), int(runlist.Length)})
 
 			logicalOffset += runlist.Offset
 			totalClusters += int(runlist.Length)
@@ -710,10 +707,11 @@ func (record Record) ShowRunList() {
 			}
 			runlist = *runlist.Next
 		}
-		fmt.Printf("Total Clusters %d Total Fragments %d\n", totalClusters, nofFragments)
+		//fmt.Printf("Total Clusters %d Total Fragments %d\n", totalClusters, nofFragments)
 
 	}
 
+	return runlists
 }
 
 func (record Record) HasFilenameExtension(extension string) bool {
