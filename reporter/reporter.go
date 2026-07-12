@@ -81,6 +81,11 @@ func (rp Reporter) Show(records []metadata.Record, usnjrnlRecords UsnJrnl.Record
 			record.ShowIsResident()
 		}
 
+		if rp.ShowVCNs || rp.ShowFull {
+			startVCN, lastVCN := record.GetVCNs()
+			vals = append(vals, fmt.Sprintf("%d:%d", startVCN, lastVCN))
+		}
+
 		if rp.ShowRunList || rp.ShowFull {
 			runlists := record.GetRunLists()
 			for _, runlist := range runlists {
@@ -93,12 +98,6 @@ func (rp Reporter) Show(records []metadata.Record, usnjrnlRecords UsnJrnl.Record
 			logicalsize, physicalsize := record.GetFileSize()
 			vals = append(vals, fmt.Sprintf("%1.0f", float64(logicalsize)/1024))
 			vals = append(vals, fmt.Sprintf("%1.0f", float64(physicalsize)/1024))
-		}
-
-		if rp.ShowVCNs || rp.ShowFull {
-			startVCN, lastVCN := record.GetVCNs()
-			vals = append(vals, fmt.Sprintf("%d", startVCN))
-			vals = append(vals, fmt.Sprintf("%d", lastVCN))
 		}
 
 		if rp.ShowIndex || rp.ShowFull {

@@ -46,9 +46,8 @@ func (tm *TableManager) DetermineColumnWidths(showFileSize, showPath, showCluste
 		activeColumns++
 	}
 	if showVCNs {
-		tm.Columns = append(tm.Columns, Column{Name: "Start VCN"})
-		tm.Columns = append(tm.Columns, Column{Name: "Last VCN"})
-		activeColumns += 2
+		tm.Columns = append(tm.Columns, Column{Name: "Start VCN:Last VCN"})
+		activeColumns++
 	}
 	if showIndex {
 		tm.Columns = append(tm.Columns, Column{Name: "Index"})
@@ -89,7 +88,7 @@ func (tm *TableManager) DetermineColumnWidths(showFileSize, showPath, showCluste
 	}
 
 	if showRunLists {
-		tm.Columns = append(tm.Columns, Column{Name: "Cluster Offset:Cluster Length"})
+		tm.Columns = append(tm.Columns, Column{Name: "Runlist Cluster Offset:Cluster Length"})
 		activeColumns++
 	}
 
