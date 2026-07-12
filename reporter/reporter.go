@@ -75,8 +75,6 @@ func (rp Reporter) Show(records []metadata.Record, usnjrnlRecords UsnJrnl.Record
 
 		if rp.ShowTimestamps || rp.ShowFull {
 			vals = append(vals, record.GetTimestamps()...)
-			print(len(vals))
-
 		}
 
 		if rp.IsResident || rp.ShowFull {
