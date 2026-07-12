@@ -24,6 +24,7 @@ import (
 	"github.com/aarsakian/FileSystemForensics/exporter"
 	"github.com/aarsakian/FileSystemForensics/filtermanager"
 	"github.com/aarsakian/FileSystemForensics/filters"
+
 	FSLogger "github.com/aarsakian/FileSystemForensics/logger"
 	"github.com/aarsakian/FileSystemForensics/reporter"
 	"github.com/aarsakian/FileSystemForensics/signatures"
@@ -59,7 +60,7 @@ func main() {
 	toMFTEntry := flag.Int("toentry", math.MaxUint32, "select file system record id to end processing")
 
 	showRunList := flag.Bool("showrunlist", false, "show runlist of file system records")
-	showFileSize := flag.Bool("filesize", false, "show file size")
+	showFileSize := flag.Bool("showfilesize", false, "show file size")
 	showVCNs := flag.Bool("vcns", false, "show the vcns of non resident file system attributes")
 	showAttributes := flag.String("attributes", "", "show file system attributes (write any for all attributes)")
 	showTimestamps := flag.Bool("showtimestamps", false, "show all file system timestamps")
@@ -296,12 +297,9 @@ func main() {
 			}
 			records = flm.ApplyFilters(records)
 
-			if *deleted {
-				clustersBitMap = dsk.GetClustersStatus(*partitionNum - 1)
-				//gives information about deleted files and folders,
-				// and their corresponding clusters
-
-			}
+			clustersBitMap = dsk.GetClustersStatus(*partitionNum - 1)
+			//gives information about deleted files and folders,
+			// and their corresponding clusters
 
 			if *usnjrnl {
 				dsk.ProcessJrnl(recordsPerPartition, partitionId)
