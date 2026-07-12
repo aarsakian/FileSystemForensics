@@ -277,11 +277,11 @@ func (fileDirEntry FileDirEntry) ShowVCNs() {
 
 }
 
-func (fileDirEntry FileDirEntry) GetTimestamps() string {
+func (fileDirEntry FileDirEntry) GetTimestamps() []string {
 	for _, attr := range fileDirEntry.FindAttributes("INODE_ITEM") {
-		return attr.(*attributes.InodeItem).GetTimestamps()
+		return []string{attr.(*attributes.InodeItem).GetTimestamps()}
 	}
-	return ""
+	return []string{""}
 }
 
 func (fileDirEntry FileDirEntry) GetInfo() string {
