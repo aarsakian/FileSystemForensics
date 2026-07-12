@@ -273,8 +273,8 @@ func (fileDirEntry FileDirEntry) ShowTimestamps() {
 	fmt.Printf("%s\n", fileDirEntry.GetTimestamps())
 }
 
-func (fileDirEntry FileDirEntry) ShowVCNs() {
-
+func (fileDirEntry FileDirEntry) GetVCNs() (uint64, uint64) {
+	return 0, 0
 }
 
 func (fileDirEntry FileDirEntry) GetTimestamps() []string {
