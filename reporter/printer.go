@@ -30,7 +30,7 @@ type Column struct {
 }
 
 func (tm *TableManager) DetermineColumnWidths(showFileSize, showPath, showClusters,
-	showVCNs, showIndex, showParent, showReparse, showDeletion bool) {
+	showVCNs, showIndex, showParent, showReparse, showDeletion, showTimestamps bool) {
 	activeColumns := 0
 	if showFileSize {
 		tm.Columns = append(tm.Columns, Column{Name: "Logical Size (KB)"})
@@ -65,6 +65,26 @@ func (tm *TableManager) DetermineColumnWidths(showFileSize, showPath, showCluste
 	if showDeletion {
 		tm.Columns = append(tm.Columns, Column{Name: "Deletion Status"})
 		activeColumns++
+	}
+
+	if showTimestamps {
+		tm.Columns = append(tm.Columns, Column{Name: "FNA Access Time"})
+		tm.Columns = append(tm.Columns, Column{Name: "FNA Creation Time"})
+		tm.Columns = append(tm.Columns, Column{Name: "FNA Modification Time"})
+		tm.Columns = append(tm.Columns, Column{Name: "FNA $MFT Modification Time"})
+		activeColumns += 4
+
+		tm.Columns = append(tm.Columns, Column{Name: "SI Access Time"})
+		tm.Columns = append(tm.Columns, Column{Name: "SI Creation Time"})
+		tm.Columns = append(tm.Columns, Column{Name: "SI Modification Time"})
+		tm.Columns = append(tm.Columns, Column{Name: "SI $MFT Modification Time"})
+		activeColumns += 4
+
+		tm.Columns = append(tm.Columns, Column{Name: "$I30 Access Time"})
+		tm.Columns = append(tm.Columns, Column{Name: "$I30 Creation Time"})
+		tm.Columns = append(tm.Columns, Column{Name: "$I30 Modification Time"})
+		tm.Columns = append(tm.Columns, Column{Name: "$I30 $MFT Modification Time"})
+		activeColumns += 4
 	}
 
 	totalWidth := utils.TerminalWidth() - 5
