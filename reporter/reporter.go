@@ -51,7 +51,7 @@ func (rp Reporter) Show(records []metadata.Record, usnjrnlRecords UsnJrnl.Record
 	tm := TableManager{W: os.Stdout}
 	tm.DetermineColumnWidths(rp.ShowFileSize, rp.ShowPath, rp.ShowClusters,
 		rp.ShowVCNs, rp.ShowIndex, rp.ShowParent, rp.ShowReparse, rp.ShowDeletion,
-		rp.ShowTimestamps)
+		rp.ShowTimestamps, rp.ShowRunList)
 	tm.PrintHeader()
 
 	for _, record := range records {
@@ -82,7 +82,11 @@ func (rp Reporter) Show(records []metadata.Record, usnjrnlRecords UsnJrnl.Record
 		}
 
 		if rp.ShowRunList || rp.ShowFull {
-			record.ShowRunList()
+			runlists := record.GetRunLists()
+			for _, runlist := range runlists {
+				vals = append(vals, fmt.Sprintf("%d:%d", runlist[0], runlist[1]))
+			}
+
 		}
 
 		if rp.ShowFileSize || rp.ShowFull {

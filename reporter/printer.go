@@ -30,7 +30,7 @@ type Column struct {
 }
 
 func (tm *TableManager) DetermineColumnWidths(showFileSize, showPath, showClusters,
-	showVCNs, showIndex, showParent, showReparse, showDeletion, showTimestamps bool) {
+	showVCNs, showIndex, showParent, showReparse, showDeletion, showTimestamps, showRunLists bool) {
 	activeColumns := 0
 	if showFileSize {
 		tm.Columns = append(tm.Columns, Column{Name: "Logical Size (KB)"})
@@ -86,6 +86,11 @@ func (tm *TableManager) DetermineColumnWidths(showFileSize, showPath, showCluste
 		tm.Columns = append(tm.Columns, Column{Name: "$I30 Modification Time"})
 		tm.Columns = append(tm.Columns, Column{Name: "$I30 $MFT Modification Time"})
 		activeColumns += 4
+	}
+
+	if showRunLists {
+		tm.Columns = append(tm.Columns, Column{Name: "Cluster Offset:Cluster Length"})
+		activeColumns++
 	}
 
 	totalWidth := utils.TerminalWidth() - 5
