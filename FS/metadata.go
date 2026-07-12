@@ -33,7 +33,7 @@ type Record interface {
 	GetSequence() int
 	FindAttribute(string) Attribute
 	ShowAttributes(string)
-	ShowTimestamps()
+	GetTimestamps() []string
 	ShowIsResident()
 	ShowRunList()
 	GetFileSize() (int64, int64)

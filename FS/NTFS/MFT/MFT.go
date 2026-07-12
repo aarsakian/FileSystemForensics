@@ -623,34 +623,35 @@ func (record Record) ShowAttributes(attrType string) {
 
 }
 
-func (record Record) ShowTimestamps() {
+func (record Record) GetTimestamps() []string {
+	var timestamps []string
 	var attr Attribute
 	attr = record.FindAttribute("FileName")
 	if attr != nil {
 		fnattr := attr.(*MFTAttributes.FNAttribute)
-		atime, ctime, mtime, mftime := fnattr.GetTimestamps()
-		fmt.Printf("FN a %s c %s m %s mftm %s \n", atime, ctime, mtime, mftime)
+		timestamps = append(timestamps, fnattr.GetTimestamps()...)
+
 	}
 	attr = record.FindAttribute("Standard Information")
 	if attr != nil {
 		siattr := attr.(*MFTAttributes.SIAttribute)
-		atime, ctime, mtime, mftime := siattr.GetTimestamps()
-		fmt.Printf("SI a %s c %s m %s mftm %s \n", atime, ctime, mtime, mftime)
+		timestamps = append(timestamps, siattr.GetTimestamps()...)
+
 	}
 	//get parent
 	if !record.IsFolder() && record.Parent != nil {
-		fmt.Printf("Timestamps retrieved from parent folder $I30\n")
-		record.Parent.ShowIndexTimestamps("Index Root", record.Entry)
-		record.Parent.ShowIndexTimestamps("Index Allocation", record.Entry)
-
+		timestamps = append(timestamps,
+			record.Parent.GetIndexTimestamps("Index Root", record.Entry)...)
+		timestamps = append(timestamps,
+			record.Parent.GetIndexTimestamps("Index Allocation", record.Entry)...)
 	}
-
+	return timestamps
 }
 
-func (record Record) ShowIndexTimestamps(attrName string, childRecordEntry uint32) {
+func (record Record) GetIndexTimestamps(attrName string, childRecordEntry uint32) []string {
 	//shows timestamps for a child record entry
 	attr := record.FindAttribute(attrName)
-
+	var timestamps []string
 	if attr != nil {
 
 		for _, entry := range attr.(IndexAttributes).GetEntries() {
@@ -658,11 +659,11 @@ func (record Record) ShowIndexTimestamps(attrName string, childRecordEntry uint3
 				continue
 			}
 
-			atime, ctime, mtime, mftime := entry.Fnattr.GetTimestamps()
-			fmt.Printf("%s a %s c %s m %s mftm %s ", attrName, atime, ctime, mtime, mftime)
+			timestamps = append(timestamps, entry.Fnattr.GetTimestamps()...)
 		}
 
 	}
+	return timestamps
 }
 
 func (record Record) ShowInfo() {

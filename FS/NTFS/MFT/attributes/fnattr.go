@@ -58,10 +58,10 @@ func (fnattr FNAttribute) FindType() string {
 }
 
 func (fnattr FNAttribute) ShowInfo() {
-	atime, ctime, mtime, mfttime := fnattr.GetTimestamps()
+	times := fnattr.GetTimestamps()
 
 	fmt.Printf("%s Par Ref %d name %s atime %s ctime %s mtime %s mfttime %s\n",
-		fnattr.FindType(), fnattr.ParRef, fnattr.Fname, atime, ctime, mtime, mfttime)
+		fnattr.FindType(), fnattr.ParRef, fnattr.Fname, times[0], times[1], times[2], times[3])
 }
 
 func (fnAttr FNAttribute) GetType() string {
@@ -77,12 +77,12 @@ func (fnAttr FNAttribute) GetFileNameType() string {
 	return NameSpaceFlags[fnAttr.Nspace]
 }
 
-func (fnAttr FNAttribute) GetTimestamps() (string, string, string, string) {
+func (fnAttr FNAttribute) GetTimestamps() []string {
 	atime := fnAttr.Atime.ConvertToIsoTime()
 	ctime := fnAttr.Crtime.ConvertToIsoTime()
 	mtime := fnAttr.Mtime.ConvertToIsoTime()
 	mftime := fnAttr.MFTmtime.ConvertToIsoTime()
-	return atime, ctime, mtime, mftime
+	return []string{atime, ctime, mtime, mftime}
 }
 
 func (fnAttr FNAttribute) IsNoNResident() bool {

@@ -66,19 +66,19 @@ func (siattr SIAttribute) IsNoNResident() bool {
 	return siattr.Header.IsNoNResident() // always resident
 }
 
-func (siattr SIAttribute) GetTimestamps() (string, string, string, string) {
+func (siattr SIAttribute) GetTimestamps() []string {
 	atime := siattr.Atime.ConvertToIsoTime()
 	ctime := siattr.Crtime.ConvertToIsoTime()
 	mtime := siattr.Mtime.ConvertToIsoTime()
 	mftime := siattr.MFTmtime.ConvertToIsoTime()
-	return atime, ctime, mtime, mftime
+	return []string{atime, ctime, mtime, mftime}
 }
 
 func (siattr SIAttribute) ShowInfo() {
-	atime, ctime, mtime, mfttime := siattr.GetTimestamps()
+	times := siattr.GetTimestamps()
 
 	fmt.Printf(" %s usn  %d atime %s ctime %s mtime %s mfttime %s file attr %s\n",
-		siattr.FindType(), siattr.USN, atime, ctime, mtime, mfttime,
+		siattr.FindType(), siattr.USN, times[0], times[1], times[2], times[3],
 		siattr.GetFileAttributes())
 }
 
