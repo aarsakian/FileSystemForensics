@@ -232,9 +232,10 @@ func (fileDirEntry FileDirEntry) ShowFileName() {
 
 }
 
-func (fileDirEntry FileDirEntry) ShowFileSize() {
-	fmt.Printf("logical size %.1f KB\n",
-		float64(fileDirEntry.GetLogicalFileSize()/1024))
+func (fileDirEntry FileDirEntry) GetFileSize() (int64, int64) {
+
+	return fileDirEntry.GetLogicalFileSize(),
+		fileDirEntry.GetPhysicalFileSize()
 }
 
 func (fileDirEntry FileDirEntry) ShowIndex() {

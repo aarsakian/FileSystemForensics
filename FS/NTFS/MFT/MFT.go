@@ -1049,12 +1049,9 @@ func (record *Record) Process(bs []byte) error {
 	return nil
 }
 
-func (record Record) ShowFileSize() {
+func (record Record) GetFileSize() (int64, int64) {
 
-	logical := record.GetLogicalFileSize()
-	physical := record.GetPhysicalSize()
-	fmt.Printf(" logical: %d (KB), physical: %d (KB)",
-		logical/1024, physical/1024)
+	return record.GetLogicalFileSize(), record.GetPhysicalFileSize()
 
 }
 
@@ -1086,7 +1083,6 @@ func (record Record) GetPhysicalFileSize() int64 {
 	attr := record.FindAttribute("FileName")
 	if attr != nil {
 		fnattr := attr.(*MFTAttributes.FNAttribute)
-		fmt.Println("AllocFsize: ", fnattr.AllocFsize)
 		return int64(fnattr.AllocFsize)
 	}
 	return 0
