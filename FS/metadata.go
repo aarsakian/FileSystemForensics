@@ -36,7 +36,7 @@ type Record interface {
 	ShowTimestamps()
 	ShowIsResident()
 	ShowRunList()
-	ShowFileSize()
+	GetFileSize() (int64, int64)
 	ShowVCNs()
 	ShowIndex()
 	ShowInfo()
