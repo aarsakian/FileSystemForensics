@@ -17,6 +17,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/aarsakian/FileSystemForensics/logger"
+	"golang.org/x/sys/windows"
 )
 
 type NoNull string
@@ -261,6 +262,14 @@ func Hexify(barray []byte) string {
 
 	return hex.EncodeToString(barray)
 
+}
+
+func ToString(barray []int) string {
+	var newstr strings.Builder
+	for _, v := range barray {
+		newstr.WriteString(fmt.Sprintf("%d ", v))
+	}
+	return newstr.String()
 }
 
 func Unmarshal(data []byte, v interface{}) (int, error) {
@@ -545,4 +554,16 @@ func StringifyUUID(barray []byte) string {
 	return fmt.Sprintf("%x-%x-%x-%x-%x", barray[0:4],
 		barray[4:6], barray[6:8],
 		barray[8:10], barray[10:])
+}
+
+func TerminalWidth() int {
+	handle := windows.Stdout
+	var info windows.ConsoleScreenBufferInfo
+
+	err := windows.GetConsoleScreenBufferInfo(handle, &info)
+	if err != nil {
+		return 80 // fallback
+	}
+
+	return int(info.Size.X)
 }
