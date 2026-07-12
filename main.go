@@ -61,7 +61,7 @@ func main() {
 
 	showRunList := flag.Bool("showrunlist", false, "show runlist of file system records")
 	showFileSize := flag.Bool("showfilesize", false, "show file size")
-	showVCNs := flag.Bool("vcns", false, "show the vcns of non resident file system attributes")
+	showVCNs := flag.Bool("showvcns", false, "show the vcns of non resident file system attributes")
 	showAttributes := flag.String("attributes", "", "show file system attributes (write any for all attributes)")
 	showTimestamps := flag.Bool("showtimestamps", false, "show all file system timestamps")
 	showIndex := flag.Bool("showindex", false, "show index structures")
