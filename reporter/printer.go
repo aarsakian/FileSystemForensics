@@ -46,8 +46,9 @@ func (tm *TableManager) DetermineColumnWidths(showFileSize, showPath, showCluste
 		activeColumns++
 	}
 	if showVCNs {
-		tm.Columns = append(tm.Columns, Column{Name: "VCNs"})
-		activeColumns++
+		tm.Columns = append(tm.Columns, Column{Name: "Start VCN"})
+		tm.Columns = append(tm.Columns, Column{Name: "Last VCN"})
+		activeColumns += 2
 	}
 	if showIndex {
 		tm.Columns = append(tm.Columns, Column{Name: "Index"})

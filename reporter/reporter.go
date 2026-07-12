@@ -92,7 +92,9 @@ func (rp Reporter) Show(records []metadata.Record, usnjrnlRecords UsnJrnl.Record
 		}
 
 		if rp.ShowVCNs || rp.ShowFull {
-			record.ShowVCNs()
+			startVCN, lastVCN := record.GetVCNs()
+			vals = append(vals, fmt.Sprintf("%d", startVCN))
+			vals = append(vals, fmt.Sprintf("%d", lastVCN))
 		}
 
 		if rp.ShowIndex || rp.ShowFull {
