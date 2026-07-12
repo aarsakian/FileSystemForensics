@@ -23,7 +23,7 @@ e.g. *-evidence path_to_evidence -partition 1*.
 
 To filter exported records to those whose file headers match known signatures, add:
 
-e.g. *-evidence path_to_evidence -partition 1 -verifysignatures*.
+e.g. *-evidence path_to_evidence -partition 1 -verifysignatures strict*.
 
 ##### Usage information #####
 
@@ -31,7 +31,15 @@ The current CLI flags can be reviewed with:
 
   go run . --help
 
-Common options include:
+Flags are grouped by purpose:
+
+- Input and target selection: -evidence, -physicaldrive, -partition, -volume, -physicaloffset, and -mftoffset
+- Record selection and filtering: -entries, -fromentry, -toentry, -orphans, -deleted, -extensions, -filenames, -path, and -verifysignatures
+- Display and reporting: -showfilename, -showfull, -showtree, -showpath, -showtimestamps, -showrunlist, -showvcns, -showvssclusters, -showclusters, -showbitlocker, and -volinfo
+- Export and hashing: -export, -recreatepath, -strategy, -hash, -unallocated, and -listunallocated
+- BitLocker, VSS, and diagnostics: -password, -recoverykey, -vss, -listvss, -log, -logfile, -benchmark, and -profile
+
+Current options include:
 
   -attributes string
         show file system attributes (write any for all attributes)
@@ -43,31 +51,28 @@ Common options include:
         clusters to look for
 
   -deleted
-        show deleted records
+        show only deleted records
 
   -entries string
-        select file system records by entering their ID; use a comma as a separator
+        select file system records by entering its id, use comma as a separator
 
   -evidence string
-        path to image file (EWF/VHDX/Raw formats are supported)
+        path to image file (EWF/VHDX/VMDK/Raw formats are supported)
 
   -export string
         the path to export files
 
   -extensions string
-        search file system records by extension; use a comma as a separator
+        search file system records by extensions use comma as a separator
 
   -filenames string
-        files to export; use a comma as a separator
-
-  -filesize
-        show file size
+        files to export use comma as a separator
 
   -fromentry int
-        select file system record ID to start processing (default 0)
+        select file system record id to start processing
 
   -hash string
-        hash exported files; enter md5 or sha1
+        hash exported files, enter md5 or sha1
 
   -listpartitions
         list partitions
@@ -76,7 +81,7 @@ Common options include:
         list unallocated clusters
 
   -listvss
-        list VSS copied clusters
+        list vss copied clusters
 
   -log
         enable logging
@@ -100,7 +105,7 @@ Common options include:
         password for BitLocker volumes
 
   -path string
-        base path of files to export; must be absolute, e.g. C:\MYFILES\ABC translates to MYFILES\ABC
+        base path of files to exported must be absolute e.g. C:\MYFILES\ABC translates to MYFILES\ABC
 
   -physicaldrive int
         select disk drive number (default -1)
@@ -115,10 +120,10 @@ Common options include:
         recovery key for BitLocker volumes
 
   -recreatepath
-        recreate file path when exporting files
+        recreate file path
 
   -resident
-        check whether entry is resident
+        check whether has resident data attribute
 
   -searchfs string
         look for traces of the file system (NTFS is supported)
@@ -127,13 +132,16 @@ Common options include:
         offset in bytes to search for file system structures
 
   -showbitlocker
-        show information about BitLocker volume
+        show information about bitlocker volume
 
   -showclusters
         show allocated clusters of a record inside shadow volumes
 
   -showfilename string
-        show the name of the filename attribute of MFT records: enter Any, Win32, or Dos
+        show the name of the filename attribute of MFT records: enter (Any, Win32, Dos)
+
+  -showfilesize
+        show file size
 
   -showfull
         show full information about record
@@ -159,17 +167,20 @@ Common options include:
   -showusn
         show information about NTFS usnjrnl records
 
+  -showvcns
+        show the vcns of non resident file system attributes
+
   -showvssclusters
         show volume shadow relevant information for selected records
 
   -strategy string
-        what strategy will be used for files sharing the same name; default is overwrite, or use Id (default "overwrite")
+        what strategy will be used for files sharing the same name, default is ovewrite, or use Id (default "overwrite")
 
   -toentry int
-        select file system record ID to end processing (default 4294967295)
+        select file system record id to end processing (default 4294967295)
 
   -tree
-        reconstruct file system tree
+        reconstrut file system tree
 
   -unallocated
         collect unallocated area of a volume
@@ -177,21 +188,14 @@ Common options include:
   -usnjrnl
         show usnjrnl information about changes to files and folders
 
-  -vcns
-        show the vcns of non-resident file system attributes
-
-  -vmdk string
-        path to VMDK file (Sparse formats are supported)
-
   -verifysignatures string
-        verify file system records by file signatures; allowed values are strict|permissive
-        (strict filters out mismatched extensions; check signatures/signatures.csv for the list of files)
+        verify file system records by file signatures, non verified records will be omitted, allowed values are strict|permissive. (strict filters out mismatched extensions) (check signatures.csv for the list of files)
 
   -volinfo
         show volume information
 
   -volume string
-        select directly the volume; requires offset in bytes (ntfs, lvm2)
+        select directly the volume requires offset in bytes, (ntfs, lvm2)
 
   -vss
         process shadow volume copies
