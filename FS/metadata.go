@@ -24,6 +24,7 @@ type Record interface {
 	IsDeleted() bool
 	IsFolder() bool
 	IsBase() bool
+	IsResident() bool
 	GetFname() string
 	GetID() int
 	GetParentID() int
@@ -34,17 +35,14 @@ type Record interface {
 	FindAttribute(string) Attribute
 	ShowAttributes(string)
 	GetTimestamps() []string
-	ShowIsResident()
 	GetRunLists() [][2]int
 	GetFileSize() (int64, int64)
 	GetVCNs() (uint64, uint64)
 	ShowIndex()
 	ShowInfo()
-	ShowDeletionInfo(map[int]bool)
-	ShowParentRecordInfo()
-	ShowPath(int)
+	GetDeletionInfo(map[int]bool) map[int]string
+	GetParentRecordInfo() string
 	GetPath(int) string
-	ShowAllocatedClusters()
 	GetAllocatedClusters() []int
 	LocateData(readers.DiskReader, int64, int, []byte, map[uint64]Chunk) int
 	LocateDataAsync(readers.DiskReader, int64, int, chan<- []byte)
