@@ -30,40 +30,11 @@ type Column struct {
 }
 
 func (tm *TableManager) DetermineColumnWidths(showFileSize, showPath, showClusters,
-	showVCNs, showIndex, showParent, showReparse, showDeletion, showTimestamps, showRunLists bool) {
+	showVCNs, showIndex, showParent, showReparse, showDeletion,
+	showTimestamps, showRunLists, showFilename, IsResident bool) {
 	activeColumns := 0
-	if showFileSize {
-		tm.Columns = append(tm.Columns, Column{Name: "Logical Size (KB)"})
-		tm.Columns = append(tm.Columns, Column{Name: "Physical Size (KB)"})
-		activeColumns += 2
-	}
-	if showPath {
-		tm.Columns = append(tm.Columns, Column{Name: "Path"})
-		activeColumns++
-	}
-	if showClusters {
-		tm.Columns = append(tm.Columns, Column{Name: "Allocated Clusters"})
-		activeColumns++
-	}
-	if showVCNs {
-		tm.Columns = append(tm.Columns, Column{Name: "Start VCN:Last VCN"})
-		activeColumns++
-	}
-	if showIndex {
-		tm.Columns = append(tm.Columns, Column{Name: "Index"})
-		activeColumns++
-	}
-	if showParent {
-		tm.Columns = append(tm.Columns, Column{Name: "Parent"})
-		activeColumns++
-	}
-
-	if showReparse {
-		tm.Columns = append(tm.Columns, Column{Name: "Reparse Point"})
-		activeColumns++
-	}
-	if showDeletion {
-		tm.Columns = append(tm.Columns, Column{Name: "Deletion Status"})
+	if showFilename {
+		tm.Columns = append(tm.Columns, Column{Name: "Filename"})
 		activeColumns++
 	}
 
@@ -87,8 +58,51 @@ func (tm *TableManager) DetermineColumnWidths(showFileSize, showPath, showCluste
 		activeColumns += 4
 	}
 
+	if IsResident {
+		tm.Columns = append(tm.Columns, Column{Name: "Resident"})
+		activeColumns++
+	}
+
+	if showFileSize {
+		tm.Columns = append(tm.Columns, Column{Name: "Logical Size (KB)"})
+		tm.Columns = append(tm.Columns, Column{Name: "Physical Size (KB)"})
+		activeColumns += 2
+	}
+	if showParent {
+		tm.Columns = append(tm.Columns, Column{Name: "Parent Info"})
+		activeColumns++
+	}
+	if showPath {
+		tm.Columns = append(tm.Columns, Column{Name: "Path"})
+		activeColumns++
+	}
+
+	if showClusters {
+		tm.Columns = append(tm.Columns, Column{Name: "Allocated Clusters"})
+		activeColumns++
+	}
+
+	if showVCNs {
+		tm.Columns = append(tm.Columns, Column{Name: "Start VCN:Last VCN"})
+		activeColumns++
+	}
+	if showIndex {
+		tm.Columns = append(tm.Columns, Column{Name: "Index"})
+		activeColumns++
+	}
+
+	if showReparse {
+		tm.Columns = append(tm.Columns, Column{Name: "Reparse Point"})
+		activeColumns++
+	}
+
 	if showRunLists {
 		tm.Columns = append(tm.Columns, Column{Name: "Runlist Cluster Offset:Cluster Length"})
+		activeColumns++
+	}
+
+	if showDeletion {
+		tm.Columns = append(tm.Columns, Column{Name: "Cluster:allocation status"})
 		activeColumns++
 	}
 
@@ -182,9 +196,9 @@ func (tm TableManager) PrintRow(row []string) error {
 	line.WriteString("│")
 	for colidx, col := range tm.Columns {
 		if len(row[colidx]) > col.Width-2 {
-			row[colidx] = row[colidx][:col.Width-5] + "..."
+			row[colidx] = row[colidx][:col.Width-2] + "..."
 		}
-		fmt.Fprintf(&line, " %s%-*s%s ", White, col.Width-2, row[colidx], Reset)
+		fmt.Fprintf(&line, "%s%-*s%s", White, col.Width, row[colidx], Reset)
 		line.WriteString("│")
 	}
 	if err := tm.WriteRow(line.String()); err != nil {

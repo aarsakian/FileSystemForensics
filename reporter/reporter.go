@@ -16,7 +16,7 @@ import (
 )
 
 type Reporter struct {
-	ShowFileName    string
+	ShowFileName    bool
 	ShowAttributes  string
 	ShowTimestamps  bool
 	IsResident      bool
@@ -51,7 +51,7 @@ func (rp Reporter) Show(records []metadata.Record, usnjrnlRecords UsnJrnl.Record
 	tm := TableManager{W: os.Stdout}
 	tm.DetermineColumnWidths(rp.ShowFileSize, rp.ShowPath, rp.ShowClusters,
 		rp.ShowVCNs, rp.ShowIndex, rp.ShowParent, rp.ShowReparse, rp.ShowDeletion,
-		rp.ShowTimestamps, rp.ShowRunList)
+		rp.ShowTimestamps, rp.ShowRunList, rp.ShowFileName, rp.IsResident)
 	tm.PrintHeader()
 
 	for _, record := range records {
@@ -65,8 +65,8 @@ func (rp Reporter) Show(records []metadata.Record, usnjrnlRecords UsnJrnl.Record
 			record.ShowInfo()
 		}
 
-		if rp.ShowFileName != "" || rp.ShowFull {
-			record.ShowAttributes("FileName")
+		if rp.ShowFileName || rp.ShowFull {
+			vals = append(vals, record.GetFname())
 		}
 
 		if rp.ShowAttributes != "" || rp.ShowFull {
@@ -78,7 +78,11 @@ func (rp Reporter) Show(records []metadata.Record, usnjrnlRecords UsnJrnl.Record
 		}
 
 		if rp.IsResident || rp.ShowFull {
-			record.ShowIsResident()
+			if record.IsResident() {
+				vals = append(vals, "Yes")
+			} else {
+				vals = append(vals, "No")
+			}
 		}
 
 		if rp.ShowVCNs || rp.ShowFull {
@@ -105,7 +109,7 @@ func (rp Reporter) Show(records []metadata.Record, usnjrnlRecords UsnJrnl.Record
 		}
 
 		if rp.ShowParent || rp.ShowFull {
-			record.ShowParentRecordInfo()
+			vals = append(vals, record.GetParentRecordInfo())
 		}
 
 		if rp.ShowPath || rp.ShowFull {
@@ -133,7 +137,15 @@ func (rp Reporter) Show(records []metadata.Record, usnjrnlRecords UsnJrnl.Record
 		}
 
 		if rp.ShowDeletion || rp.ShowFull {
-			record.ShowDeletionInfo(clustersBitMap)
+
+			recordClustersMap := record.GetDeletionInfo(clustersBitMap)
+			if len(recordClustersMap) == 0 {
+				vals = append(vals, "")
+			}
+			for offset, allocStatus := range recordClustersMap {
+				vals = append(vals, fmt.Sprintf("%d:%s", offset, allocStatus))
+			}
+
 		}
 		tm.PrintRow(vals)
 
