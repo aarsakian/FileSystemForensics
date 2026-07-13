@@ -250,7 +250,8 @@ func (mfttable *MFTTable) SetI30Size(recordId int, attrType string) {
 
 		logger.FSLogger.Info(fmt.Sprintf("updated I30 size of ref Entry %d", referencedEntry.Entry))
 
-		referencedEntry.I30Size = idxEntry.Fnattr.RealFsize
+		referencedEntry.I30LSize = idxEntry.Fnattr.RealFsize
+		referencedEntry.I30PSize = idxEntry.Fnattr.AllocFsize
 
 	}
 
