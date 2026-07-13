@@ -122,8 +122,8 @@ func (fileDirEntry FileDirEntry) GetLogicalFileSize() int64 {
 	return int64(attr.StSize)
 }
 
-func (fileDirEntry FileDirEntry) ShowDeletionInfo(blocksBitMap map[int]bool) {
-
+func (fileDirEntry FileDirEntry) GetDeletionInfo(blocksBitMap map[int]bool) map[int]string {
+	return make(map[int]string)
 }
 
 func (fileDirEntry FileDirEntry) GetFname() string {
@@ -246,12 +246,12 @@ func (fileDirEntry FileDirEntry) ShowInfo() {
 	fmt.Printf("%d ", fileDirEntry.Id)
 }
 
-func (fileDirEntry FileDirEntry) ShowIsResident() {
-
+func (fileDirEntry FileDirEntry) IsResident() bool {
+	return false
 }
 
-func (fileDirEntry FileDirEntry) ShowParentRecordInfo() {
-	fileDirEntry.Parent.ShowInfo()
+func (fileDirEntry FileDirEntry) GetParentRecordInfo() string {
+	return fileDirEntry.Parent.GetInfo()
 
 }
 
