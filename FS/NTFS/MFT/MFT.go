@@ -76,7 +76,8 @@ type Record struct {
 	LinkedRecordsInfo    []MFTAttributes.LinkedRecordInfo //holds attrs list entries
 	LinkedRecords        []*Record                        // when attribute is too long to fit in one MFT record
 	OriginLinkedRecord   *Record                          // points to the original record that contaisn the attr list
-	I30Size              uint64
+	I30LSize             uint64
+	I30PSize             uint64
 	Parent               *Record
 	FixupMismatch        bool
 	// fixupArray add the        UpdateSeqArrOffset to find is location
@@ -98,6 +99,21 @@ func (mfttable *MFTTable) AllocateRecordsTable(clusterSizeB int64) {
 
 }
 
+func (mfttable MFTTable) GetParent(record Record) (Record, error) {
+	fnattr := record.FindAttribute("FileName").(*MFTAttributes.FNAttribute)
+	if fnattr == nil {
+		return Record{}, errors.New("no filename attribute located")
+	} else {
+		if mfttable.Records[fnattr.ParRef].Seq-fnattr.ParSeq < 2 { //record is children
+			return mfttable.Records[fnattr.ParRef], nil
+		} else {
+			return Record{}, errors.New("parent has been reallocated")
+		}
+
+	}
+
+}
+
 func (mfttable MFTTable) IsOK() bool {
 	// after more than 20 non valid recors $MFT is corrupt
 	// check table if
@@ -115,8 +131,9 @@ func (record Record) IsBase() bool {
 	return record.BaseRef == 0
 }
 
-func (record Record) ShowDeletionInfo(clustersBitMap map[int]bool) {
-	recordIsResident := true
+func (record Record) GetDeletionInfo(clustersBitMap map[int]bool) map[int]string {
+
+	recordClustersBitMap := make(map[int]string)
 	for _, attr := range record.Attributes {
 		if !attr.IsNoNResident() {
 			continue
@@ -124,30 +141,31 @@ func (record Record) ShowDeletionInfo(clustersBitMap map[int]bool) {
 		if attr.FindType() != "DATA" {
 			continue
 		}
-		recordIsResident = false
+
 		dataAttr := attr.(*MFTAttributes.DATA)
 
 		runlist := dataAttr.GetHeader().ATRrecordNoNResident.RunList
 
 		offset := runlist.Offset
 		if clustersBitMap[int(offset)] {
-			fmt.Printf("Cluster %d is already allocated\n", int(offset))
-			return
+			recordClustersBitMap[int(offset)] = "overwritten"
+		} else {
+			recordClustersBitMap[int(offset)] = "unallocated"
 		}
+
 		for runlist.Next != nil {
 
 			runlist = runlist.Next
 
 			offset += runlist.Offset
 			if clustersBitMap[int(offset)] {
-				fmt.Printf("Cluster %d is already allocated\n", int(offset))
-				return
+				recordClustersBitMap[int(offset)] = "overwritten"
+			} else {
+				recordClustersBitMap[int(offset)] = "unallocated"
 			}
 		}
 	}
-	if !recordIsResident {
-		fmt.Print("All clusters are unallocated\n")
-	}
+	return recordClustersBitMap
 
 }
 
@@ -468,10 +486,17 @@ func (record Record) GetFullPath() string {
 	parent := record.Parent
 	for parent != nil && parent.Entry != 5 { //$MFT Root entry
 		//prepends
+
 		nodes = append(nodes, parent)
+
 		parent = parent.Parent
 	}
 	fullpath.WriteRune(os.PathSeparator)
+	if parent == nil {
+		fullpath.WriteString("Path Uknown")
+		fullpath.WriteRune(os.PathSeparator)
+	}
+
 	//reverse
 	for i := len(nodes) - 1; i >= 0; i-- {
 
@@ -540,13 +565,11 @@ func (record Record) GetAllocatedClusters() []int {
 
 }
 
-func (record Record) ShowParentRecordInfo() {
+func (record Record) GetParentRecordInfo() string {
 	if record.Parent == nil {
-		fmt.Printf("Record has no parent ")
+		return ""
 	} else {
-		fmt.Printf("Record has parent ")
-
-		record.Parent.ShowFileName("win32")
+		return record.Parent.GetFname()
 
 	}
 
@@ -750,15 +773,8 @@ func (record Record) HasAttr(attrName string) bool {
 	return record.FindAttribute(attrName) != nil
 }
 
-func (record Record) ShowIsResident() {
-	if record.HasAttr("DATA") {
-		if record.HasResidentDataAttr() {
-			fmt.Printf("Resident")
-		} else {
-			fmt.Printf("NoN Resident")
-		}
-
-	}
+func (record Record) IsResident() bool {
+	return record.HasAttr("DATA") && record.HasResidentDataAttr()
 }
 
 func (record Record) ShowFNAModifiedTime() {
@@ -847,7 +863,7 @@ func (record *Record) Process(bs []byte) error {
 		record.FixupMismatch = true
 	}
 
-	record.I30Size = 0 //default value
+	record.I30LSize = 0 //default value
 
 	ReadPtr := record.AttrOff //offset to first attribute
 	var linkedRecordsInfo []MFTAttributes.LinkedRecordInfo
@@ -1051,7 +1067,7 @@ func (record Record) GetPhysicalSize() int64 {
 	if attr != nil {
 		return int64(attr.(*MFTAttributes.FNAttribute).AllocFsize)
 	} else {
-		return 0
+		return int64(record.I30PSize)
 	}
 
 }
@@ -1066,7 +1082,7 @@ func (record Record) GetLogicalFileSize() int64 {
 		}
 
 	}
-	return int64(record.I30Size)
+	return int64(record.I30LSize)
 }
 
 func (record Record) GetPhysicalFileSize() int64 {
@@ -1122,21 +1138,6 @@ func (record Record) ShowFileName(fileNameSyntax string) {
 
 func (record Record) HasParent() bool {
 	return record.Parent != nil
-}
-
-func (records Records) GetParent(record Record) (Record, error) {
-	fnattr := record.FindAttribute("FileName").(*MFTAttributes.FNAttribute)
-	if fnattr == nil {
-		return Record{}, errors.New("no filename attribute located")
-	} else {
-		if records[fnattr.ParRef].Seq-fnattr.ParSeq < 2 { //record is children
-			return records[fnattr.ParRef], nil
-		} else {
-			return Record{}, errors.New("parent has been reallocated")
-		}
-
-	}
-
 }
 
 func (record Record) HasPrefix(prefix string) bool {
