@@ -52,7 +52,7 @@ func main() {
 	exportLocation := flag.String("export", "", "the path to export files")
 	recreatePath := flag.Bool("recreatepath", false, "recreate file path")
 	selectedEntries := flag.String("entries", "", "select file system records by entering its id, use comma as a seperator")
-	showFileName := flag.String("showfilename", "", "show the name of the filename attribute of MFT records: enter (Any, Win32, Dos)")
+	showFileName := flag.Bool("showfilename", false, "show the name of a file or a directory")
 	exportFiles := flag.String("filenames", "", "files to export use comma as a seperator")
 	exportFilesPath := flag.String("path", "", "base path of files to exported must be absolute e.g. C:\\MYFILES\\ABC translates to MYFILES\\ABC")
 	isResident := flag.Bool("resident", false, "check whether has resident data attribute")
@@ -75,7 +75,7 @@ func main() {
 	buildtree := flag.Bool("tree", false, "reconstrut file system tree")
 
 	showtree := flag.Bool("showtree", false, "show file system tree")
-	showParent := flag.Bool("parent", false, "show information about parent record")
+	showParent := flag.Bool("showparent", false, "show information about parent record")
 	showUsnjrnl := flag.Bool("showusn", false, "show information about NTFS usnjrnl records")
 	showFull := flag.Bool("showfull", false, "show full information about record")
 	showreparse := flag.Bool("showreparse", false, "show information about reparse points")
