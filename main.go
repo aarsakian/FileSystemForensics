@@ -137,7 +137,8 @@ func main() {
 	}
 
 	if *showUsnjrnl && !*usnjrnl {
-		fmt.Println("showusn option is only relevant when processing usnjrnl records, ignoring it")
+		fmt.Println("showusn option is only relevant when processing usnjrnl records. Use the usnjrnl option to process usnjrnl records, ignoring it")
+		return
 	}
 
 	if *listvss && !*vss {
