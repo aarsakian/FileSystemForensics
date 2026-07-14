@@ -122,7 +122,7 @@ func (mfttable MFTTable) IsOK() bool {
 }
 
 func (record Record) IsFolder() bool {
-	recordType := record.getType()
+	recordType := record.GetType()
 	return recordType == "Folder Unallocated" && record.BaseRef == 0 ||
 		recordType == "Folder Allocated" && record.BaseRef == 0
 }
@@ -443,7 +443,7 @@ func (record Record) GetLinkedRecords() []*Record {
 	return record.LinkedRecords
 }
 
-func (record Record) getType() string {
+func (record Record) GetType() string {
 	return MFTflags[record.Flags]
 }
 
@@ -465,7 +465,7 @@ func (record Record) GetSequence() int {
 }
 
 func (record Record) IsDeleted() bool {
-	return record.getType() == "File Unallocated" || record.getType() == "Folder Unallocated"
+	return record.GetType() == "File Unallocated" || record.GetType() == "Folder Unallocated"
 }
 
 func (record Record) GetRunList(attrType string) (*MFTAttributes.RunList, error) {
@@ -679,20 +679,6 @@ func (record Record) GetIndexTimestamps(attrName string, childRecordEntry uint32
 
 	}
 	return timestamps
-}
-
-func (record Record) ShowInfo() {
-
-	fmt.Printf("record %d type %s\n", record.Entry, record.getType())
-	for _, attribute := range record.Attributes {
-		attribute.ShowInfo()
-	}
-
-	fmt.Printf("=================Linked Records (Attribute lists)============\n")
-	for _, linkedRecord := range record.LinkedRecords {
-		linkedRecord.ShowInfo()
-	}
-
 }
 
 func (record Record) GetResidentData() []byte {
