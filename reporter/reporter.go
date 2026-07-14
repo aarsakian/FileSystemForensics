@@ -49,7 +49,7 @@ func (rp Reporter) Show(records []metadata.Record, usnjrnlRecords UsnJrnl.Record
 	}
 
 	tm := TableManager{W: os.Stdout}
-	tm.DetermineColumnWidths(rp.ShowFileSize, rp.ShowPath, rp.ShowClusters,
+	tm.DetermineColumnWidths(rp.ShowFull, rp.ShowFileSize, rp.ShowPath, rp.ShowClusters,
 		rp.ShowVCNs, rp.ShowIndex, rp.ShowParent, rp.ShowReparse, rp.ShowDeletion,
 		rp.ShowTimestamps, rp.ShowRunList, rp.ShowFileName, rp.IsResident)
 	tm.PrintHeader()
@@ -61,8 +61,9 @@ func (rp Reporter) Show(records []metadata.Record, usnjrnlRecords UsnJrnl.Record
 		}
 
 		if rp.ShowFull {
-			fmt.Println("-------------------------------------------------------")
-			record.ShowInfo()
+
+			vals = append(vals, fmt.Sprintf("%d", record.GetID()))
+			vals = append(vals, record.GetType())
 		}
 
 		if rp.ShowFileName || rp.ShowFull {
@@ -70,7 +71,7 @@ func (rp Reporter) Show(records []metadata.Record, usnjrnlRecords UsnJrnl.Record
 		}
 
 		if rp.ShowAttributes != "" || rp.ShowFull {
-			record.ShowAttributes(rp.ShowAttributes)
+			//record.ShowAttributes(rp.ShowAttributes)
 		}
 
 		if rp.ShowTimestamps || rp.ShowFull {
@@ -105,7 +106,7 @@ func (rp Reporter) Show(records []metadata.Record, usnjrnlRecords UsnJrnl.Record
 		}
 
 		if rp.ShowIndex || rp.ShowFull {
-			record.ShowIndex()
+			//		record.ShowIndex()
 		}
 
 		if rp.ShowParent || rp.ShowFull {
@@ -121,7 +122,7 @@ func (rp Reporter) Show(records []metadata.Record, usnjrnlRecords UsnJrnl.Record
 		}
 
 		if rp.ShowReparse || rp.ShowFull {
-			record.ShowAttributes("Reparse Point")
+			//	record.ShowAttributes("Reparse Point")
 		}
 
 		if rp.ShowVSSClusters && rp.ShowFull {
@@ -155,7 +156,7 @@ func (rp Reporter) Show(records []metadata.Record, usnjrnlRecords UsnJrnl.Record
 
 	for _, record := range usnjrnlRecords {
 		if rp.ShowUSNJRNL {
-			record.ShowInfo()
+			record.GetInfo()
 		}
 	}
 

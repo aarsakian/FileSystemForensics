@@ -29,10 +29,18 @@ type Column struct {
 	Width int
 }
 
-func (tm *TableManager) DetermineColumnWidths(showFileSize, showPath, showClusters,
+func (tm *TableManager) DetermineColumnWidths(showFull, showFileSize, showPath, showClusters,
 	showVCNs, showIndex, showParent, showReparse, showDeletion,
 	showTimestamps, showRunLists, showFilename, IsResident bool) {
+
 	activeColumns := 0
+
+	if showFull {
+		tm.Columns = append(tm.Columns, Column{Name: "ID"})
+		tm.Columns = append(tm.Columns, Column{Name: "Type"})
+		activeColumns += 2
+	}
+
 	if showFilename {
 		tm.Columns = append(tm.Columns, Column{Name: "Filename"})
 		activeColumns++
@@ -195,10 +203,17 @@ func (tm TableManager) PrintRow(row []string) error {
 	var line bytes.Buffer
 	line.WriteString("│")
 	for colidx, col := range tm.Columns {
+
 		if len(row[colidx]) > col.Width-2 {
 			row[colidx] = row[colidx][:col.Width-2] + "..."
 		}
-		fmt.Fprintf(&line, "%s%-*s%s", White, col.Width, row[colidx], Reset)
+		if col.Name == "Type" && (row[colidx] == "Folder Unallocated" ||
+			row[colidx] == "File Unallocated") {
+			fmt.Fprintf(&line, "%s%-*s%s", Red, col.Width, row[colidx], Reset)
+		} else {
+			fmt.Fprintf(&line, "%s%-*s%s", White, col.Width, row[colidx], Reset)
+		}
+
 		line.WriteString("│")
 	}
 	if err := tm.WriteRow(line.String()); err != nil {
