@@ -639,26 +639,26 @@ func (record Record) ShowAttributes(attrType string) {
 }
 
 func (record Record) GetTimestamps() []string {
-	var timestamps []string
+	var timestamps = make([]string, 12)
 	var attr Attribute
 	attr = record.FindAttribute("FileName")
 	if attr != nil {
 		fnattr := attr.(*MFTAttributes.FNAttribute)
-		timestamps = append(timestamps, fnattr.GetTimestamps()...)
+		copy(timestamps[:4], fnattr.GetTimestamps())
 
 	}
 	attr = record.FindAttribute("Standard Information")
 	if attr != nil {
 		siattr := attr.(*MFTAttributes.SIAttribute)
-		timestamps = append(timestamps, siattr.GetTimestamps()...)
+		copy(timestamps[4:8], siattr.GetTimestamps())
 
 	}
 	//get parent
 	if !record.IsFolder() && record.Parent != nil {
-		timestamps = append(timestamps,
-			record.Parent.GetIndexTimestamps("Index Root", record.Entry)...)
-		timestamps = append(timestamps,
-			record.Parent.GetIndexTimestamps("Index Allocation", record.Entry)...)
+		copy(timestamps[8:12], record.Parent.GetIndexTimestamps("Index Root", record.Entry))
+
+		copy(timestamps[8:12], record.Parent.GetIndexTimestamps("Index Allocation", record.Entry))
+
 	}
 	return timestamps
 }
