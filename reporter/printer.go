@@ -41,7 +41,7 @@ func (tm *TableManager) DetermineColumnWidths(showFull, showFileSize, showPath, 
 		activeColumns += 2
 	}
 
-	if showFilename || showUSNJRNL {
+	if showFilename || showUSNJRNL || showFull {
 		tm.Columns = append(tm.Columns, Column{Name: "Filename"})
 		activeColumns++
 	}
@@ -56,7 +56,7 @@ func (tm *TableManager) DetermineColumnWidths(showFull, showFileSize, showPath, 
 		activeColumns += 5
 	}
 
-	if showTimestamps {
+	if showTimestamps || showFull {
 		tm.Columns = append(tm.Columns, Column{Name: "FNA Access Time"})
 		tm.Columns = append(tm.Columns, Column{Name: "FNA Creation Time"})
 		tm.Columns = append(tm.Columns, Column{Name: "FNA Modification Time"})
@@ -76,31 +76,31 @@ func (tm *TableManager) DetermineColumnWidths(showFull, showFileSize, showPath, 
 		activeColumns += 4
 	}
 
-	if IsResident {
+	if IsResident || showFull {
 		tm.Columns = append(tm.Columns, Column{Name: "Resident"})
 		activeColumns++
 	}
 
-	if showFileSize {
+	if showFileSize || showFull {
 		tm.Columns = append(tm.Columns, Column{Name: "Logical Size (KB)"})
 		tm.Columns = append(tm.Columns, Column{Name: "Physical Size (KB)"})
 		activeColumns += 2
 	}
-	if showParent {
+	if showParent || showFull {
 		tm.Columns = append(tm.Columns, Column{Name: "Parent Info"})
 		activeColumns++
 	}
-	if showPath {
+	if showPath || showFull {
 		tm.Columns = append(tm.Columns, Column{Name: "Path"})
 		activeColumns++
 	}
 
-	if showClusters {
+	if showClusters || showFull {
 		tm.Columns = append(tm.Columns, Column{Name: "Allocated Clusters"})
 		activeColumns++
 	}
 
-	if showVCNs {
+	if showVCNs || showFull {
 		tm.Columns = append(tm.Columns, Column{Name: "Start VCN:Last VCN"})
 		activeColumns++
 	}
@@ -114,7 +114,7 @@ func (tm *TableManager) DetermineColumnWidths(showFull, showFileSize, showPath, 
 		activeColumns++
 	}
 
-	if showRunLists {
+	if showRunLists || showFull {
 		tm.Columns = append(tm.Columns, Column{Name: "Runlist Cluster Offset:Cluster Length"})
 		activeColumns++
 	}
