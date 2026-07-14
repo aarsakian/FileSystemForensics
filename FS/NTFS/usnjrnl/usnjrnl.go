@@ -148,7 +148,7 @@ func (record Record) GetReason() string {
 	return reasons[record.ReasonFlag]
 }
 
-func (record Record) ShowInfo() {
+func (record Record) GetInfo() {
 	fmt.Printf("%s %s %s entry Ref %d entry Seq %d parent Ref %d parent Seq %d Event %s\n",
 		record.Fname, record.GetReason(), record.GetFileAttributes(), record.EntryRef, record.EntrySeq,
 		record.ParRef, record.ParSeq, record.EventTime.ConvertToIsoTime())
