@@ -251,7 +251,7 @@ func (fileDirEntry FileDirEntry) IsResident() bool {
 }
 
 func (fileDirEntry FileDirEntry) GetParentRecordInfo() string {
-	return fileDirEntry.Parent.GetInfo()
+	return fileDirEntry.Parent.GetType()
 
 }
 
@@ -288,7 +288,7 @@ func (fileDirEntry FileDirEntry) GetTimestamps() []string {
 	return []string{""}
 }
 
-func (fileDirEntry FileDirEntry) GetInfo() string {
+func (fileDirEntry FileDirEntry) GetType() string {
 	return ""
 }
 
