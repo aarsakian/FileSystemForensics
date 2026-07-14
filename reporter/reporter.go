@@ -121,11 +121,11 @@ func (rp Reporter) Show(records []metadata.Record, usnjrnlRecords UsnJrnl.Record
 			vals = append(vals, utils.ToString(record.GetAllocatedClusters()))
 		}
 
-		if rp.ShowReparse || rp.ShowFull {
+		if rp.ShowReparse {
 			//	record.ShowAttributes("Reparse Point")
 		}
 
-		if rp.ShowVSSClusters && rp.ShowFull {
+		if rp.ShowVSSClusters {
 			clusters := record.GetAllocatedClusters()
 
 			for idx, offset := range shadowVol.GetClustersInfo(4096, clusters) {
