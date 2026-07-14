@@ -31,7 +31,7 @@ type Column struct {
 
 func (tm *TableManager) DetermineColumnWidths(showFull, showFileSize, showPath, showClusters,
 	showVCNs, showIndex, showParent, showReparse, showDeletion,
-	showTimestamps, showRunLists, showFilename, IsResident bool) {
+	showTimestamps, showRunLists, showFilename, IsResident, showUSNJRNL bool) {
 
 	activeColumns := 0
 
@@ -41,9 +41,19 @@ func (tm *TableManager) DetermineColumnWidths(showFull, showFileSize, showPath, 
 		activeColumns += 2
 	}
 
-	if showFilename {
+	if showFilename || showUSNJRNL {
 		tm.Columns = append(tm.Columns, Column{Name: "Filename"})
 		activeColumns++
+	}
+
+	if showUSNJRNL {
+		tm.Columns = append(tm.Columns, Column{Name: "Reason"})
+		tm.Columns = append(tm.Columns, Column{Name: "File Attributes"})
+		tm.Columns = append(tm.Columns, Column{Name: "Entry Reference:Sequence"})
+		tm.Columns = append(tm.Columns, Column{Name: "Parent Reference:Sequence"})
+		tm.Columns = append(tm.Columns, Column{Name: "Event Time"})
+
+		activeColumns += 5
 	}
 
 	if showTimestamps {

@@ -274,7 +274,7 @@ func (disk Disk) ProcessJrnl(recordsPerPartition map[int][]metadata.Record, part
 		if partitionNum != -1 && partitionID != partitionNum {
 			continue
 		}
-		partition := disk.Partitions[partitionNum]
+		partition := disk.Partitions[partitionID]
 		clusterSize := partition.GetVolume().GetSectorsPerCluster() * int(partition.GetVolume().GetBytesPerSector())
 		for _, record := range metadata.FilterByName(records, "$UsnJrnl") {
 			recordsCH := make(chan UsnJrnl.Record)

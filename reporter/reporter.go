@@ -51,7 +51,7 @@ func (rp Reporter) Show(records []metadata.Record, usnjrnlRecords UsnJrnl.Record
 	tm := TableManager{W: os.Stdout}
 	tm.DetermineColumnWidths(rp.ShowFull, rp.ShowFileSize, rp.ShowPath, rp.ShowClusters,
 		rp.ShowVCNs, rp.ShowIndex, rp.ShowParent, rp.ShowReparse, rp.ShowDeletion,
-		rp.ShowTimestamps, rp.ShowRunList, rp.ShowFileName, rp.IsResident)
+		rp.ShowTimestamps, rp.ShowRunList, rp.ShowFileName, rp.IsResident, rp.ShowUSNJRNL)
 	tm.PrintHeader()
 
 	for _, record := range records {
@@ -148,16 +148,28 @@ func (rp Reporter) Show(records []metadata.Record, usnjrnlRecords UsnJrnl.Record
 			}
 
 		}
-		tm.PrintRow(vals)
-
-	}
-
-	tm.PrintFooter()
-
-	for _, record := range usnjrnlRecords {
-		if rp.ShowUSNJRNL {
-			record.GetInfo()
+		if len(vals) > 0 {
+			tm.PrintRow(vals)
 		}
+
+		if rp.ShowUSNJRNL {
+
+			for _, record := range usnjrnlRecords {
+				vals = []string{}
+
+				fname, reason, fileAttributes, entryRef, entrySeq, parRef, parSeq, eventTime :=
+					record.GetInfo()
+				vals = append(vals, fname)
+				vals = append(vals, reason)
+				vals = append(vals, fileAttributes)
+				vals = append(vals, fmt.Sprintf("%d:%d", entryRef, entrySeq))
+				vals = append(vals, fmt.Sprintf("%d:%d", parRef, parSeq))
+				vals = append(vals, eventTime)
+				tm.PrintRow(vals)
+			}
+		}
+		tm.PrintFooter()
+
 	}
 
 	if rp.ShowTree {
