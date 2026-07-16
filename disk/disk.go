@@ -92,7 +92,7 @@ func (disk Disk) ShowBitLocker(partitionNum int) error {
 		}
 		dec, ok := vol.(*volume.Bitlocker)
 		if ok {
-			dec.BL.ShowInfo()
+			dec.BL.GetInfo()
 
 		}
 	}
