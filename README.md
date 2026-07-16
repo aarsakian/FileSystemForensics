@@ -35,14 +35,11 @@ Flags are grouped by purpose:
 
 - Input and target selection: -evidence, -physicaldrive, -partition, -volume, -physicaloffset, and -mftoffset
 - Record selection and filtering: -entries, -fromentry, -toentry, -orphans, -deleted, -extensions, -filenames, -path, and -verifysignatures
-- Display and reporting: -showfilename, -showfull, -showtree, -showpath, -showtimestamps, -showrunlist, -showvcns, -showvssclusters, -showclusters, -showbitlocker, and -volinfo
-- Export and hashing: -export, -recreatepath, -strategy, -hash, -unallocated, and -listunallocated
-- BitLocker, VSS, and diagnostics: -password, -recoverykey, -vss, -listvss, -log, -logfile, -benchmark, and -profile
+- Display and reporting: -showfilename, -showfull, -showtree, -showpath, -showtimestamps, -showrunlist, -showvcns, -showvssclusters, -showclusters, -showbitlocker, -showparent, -showattributes, -showfilesize, -showindex, -volinfo, -tree, -usnjrnl, and -logfile
+- Export and hashing: -export, -recreatepath, -strategy, -hash, -unallocated, -listunallocated, -listpartitions, and -resident
+- BitLocker, VSS, and diagnostics: -password, -recoverykey, -vss, -listvss, -log, -benchmark, and -profile
 
 Current options include:
-
-  -attributes string
-        show file system attributes (write any for all attributes)
 
   -benchmark
         test HD speed
@@ -54,7 +51,7 @@ Current options include:
         show only deleted records
 
   -entries string
-        select file system records by entering its id, use comma as a separator
+        select file system records by entering its id, use comma as a seperator
 
   -evidence string
         path to image file (EWF/VHDX/VMDK/Raw formats are supported)
@@ -63,10 +60,10 @@ Current options include:
         the path to export files
 
   -extensions string
-        search file system records by extensions use comma as a separator
+        search file system records by extensions use comma as a seperator
 
   -filenames string
-        files to export use comma as a separator
+        files to export use comma as a seperator
 
   -fromentry int
         select file system record id to start processing
@@ -90,19 +87,16 @@ Current options include:
         parse and show $logfile
 
   -mftoffset int
-        physical offset to the $MFT file
+        physical offset to the  $MFT file
 
   -orphans
         show information only for orphan records
-
-  -parent
-        show information about parent record
 
   -partition int
         select partition number
 
   -password string
-        password for BitLocker volumes
+        password for Bitlocker volumes
 
   -path string
         base path of files to exported must be absolute e.g. C:\MYFILES\ABC translates to MYFILES\ABC
@@ -117,7 +111,7 @@ Current options include:
         profile memory usage
 
   -recoverykey string
-        recovery key for BitLocker volumes
+        recovery key for Bitlocker volumes
 
   -recreatepath
         recreate file path
@@ -131,14 +125,17 @@ Current options include:
   -searchoffset int
         offset in bytes to search for file system structures
 
+  -showattributes string
+        show file system attributes (write any for all attributes, use comma for more than one attributes),
+
   -showbitlocker
         show information about bitlocker volume
 
   -showclusters
         show allocated clusters of a record inside shadow volumes
 
-  -showfilename string
-        show the name of the filename attribute of MFT records: enter (Any, Win32, Dos)
+  -showfilename
+        show the name of a file or a directory
 
   -showfilesize
         show file size
@@ -149,11 +146,11 @@ Current options include:
   -showindex
         show index structures
 
+  -showparent
+        show information about parent record
+
   -showpath
         show the full path of the selected files
-
-  -showreparse
-        show information about reparse points
 
   -showrunlist
         show runlist of file system records
