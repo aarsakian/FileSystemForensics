@@ -45,6 +45,15 @@ func (record BTRFSRecord) GetLinkedRecords() []Record {
 	return linkedRecords
 }
 
+func (record BTRFSRecord) FindAttributes(attrNames []string) []Attribute {
+	var attributes []Attribute
+	for _, attrName := range attrNames {
+		attributes = append(attributes, record.FileDirEntry.FindAttribute(attrName))
+
+	}
+	return attributes
+}
+
 func (ntfsRecord NTFSRecord) GetLinkedRecords() []Record {
 	linkedRecords := make([]Record, 0, len(ntfsRecord.Record.LinkedRecords))
 	for _, linkedRecord := range ntfsRecord.Record.LinkedRecords {
@@ -53,8 +62,12 @@ func (ntfsRecord NTFSRecord) GetLinkedRecords() []Record {
 	return linkedRecords
 }
 
-func (ntfsRecord NTFSRecord) FindAttribute(attrName string) Attribute {
-	return ntfsRecord.Record.FindAttribute(attrName)
+func (ntfsRecord NTFSRecord) FindAttributes(attrNames []string) []Attribute {
+	var attributes []Attribute
+	for _, attrName := range attrNames {
+		attributes = append(attributes, ntfsRecord.Record.FindAttribute(attrName))
+	}
+	return attributes
 }
 
 func (record BTRFSRecord) LocateDataORG(hD readers.DiskReader, partitionOffsetB int64, blockSizeB int, results chan<- utils.AskedFile,
