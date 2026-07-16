@@ -7,6 +7,7 @@ import (
 )
 
 type Attribute interface {
+	GetInfo() string
 }
 
 type Chunk interface {
@@ -32,13 +33,12 @@ type Record interface {
 	GetLogicalFileSize() int64
 	GetPhysicalFileSize() int64
 	GetSequence() int
-	FindAttribute(string) Attribute
-	ShowAttributes(string)
+	FindAttributes([]string) []Attribute
 	GetTimestamps() []string
 	GetRunLists() [][2]int
 	GetFileSize() (int64, int64)
 	GetVCNs() (uint64, uint64)
-	ShowIndex()
+	GetIndex() string
 	GetType() string
 	GetDeletionInfo(map[int]bool) map[int]string
 	GetParentRecordInfo() string
