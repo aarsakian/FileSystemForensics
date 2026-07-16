@@ -44,7 +44,7 @@ type Attribute interface {
 	SetHeader(header *MFTAttributes.AttributeHeader)
 	GetHeader() MFTAttributes.AttributeHeader
 	IsNoNResident() bool
-	ShowInfo()
+	GetInfo() string
 	Parse([]byte)
 }
 
@@ -330,7 +330,7 @@ func (record Record) GetClustersStatus(reader readers.DiskReader, partitionOffse
 	return clustersBitmap
 }
 
-/*func (bitmap BitMap) ShowInfo() {
+/*func (bitmap BitMap) GetInfo() {
 	fmt.Printf("type %s \n", bitmap.FindType())
 	pos := 1
 	for _, byteval := range bitmap.AllocationStatus {
@@ -588,26 +588,27 @@ func (record Record) ShowPath(partitionId int) {
 	fmt.Printf("%s \n", record.GetPath(partitionId))
 }
 
-func (record Record) ShowIndex() {
+func (record Record) GetIndex() string {
+	var txt strings.Builder
 	indexAttr := record.FindAttribute("Index Root")
 
 	indexAlloc := record.FindAttribute("Index Allocation")
 
 	if indexAttr != nil {
-		indexAttr.ShowInfo()
+		txt.WriteString(indexAttr.GetInfo())
 
 	}
 
 	if indexAlloc != nil {
-		indexAlloc.ShowInfo()
+		txt.WriteString(indexAlloc.GetInfo())
 
 	}
 
-	fmt.Printf("Linked records \n")
+	txt.WriteString("Linked records \n")
 	for _, linkedRecord := range record.LinkedRecords {
-		linkedRecord.ShowIndex()
+		txt.WriteString(linkedRecord.GetIndex())
 	}
-
+	return txt.String()
 }
 
 func (record Record) GetVCNs() (uint64, uint64) {
@@ -633,7 +634,7 @@ func (record Record) ShowAttributes(attrType string) {
 	}
 
 	for _, attribute := range attributes {
-		attribute.ShowInfo()
+		attribute.GetInfo()
 	}
 
 }
