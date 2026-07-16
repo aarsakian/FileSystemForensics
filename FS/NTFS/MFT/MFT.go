@@ -417,7 +417,7 @@ func (record Record) FindAttributePtr(attributeName string) Attribute {
 
 func (record Record) FindAttribute(attributeName string) Attribute {
 	for _, attribute := range record.Attributes {
-		if attribute.FindType() == attributeName {
+		if attributeName == "all" || attribute.FindType() == attributeName {
 
 			return attribute
 		}
