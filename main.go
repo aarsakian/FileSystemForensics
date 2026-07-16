@@ -62,7 +62,7 @@ func main() {
 	showRunList := flag.Bool("showrunlist", false, "show runlist of file system records")
 	showFileSize := flag.Bool("showfilesize", false, "show file size")
 	showVCNs := flag.Bool("showvcns", false, "show the vcns of non resident file system attributes")
-	showAttributes := flag.String("attributes", "", "show file system attributes (write any for all attributes)")
+	showAttributes := flag.String("showattributes", "", "show file system attributes (write any for all attributes, use comma for more than one attributes),")
 	showTimestamps := flag.Bool("showtimestamps", false, "show all file system timestamps")
 	showIndex := flag.Bool("showindex", false, "show index structures")
 
@@ -78,7 +78,6 @@ func main() {
 	showParent := flag.Bool("showparent", false, "show information about parent record")
 	showUsnjrnl := flag.Bool("showusn", false, "show information about NTFS usnjrnl records")
 	showFull := flag.Bool("showfull", false, "show full information about record")
-	showreparse := flag.Bool("showreparse", false, "show information about reparse points")
 	showbitlocker := flag.Bool("showbitlocker", false, "show information about bitlocker volume")
 
 	clusters := flag.String("clusters", "", "clusters to look for")
@@ -152,7 +151,7 @@ func main() {
 
 	rp := reporter.Reporter{
 		ShowFileName:    *showFileName,
-		ShowAttributes:  *showAttributes,
+		ShowAttributes:  strings.Split(*showAttributes, ","),
 		ShowTimestamps:  *showTimestamps,
 		IsResident:      *isResident,
 		ShowFull:        *showFull,
@@ -163,7 +162,6 @@ func main() {
 		ShowParent:      *showParent,
 		ShowPath:        *showPath,
 		ShowUSNJRNL:     *showUsnjrnl,
-		ShowReparse:     *showreparse,
 		ShowTree:        *showtree,
 		ShowVSSClusters: *showVSSClusters,
 		ShowClusters:    *showClusters,
