@@ -153,7 +153,7 @@ func (rp Reporter) Show(records []metadata.Record, usnjrnlRecords UsnJrnl.Record
 			}
 
 		}
-		if len(vals) > 0 {
+		if len(vals) > 1 {
 			tm.PrintRow(vals)
 		}
 
@@ -173,7 +173,9 @@ func (rp Reporter) Show(records []metadata.Record, usnjrnlRecords UsnJrnl.Record
 				tm.PrintRow(vals)
 			}
 		}
-		tm.PrintFooter()
+		if len(vals) > 1 {
+			tm.PrintFooter()
+		}
 
 	}
 
