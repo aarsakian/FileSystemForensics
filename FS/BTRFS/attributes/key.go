@@ -17,8 +17,8 @@ func (key *Key) Parse(data []byte) int {
 	return offset
 }
 
-func (key Key) ShowInfo() {
-	fmt.Printf("Object id %d type %s type %s offset id %d \n", key.ObjectID, ObjectTypes[int(key.ObjectID)],
+func (key Key) GetInfo() string {
+	return fmt.Sprintf("Object id %d type %s type %s offset id %d \n", key.ObjectID, ObjectTypes[int(key.ObjectID)],
 		ItemTypes[int(key.ItemType)], key.Offset)
 }
 

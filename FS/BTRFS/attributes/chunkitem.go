@@ -38,10 +38,6 @@ func (chunkItem *ChunkItem) Parse(data []byte) int {
 	return startOffset
 }
 
-func (chunkitem ChunkItem) ShowInfo() {
-	fmt.Printf("%s \n", chunkitem.GetInfo())
-}
-
 func (chunkItem ChunkItem) GetInfo() string {
 	msg := fmt.Sprintf("stripe length %d owner %d io_alignment %d io_width %d num_stripes %d sub_stripes %d",
 		chunkItem.StripeLen, chunkItem.Owner, chunkItem.OptimalIOAlignment,
@@ -53,10 +49,6 @@ func (chunkItem ChunkItem) GetInfo() string {
 	}
 
 	return msg
-}
-
-func (itemstrip ChunkItemStripe) ShowInfo() {
-	itemstrip.GetInfo()
 }
 
 func (itemstrip ChunkItemStripe) GetInfo() string {

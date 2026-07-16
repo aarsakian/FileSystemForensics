@@ -214,25 +214,25 @@ func (genericNode *GenericNode) Parse(data []byte, physicalOffset int64, verify 
 	return offset, nil
 }
 
-func (key Key) ShowInfo() {
+func (key Key) GetInfo() {
 	fmt.Printf("key %s  %s %d\n", attributes.ItemTypes[int(key.ItemType)],
 		attributes.ObjectTypes[int(key.ObjectID)], key.Offset)
 }
 
-func (nodes GenericNodesPtr) ShowInfo() {
+func (nodes GenericNodesPtr) GetInfo() {
 	fmt.Printf("\n")
 	for _, node := range nodes {
-		node.ShowInfo()
+		node.GetInfo()
 	}
 }
 
-func (node GenericNode) ShowInfo() {
+func (node GenericNode) GetInfo() {
 	if node.LeafNode != nil {
-		node.Header.ShowInfo()
-		node.LeafNode.ShowInfo()
+		node.Header.GetInfo()
+		node.LeafNode.GetInfo()
 	}
 }
 
-func (header Header) ShowInfo() {
+func (header Header) GetInfo() {
 	fmt.Printf("level %d bytenr %d nritems %d\n", header.Level, header.LogicalAddressNode, header.NofItems)
 }

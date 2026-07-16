@@ -41,10 +41,6 @@ func (extentData *ExtentData) Parse(data []byte) int {
 	return offset
 }
 
-func (extentData ExtentData) ShowInfo() {
-	fmt.Printf("%s \n", extentData.GetInfo())
-}
-
 func (extentData ExtentData) GetType() string {
 	return ExtentTypes[extentData.Type]
 }

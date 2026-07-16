@@ -35,6 +35,3 @@ func (dirIndex DirIndex) GetType() string {
 func (dirIndex DirIndex) GetInfo() string {
 	return fmt.Sprintf("transid  %d  type %s name %s", dirIndex.Transid, dirIndex.Name, dirIndex.GetType())
 }
-func (dirIndex DirIndex) ShowInfo() {
-	fmt.Printf("%s \n", dirIndex.GetInfo())
-}

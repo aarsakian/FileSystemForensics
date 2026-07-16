@@ -32,11 +32,6 @@ func (inodeItem *InodeItem) Parse(data []byte) int {
 	return offset
 }
 
-func (inodeItem InodeItem) ShowInfo() {
-
-	fmt.Printf("%s \n", inodeItem.GetInfo())
-}
-
 func (inodeItem InodeItem) GetInfo() string {
 	return inodeItem.GetType()
 }

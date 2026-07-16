@@ -202,9 +202,9 @@ func (fileDirEntry FileDirEntry) IsBase() bool {
 	return true
 }
 
-func (fileDirEntry FileDirEntry) GetIndex() int {
+func (fileDirEntry FileDirEntry) GetIndex() string {
 	attr := fileDirEntry.FindAttributes("INODE_REF")[0].(*attributes.InodeRef)
-	return int(attr.Index)
+	return fmt.Sprintf("%d", attr.Index)
 }
 
 func (fileDirEntry FileDirEntry) LocateDataAsync(hD readers.DiskReader, partitionOffset int64,
@@ -238,12 +238,8 @@ func (fileDirEntry FileDirEntry) GetFileSize() (int64, int64) {
 		fileDirEntry.GetPhysicalFileSize()
 }
 
-func (fileDirEntry FileDirEntry) ShowIndex() {
-	fmt.Printf("%d\n", fileDirEntry.GetIndex())
-}
-
-func (fileDirEntry FileDirEntry) ShowInfo() {
-	fmt.Printf("%d ", fileDirEntry.Id)
+func (fileDirEntry FileDirEntry) GetInfo() string {
+	return fmt.Sprintf("%d ", fileDirEntry.Id)
 }
 
 func (fileDirEntry FileDirEntry) IsResident() bool {

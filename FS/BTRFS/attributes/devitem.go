@@ -20,10 +20,6 @@ type DevItem struct { //98B
 	FilesystemUUID     [16]byte
 }
 
-func (devItem DevItem) ShowInfo() {
-
-}
-
 func (devItem DevItem) GetInfo() string {
 	return ""
 }

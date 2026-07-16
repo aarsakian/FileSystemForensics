@@ -10,7 +10,3 @@ func (devStats *DevStatsItem) Parse(data []byte) int {
 func (devStats DevStatsItem) GetInfo() string {
 	return ""
 }
-
-func (devStats DevStatsItem) ShowInfo() {
-
-}

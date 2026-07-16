@@ -35,7 +35,6 @@ type LeafNode struct {
 
 type DataItem interface {
 	Parse([]byte) int
-	ShowInfo()
 	GetInfo() string
 }
 
@@ -59,11 +58,6 @@ func (item *Item) Parse(data []byte) int {
 
 	soffset, _ := utils.Unmarshal(data, item)
 	return soffset
-
-}
-
-func (item Item) ShowInfo() {
-	item.Key.ShowInfo()
 
 }
 
@@ -161,13 +155,13 @@ func (item Item) IsDevStats() bool {
 	return item.GetType() == "DEV_STATS"
 }
 
-func (leaf LeafNode) ShowInfo() {
+func (leaf LeafNode) GetInfo() {
 	for idx, item := range leaf.Items {
-		item.ShowInfo()
+		item.GetInfo()
 		if leaf.DataItems[idx] == nil {
 			continue
 		}
-		leaf.DataItems[idx].ShowInfo()
+		leaf.DataItems[idx].GetInfo()
 		fmt.Printf("\n")
 	}
 

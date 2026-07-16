@@ -17,10 +17,6 @@ func (checkSumItem *CsumItem) Parse(data []byte) int {
 	return offset
 }
 
-func (checkSumItem CsumItem) ShowInfo() {
-
-}
-
 func (checkSumItem CsumItem) GetInfo() string {
 	return ""
 }

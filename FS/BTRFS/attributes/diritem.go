@@ -40,10 +40,6 @@ func (dirItem DirItem) GetType() string {
 	return DirTypes[dirItem.Type]
 }
 
-func (dirItem DirItem) ShowInfo() {
-	fmt.Printf("%s \n", dirItem.GetInfo())
-}
-
 func (dirItem DirItem) GetInfo() string {
 	return fmt.Sprintf("transid  %d  type %s name %s xattr vAL %s", dirItem.Transid, dirItem.GetType(), dirItem.Name, dirItem.XattValue)
 }

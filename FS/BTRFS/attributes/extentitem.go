@@ -41,10 +41,6 @@ func (extentItem *ExtentItem) Parse(data []byte) int {
 	return offset
 }
 
-func (extentItem ExtentItem) ShowInfo() {
-
-}
-
 func (extentItem ExtentItem) GetInfo() string {
 	return ""
 }

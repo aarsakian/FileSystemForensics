@@ -34,10 +34,6 @@ func (rootRef *RootRef) Parse(data []byte) int {
 
 }
 
-func (rootRef RootRef) ShowInfo() {
-
-}
-
 func (rootRef RootRef) GetInfo() string {
 	return fmt.Sprintf("Index %d Name %s", rootRef.Index, rootRef.Name)
 }
@@ -54,8 +50,4 @@ func (rootBackRef *RootBackRef) Parse(data []byte) int {
 
 func (rootBackRef RootBackRef) GetInfo() string {
 	return ""
-}
-
-func (rootBackRef RootBackRef) ShowInfo() {
-
 }

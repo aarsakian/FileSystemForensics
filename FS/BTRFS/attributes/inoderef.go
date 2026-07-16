@@ -19,10 +19,6 @@ func (inodeRef *InodeRef) Parse(data []byte) int {
 	return offset + int(inodeRef.Length)
 }
 
-func (inodeRef InodeRef) ShowInfo() {
-	fmt.Printf("%s \n", inodeRef.GetInfo())
-}
-
 func (inodeRef InodeRef) GetInfo() string {
 	return fmt.Sprintf("idx %d %s ", inodeRef.Index, inodeRef.Name)
 }

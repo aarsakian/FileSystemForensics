@@ -15,10 +15,6 @@ func (devExtentItem *DevExtentItem) Parse(data []byte) int {
 	return offset
 }
 
-func (devExtentItem DevExtentItem) ShowInfo() {
-
-}
-
 func (devExtentItem DevExtentItem) GetInfo() string {
 	return ""
 }

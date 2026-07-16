@@ -41,10 +41,6 @@ func (rootItem *RootItem) Parse(data []byte) int {
 	return offset + inodeOffset
 }
 
-func (rootItem RootItem) ShowInfo() {
-	fmt.Printf("%s ", rootItem.GetInfo())
-}
-
 func (rootItem RootItem) GetInfo() string {
 
 	return fmt.Sprintf("block offset %d C %s O %s M %s A %s", rootItem.Bytenr,

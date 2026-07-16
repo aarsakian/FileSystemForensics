@@ -16,7 +16,3 @@ func (blockGroupItem *BlockGroupItem) Parse(data []byte) int {
 func (blockGroupItem BlockGroupItem) GetInfo() string {
 	return ""
 }
-
-func (blockGroupItem BlockGroupItem) ShowInfo() {
-
-}
