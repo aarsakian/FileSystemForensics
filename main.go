@@ -149,6 +149,11 @@ func main() {
 		return
 	}
 
+	if *showtree && !*buildtree {
+		fmt.Println("showing tree requires to use flag tree as well.")
+		return
+	}
+
 	rp := reporter.Reporter{
 		ShowFileName:    *showFileName,
 		ShowAttributes:  strings.Split(*showAttributes, ","),
