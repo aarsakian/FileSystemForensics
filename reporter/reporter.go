@@ -17,7 +17,7 @@ import (
 
 type Reporter struct {
 	ShowFileName    bool
-	ShowAttributes  string
+	ShowAttributes  []string
 	ShowTimestamps  bool
 	IsResident      bool
 	ShowFull        bool
@@ -28,7 +28,6 @@ type Reporter struct {
 	ShowParent      bool
 	ShowPath        bool
 	ShowUSNJRNL     bool
-	ShowReparse     bool
 	ShowTree        bool
 	ShowVSSClusters bool
 	ShowClusters    bool
@@ -50,8 +49,8 @@ func (rp Reporter) Show(records []metadata.Record, usnjrnlRecords UsnJrnl.Record
 
 	tm := TableManager{W: os.Stdout}
 	tm.DetermineColumnWidths(rp.ShowFull, rp.ShowFileSize, rp.ShowPath, rp.ShowClusters,
-		rp.ShowVCNs, rp.ShowIndex, rp.ShowParent, rp.ShowReparse, rp.ShowDeletion,
-		rp.ShowTimestamps, rp.ShowRunList, rp.ShowFileName, rp.IsResident, rp.ShowUSNJRNL)
+		rp.ShowVCNs, rp.ShowIndex, rp.ShowParent, rp.ShowDeletion,
+		rp.ShowTimestamps, rp.ShowRunList, rp.ShowFileName, rp.IsResident, rp.ShowUSNJRNL, rp.ShowAttributes)
 	tm.PrintHeader()
 
 	for _, record := range records {
@@ -70,8 +69,18 @@ func (rp Reporter) Show(records []metadata.Record, usnjrnlRecords UsnJrnl.Record
 			vals = append(vals, record.GetFname())
 		}
 
-		if rp.ShowAttributes != "" || rp.ShowFull {
-			//record.ShowAttributes(rp.ShowAttributes)
+		if len(rp.ShowAttributes) != 0 || rp.ShowFull {
+			attributes := record.FindAttributes(rp.ShowAttributes)
+
+			for _, attr := range attributes {
+				val := ""
+				if attr != nil {
+					val = attr.GetInfo()
+				}
+
+				vals = append(vals, val)
+
+			}
 		}
 
 		if rp.ShowTimestamps || rp.ShowFull {
@@ -106,7 +115,7 @@ func (rp Reporter) Show(records []metadata.Record, usnjrnlRecords UsnJrnl.Record
 		}
 
 		if rp.ShowIndex || rp.ShowFull {
-			//		record.ShowIndex()
+			vals = append(vals, record.GetIndex())
 		}
 
 		if rp.ShowParent || rp.ShowFull {
@@ -119,10 +128,6 @@ func (rp Reporter) Show(records []metadata.Record, usnjrnlRecords UsnJrnl.Record
 
 		if rp.ShowClusters || rp.ShowFull {
 			vals = append(vals, utils.ToString(record.GetAllocatedClusters()))
-		}
-
-		if rp.ShowReparse {
-			//	record.ShowAttributes("Reparse Point")
 		}
 
 		if rp.ShowVSSClusters {

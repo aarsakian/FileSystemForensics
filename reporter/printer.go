@@ -30,8 +30,9 @@ type Column struct {
 }
 
 func (tm *TableManager) DetermineColumnWidths(showFull, showFileSize, showPath, showClusters,
-	showVCNs, showIndex, showParent, showReparse, showDeletion,
-	showTimestamps, showRunLists, showFilename, IsResident, showUSNJRNL bool) {
+	showVCNs, showIndex, showParent, showDeletion,
+	showTimestamps, showRunLists, showFilename, IsResident, showUSNJRNL bool,
+	showAttributes []string) {
 
 	activeColumns := 0
 
@@ -39,6 +40,13 @@ func (tm *TableManager) DetermineColumnWidths(showFull, showFileSize, showPath, 
 		tm.Columns = append(tm.Columns, Column{Name: "ID"})
 		tm.Columns = append(tm.Columns, Column{Name: "Type"})
 		activeColumns += 2
+	}
+
+	if len(showAttributes) > 0 {
+		for _, showattr := range showAttributes {
+			tm.Columns = append(tm.Columns, Column{Name: showattr})
+			activeColumns += 1
+		}
 	}
 
 	if showFilename || showUSNJRNL || showFull {
@@ -106,11 +114,6 @@ func (tm *TableManager) DetermineColumnWidths(showFull, showFileSize, showPath, 
 	}
 	if showIndex {
 		tm.Columns = append(tm.Columns, Column{Name: "Index"})
-		activeColumns++
-	}
-
-	if showReparse {
-		tm.Columns = append(tm.Columns, Column{Name: "Reparse Point"})
 		activeColumns++
 	}
 
