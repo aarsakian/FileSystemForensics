@@ -3,6 +3,7 @@ package attributes
 import (
 	"fmt"
 	"slices"
+	"strings"
 
 	"github.com/aarsakian/FileSystemForensics/logger"
 	"github.com/aarsakian/FileSystemForensics/utils"
@@ -42,22 +43,23 @@ func (idxRoot IndexRoot) GetEntries() IndexEntries {
 	return idxRoot.IndexEntries
 }
 
-func (idxEntry IndexEntry) ShowInfo() {
+func (idxEntry IndexEntry) GetInfo() string {
+	var txt strings.Builder
 	if idxEntry.Fnattr != nil {
 		if idxEntry.Flags == 0 {
-			fmt.Printf("IdxEntry %s file ref %d idx name %s  allocated size %d real size %d \n",
+			txt.WriteString(fmt.Sprintf("IdxEntry %s file ref %d idx name %s  allocated size %d real size %d \n",
 				idxEntry.Fnattr.GetType(), idxEntry.ParRef,
 				idxEntry.Fnattr.Fname,
-				idxEntry.Fnattr.AllocFsize, idxEntry.Fnattr.RealFsize)
+				idxEntry.Fnattr.AllocFsize, idxEntry.Fnattr.RealFsize))
 		} else {
-			fmt.Printf("IdxEntry %s file ref %d idx name %s  allocated size %d real size %d VCN %d\n",
+			txt.WriteString(fmt.Sprintf("IdxEntry %s file ref %d idx name %s  allocated size %d real size %d VCN %d\n",
 				idxEntry.Fnattr.GetType(), idxEntry.ParRef,
 				idxEntry.Fnattr.Fname,
-				idxEntry.Fnattr.AllocFsize, idxEntry.Fnattr.RealFsize, idxEntry.ChildVCN)
+				idxEntry.Fnattr.AllocFsize, idxEntry.Fnattr.RealFsize, idxEntry.ChildVCN))
 		}
 
 	}
-
+	return txt.String()
 }
 
 func (idxRoot *IndexRoot) SetHeader(header *AttributeHeader) {
@@ -97,11 +99,13 @@ func (idxRoot IndexRoot) FindType() string {
 	return idxRoot.Header.GetType()
 }
 
-func (idxRoot IndexRoot) ShowInfo() {
-	fmt.Printf("type %s nof entries %d\n", idxRoot.FindType(), len(idxRoot.IndexEntries))
+func (idxRoot IndexRoot) GetInfo() string {
+	var txt strings.Builder
+	txt.WriteString(fmt.Sprintf("type %s nof entries %d\n", idxRoot.FindType(), len(idxRoot.IndexEntries)))
 	for _, idxEntry := range idxRoot.IndexEntries {
-		idxEntry.ShowInfo()
+		txt.WriteString(idxEntry.GetInfo())
 	}
+	return txt.String()
 }
 
 func (idxRoot IndexRoot) GetIndexEntriesSortedByMFTEntry() IndexEntries {

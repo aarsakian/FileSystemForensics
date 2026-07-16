@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strings"
 
 	"github.com/aarsakian/FileSystemForensics/logger"
 	"github.com/aarsakian/FileSystemForensics/utils"
@@ -69,14 +70,16 @@ func (idxAllocationRecs IndexAllocationRecords) GetEntries() IndexEntries {
 	return idxEntries
 }
 
-func (idxAllocationRecs IndexAllocationRecords) ShowInfo() {
-	fmt.Printf("IdxAllocation %s \n", idxAllocationRecs.FindType())
+func (idxAllocationRecs IndexAllocationRecords) GetInfo() string {
+	var txt strings.Builder
+	txt.WriteString(fmt.Sprintf("IdxAllocation %s \n", idxAllocationRecs.FindType()))
 	for _, record := range idxAllocationRecs.Records {
-		fmt.Printf("nof entries  %d ", record.NumFixupEntries)
+		txt.WriteString(fmt.Sprintf("nof entries  %d ", record.NumFixupEntries))
 		for _, idxEntry := range record.IndexEntries {
-			idxEntry.ShowInfo()
+			txt.WriteString(idxEntry.GetInfo())
 		}
 	}
+	return txt.String()
 
 }
 
