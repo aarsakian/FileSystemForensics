@@ -33,8 +33,8 @@ func (data DATA) IsNoNResident() bool {
 	return data.Header.IsNoNResident()
 }
 
-func (data DATA) ShowInfo() {
-	fmt.Printf("type %s %t %s \n", data.FindType(), data.IsNoNResident(), data.GetType())
+func (data DATA) GetInfo() string {
+	return fmt.Sprintf("type %s %t %s \n", data.FindType(), data.IsNoNResident(), data.GetType())
 }
 
 func (data DATA) GetType() string {

@@ -34,6 +34,6 @@ func (objectId ObjectID) IsNoNResident() bool {
 	return objectId.Header.IsNoNResident()
 }
 
-func (objectId ObjectID) ShowInfo() {
-	fmt.Printf("type %s\n", objectId.FindType())
+func (objectId ObjectID) GetInfo() string {
+	return fmt.Sprintf("type %s\n", objectId.FindType())
 }

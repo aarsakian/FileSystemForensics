@@ -41,8 +41,8 @@ func (ea_info *EA_INFORMATION) Parse(data []byte) {
 
 }
 
-func (ea_info *EA_INFORMATION) ShowInfo() {
-
+func (ea_info *EA_INFORMATION) GetInfo() string {
+	return ""
 }
 
 func (ea ExtendedAttribute) FindType() string {
@@ -67,6 +67,6 @@ func (ea *ExtendedAttribute) Parse(data []byte) {
 
 }
 
-func (ea ExtendedAttribute) ShowInfo() {
-
+func (ea ExtendedAttribute) GetInfo() string {
+	return utils.RemoveNulls(ea.Name)
 }

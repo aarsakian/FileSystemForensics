@@ -3,7 +3,7 @@ package attributes
 import "github.com/aarsakian/FileSystemForensics/utils"
 
 type VolumeName struct {
-	Name   utils.NoNull
+	Name   string
 	Header *AttributeHeader
 }
 
@@ -36,8 +36,8 @@ func (volInfo VolumeInfo) FindType() string {
 	return volInfo.Header.GetType()
 }
 
-func (volinfo VolumeInfo) ShowInfo() {
-
+func (volinfo VolumeInfo) GetInfo() string {
+	return ""
 }
 
 func (volName *VolumeName) SetHeader(header *AttributeHeader) {
@@ -49,7 +49,7 @@ func (volName VolumeName) GetHeader() AttributeHeader {
 }
 
 func (volName *VolumeName) Parse(data []byte) {
-	volName.Name = utils.NoNull(data)
+	volName.Name = utils.RemoveNulls(data)
 
 }
 
@@ -61,6 +61,6 @@ func (volName VolumeName) IsNoNResident() bool {
 	return volName.Header.IsNoNResident()
 }
 
-func (volName VolumeName) ShowInfo() {
-
+func (volName VolumeName) GetInfo() string {
+	return volName.Name
 }

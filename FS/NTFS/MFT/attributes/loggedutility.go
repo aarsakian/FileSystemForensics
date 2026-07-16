@@ -45,6 +45,6 @@ func (loggedUtility *LoggedUtilityStream) Parse(data []byte) {
 
 }
 
-func (loggedUtiltiy LoggedUtilityStream) ShowInfo() {
-
+func (loggedUtiltiy LoggedUtilityStream) GetInfo() string {
+	return ""
 }
