@@ -102,13 +102,13 @@ func (metadataBlockHeader *FVEMetadataBlockHeaderV2) Process(data []byte) {
 
 }
 
-func (dataset FVEMetadataHeaderV1) ShowInfo() {
+func (dataset FVEMetadataHeaderV1) GetInfo() {
 	fmt.Printf("V1 Creation Time: %s GUID %s Encryption Method: %s\n",
 		dataset.CreationTime.ConvertToIsoTime(), utils.StringifyGUID(dataset.VolumeIdentifier[:]),
 		datums.GetEncryptionMethod(dataset.EncryptionMethod[:]))
 }
 
-func (dataset FVEMetadataHeaderV3) ShowInfo() {
+func (dataset FVEMetadataHeaderV3) GetInfo() {
 	fmt.Printf("V3 Creation Time: %s GUID %s Encryption Method: %s\n",
 		dataset.CreationTime.ConvertToIsoTime(), utils.StringifyGUID(dataset.VolumeIdentifier[:]),
 		datums.GetEncryptionMethod(dataset.EncryptionMethod[:]))
@@ -167,12 +167,12 @@ func (metadataBlock *MetadataBlock) ParseEntries(raw []byte) error {
 	return nil
 }
 
-func (metadataBlock MetadataBlock) ShowInfo() {
+func (metadataBlock MetadataBlock) GetInfo() {
 	if metadataBlock.MetadataV1 != nil {
-		metadataBlock.MetadataV1.ShowInfo()
+		metadataBlock.MetadataV1.GetInfo()
 
 	} else if metadataBlock.MetadataV3 != nil {
-		metadataBlock.MetadataV3.ShowInfo()
+		metadataBlock.MetadataV3.GetInfo()
 	}
 	for _, datum := range metadataBlock.Datums {
 		fmt.Printf("Datum Info: %s\n", datum.GetInfo())

@@ -231,10 +231,10 @@ func (volume *Volume) ProcessHeader(data []byte) {
 	volume.Header = *header
 }
 
-func (volume Volume) ShowInfo() {
+func (volume Volume) GetInfo() {
 	fmt.Printf("Volume INFO %s\n", utils.StringifyGUID(volume.Header.BitLockerID[:]))
 	for _, metadataBlock := range volume.MetadataBlocks {
-		metadataBlock.ShowInfo()
+		metadataBlock.GetInfo()
 	}
 
 }
