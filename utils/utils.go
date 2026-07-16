@@ -20,8 +20,6 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-type NoNull string
-
 type FixUp struct {
 	Signature      []byte
 	OriginalValues [][]byte
@@ -246,7 +244,7 @@ func ReadEndianUInt(barray []byte) uint64 {
 	return sum
 }
 
-func RemoveNulls(val []byte) NoNull {
+func RemoveNulls(val []byte) string {
 	var newstr strings.Builder
 	for _, v := range val {
 		if v != 0 {
@@ -255,7 +253,7 @@ func RemoveNulls(val []byte) NoNull {
 
 		}
 	}
-	return NoNull(newstr.String())
+	return newstr.String()
 }
 
 func Hexify(barray []byte) string {
