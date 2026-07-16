@@ -3,6 +3,7 @@ package attributes
 import (
 	"fmt"
 	"math"
+	"strings"
 
 	"github.com/aarsakian/FileSystemForensics/logger"
 	"github.com/aarsakian/FileSystemForensics/utils"
@@ -28,7 +29,7 @@ type AttributeList struct { //more than one MFT entry to store a file/directory 
 	ParRef     uint64  //16-22      # 6
 	ParSeq     uint16  //       22-24    # 2
 	ID         uint8   //     24-26   # 4
-	Name       utils.NoNull
+	Name       string
 }
 
 func (attrList AttributeList) GetType() string {
@@ -84,10 +85,11 @@ func (attrListEntries AttributeListEntries) IsNoNResident() bool {
 	return attrListEntries.Header.IsNoNResident()
 }
 
-func (attrListEntries AttributeListEntries) ShowInfo() {
+func (attrListEntries AttributeListEntries) GetInfo() string {
+	var txt strings.Builder
 	for _, attrList := range attrListEntries.Entries {
-		fmt.Printf("Attr List Type %s MFT Ref %d startVCN %d name %s \n",
-			attrList.GetType(), attrList.ParRef, attrList.StartVcn, attrList.Name)
+		txt.WriteString(fmt.Sprintf("Attr List Type %s MFT Ref %d startVCN %d name %s \n",
+			attrList.GetType(), attrList.ParRef, attrList.StartVcn, attrList.Name))
 	}
-
+	return txt.String()
 }

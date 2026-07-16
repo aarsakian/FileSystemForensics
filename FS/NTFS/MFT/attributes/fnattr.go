@@ -57,10 +57,10 @@ func (fnattr FNAttribute) FindType() string {
 	return fnattr.Header.GetType()
 }
 
-func (fnattr FNAttribute) ShowInfo() {
+func (fnattr FNAttribute) GetInfo() string {
 	times := fnattr.GetTimestamps()
 
-	fmt.Printf("%s Par Ref %d name %s atime %s ctime %s mtime %s mfttime %s\n",
+	return fmt.Sprintf("%s Par Ref %d name %s atime %s ctime %s mtime %s mfttime %s\n",
 		fnattr.FindType(), fnattr.ParRef, fnattr.Fname, times[0], times[1], times[2], times[3])
 }
 

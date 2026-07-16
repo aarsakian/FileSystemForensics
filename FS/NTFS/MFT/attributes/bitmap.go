@@ -1,6 +1,9 @@
 package attributes
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 type BitMap struct {
 	AllocationStatus []byte
@@ -27,8 +30,9 @@ func (bitmap BitMap) IsNoNResident() bool {
 	return bitmap.Header.IsNoNResident()
 }
 
-func (bitmap BitMap) ShowInfo() {
-	fmt.Printf("type %s \n", bitmap.FindType())
+func (bitmap BitMap) GetInfo() string {
+	var txt strings.Builder
+	txt.WriteString(fmt.Sprintf("type %s \n", bitmap.FindType()))
 	pos := 1
 	for _, byteval := range bitmap.AllocationStatus {
 		bitmask := uint8(0x01)
@@ -36,10 +40,11 @@ func (bitmap BitMap) ShowInfo() {
 		for bitmask < 128 {
 
 			bitmask = 1 << shifter
-			fmt.Printf("cluster/entry  %d status %d \t", pos, byteval&bitmask)
+			txt.WriteString(fmt.Sprintf("cluster/entry  %d status %d \t", pos, byteval&bitmask))
 			pos++
 			shifter++
 		}
 
 	}
+	return txt.String()
 }

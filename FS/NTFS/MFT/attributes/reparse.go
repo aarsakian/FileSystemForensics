@@ -2,6 +2,7 @@ package attributes
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/aarsakian/FileSystemForensics/logger"
 	"github.com/aarsakian/FileSystemForensics/utils"
@@ -89,13 +90,16 @@ func (reparse Reparse) GetFlagInfo() string {
 	return ReparseTagflags[utils.ToUint32(reparse.Flags[:])]
 }
 
-func (reparse Reparse) ShowInfo() {
-	fmt.Printf("Type %s flag %s\n", reparse.FindType(), reparse.GetFlagInfo())
+func (reparse Reparse) GetInfo() string {
+	var txt strings.Builder
+	txt.WriteString(fmt.Sprintf("Type %s flag %s\n", reparse.FindType(), reparse.GetFlagInfo()))
+
 	if reparse.Symbolink != nil {
-		reparse.Symbolink.ShowInfo()
+		txt.WriteString(reparse.Symbolink.GetInfo())
 	}
+	return txt.String()
 }
 
-func (symbolinkReparse SymbolikReparse) ShowInfo() {
-	fmt.Printf("Target Name %s Print Name %s\n", symbolinkReparse.Name, symbolinkReparse.PrintName)
+func (symbolinkReparse SymbolikReparse) GetInfo() string {
+	return fmt.Sprintf("%s : %s\n", symbolinkReparse.Name, symbolinkReparse.PrintName)
 }

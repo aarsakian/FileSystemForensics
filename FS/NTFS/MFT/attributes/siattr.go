@@ -74,10 +74,10 @@ func (siattr SIAttribute) GetTimestamps() []string {
 	return []string{atime, ctime, mtime, mftime}
 }
 
-func (siattr SIAttribute) ShowInfo() {
+func (siattr SIAttribute) GetInfo() string {
 	times := siattr.GetTimestamps()
 
-	fmt.Printf(" %s usn  %d atime %s ctime %s mtime %s mfttime %s file attr %s\n",
+	return fmt.Sprintf(" %s usn  %d atime %s ctime %s mtime %s mfttime %s file attr %s\n",
 		siattr.FindType(), siattr.USN, times[0], times[1], times[2], times[3],
 		siattr.GetFileAttributes())
 }
