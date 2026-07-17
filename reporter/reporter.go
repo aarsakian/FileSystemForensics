@@ -59,7 +59,8 @@ func (rp Reporter) Show(records []metadata.Record, usnjrnlRecords UsnJrnl.Record
 			continue
 		}
 
-		if rp.ShowFull {
+		if rp.ShowFull || rp.ShowFileName || rp.ShowTimestamps || rp.ShowVCNs ||
+			rp.ShowFileSize || len(rp.ShowAttributes) != 0 {
 
 			vals = append(vals, fmt.Sprintf("%d", record.GetID()))
 			vals = append(vals, record.GetType())

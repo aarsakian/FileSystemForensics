@@ -36,7 +36,7 @@ func (tm *TableManager) DetermineColumnWidths(showFull, showFileSize, showPath, 
 
 	activeColumns := 0
 
-	if showFull {
+	if showFull || showFilename || showTimestamps || showVCNs || showFileSize || len(showAttributes) > 0 {
 		tm.Columns = append(tm.Columns, Column{Name: "ID"})
 		tm.Columns = append(tm.Columns, Column{Name: "Type"})
 		activeColumns += 2
