@@ -47,13 +47,13 @@ func (idxEntry IndexEntry) GetInfo() string {
 	var txt strings.Builder
 	if idxEntry.Fnattr != nil {
 		if idxEntry.Flags == 0 {
-			txt.WriteString(fmt.Sprintf("IdxEntry %s file ref %d idx name %s  allocated size %d real size %d \n",
-				idxEntry.Fnattr.GetType(), idxEntry.ParRef,
+			txt.WriteString(fmt.Sprintf("file ref %d  %s  allocated size %d real size %d \n",
+				idxEntry.ParRef,
 				idxEntry.Fnattr.Fname,
 				idxEntry.Fnattr.AllocFsize, idxEntry.Fnattr.RealFsize))
 		} else {
-			txt.WriteString(fmt.Sprintf("IdxEntry %s file ref %d idx name %s  allocated size %d real size %d VCN %d\n",
-				idxEntry.Fnattr.GetType(), idxEntry.ParRef,
+			txt.WriteString(fmt.Sprintf("file ref %d  %s  allocated size %d real size %d VCN %d\n",
+				idxEntry.ParRef,
 				idxEntry.Fnattr.Fname,
 				idxEntry.Fnattr.AllocFsize, idxEntry.Fnattr.RealFsize, idxEntry.ChildVCN))
 		}
@@ -101,9 +101,9 @@ func (idxRoot IndexRoot) FindType() string {
 
 func (idxRoot IndexRoot) GetInfo() string {
 	var txt strings.Builder
-	txt.WriteString(fmt.Sprintf("type %s nof entries %d\n", idxRoot.FindType(), len(idxRoot.IndexEntries)))
+
 	for _, idxEntry := range idxRoot.IndexEntries {
-		txt.WriteString(idxEntry.GetInfo())
+		txt.WriteString(fmt.Sprintf(" %s", idxEntry.GetInfo()))
 	}
 	return txt.String()
 }
