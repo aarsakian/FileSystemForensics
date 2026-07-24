@@ -79,6 +79,7 @@ func (idxAllocationRecs IndexAllocationRecords) GetInfo() string {
 		}
 	}
 	return txt.String()
+	return txt.String()
 
 }
 
