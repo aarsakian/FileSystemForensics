@@ -129,9 +129,21 @@ func (tm *TableManager) DetermineColumnWidths(showFull, showFileSize, showPath, 
 
 	totalWidth := utils.TerminalWidth() - 5
 	if activeColumns > 0 {
-		widthPerColumn := totalWidth / activeColumns
+
 		for i := range tm.Columns {
-			tm.Columns[i].Width = widthPerColumn
+			switch tm.Columns[i].Name {
+			case "ID":
+				tm.Columns[i].Width = 8
+				totalWidth -= 8
+			case "Type":
+				tm.Columns[i].Width = 25
+				totalWidth -= 25
+
+			default:
+				tm.Columns[i].Width = totalWidth / (activeColumns - i)
+			}
+
+			totalWidth -= tm.Columns[i].Width
 		}
 	}
 
