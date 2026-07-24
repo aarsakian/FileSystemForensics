@@ -58,7 +58,6 @@ func (fnattr FNAttribute) FindType() string {
 }
 
 func (fnattr FNAttribute) GetInfo() string {
-func (fnattr FNAttribute) GetInfo() string {
 	times := fnattr.GetTimestamps()
 
 	return fmt.Sprintf("Par Ref %d name %s atime %s ctime %s mtime %s mfttime %s\n",
