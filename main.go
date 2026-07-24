@@ -156,7 +156,7 @@ func main() {
 
 	rp := reporter.Reporter{
 		ShowFileName:    *showFileName,
-		ShowAttributes:  strings.Split(*showAttributes, ","),
+		ShowAttributes:  strings.FieldsFunc(*showAttributes, func(r rune) bool { return r == ',' }),
 		ShowTimestamps:  *showTimestamps,
 		IsResident:      *isResident,
 		ShowFull:        *showFull,
