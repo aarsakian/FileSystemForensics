@@ -104,8 +104,9 @@ type EntriesFilter struct {
 }
 
 func (ef EntriesFilter) Execute(records []metadata.Record) []metadata.Record {
+	var filteredRecords []metadata.Record
 	for _, entry := range ef.Entries {
-		records = metadata.FilterByEntries(records, entry)
+		filteredRecords = append(filteredRecords, metadata.FilterByEntries(records, entry)...)
 	}
-	return records
+	return filteredRecords
 }
