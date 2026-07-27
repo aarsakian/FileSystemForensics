@@ -35,7 +35,6 @@ type Record interface {
 	GetSequence() int
 	FindAttributes([]string) []Attribute
 	GetTimestamps() []string
-	GetRunLists() [][2]int
 	GetFileSize() (int64, int64)
 	GetVCNs() (uint64, uint64)
 	GetIndex() string
