@@ -101,14 +101,6 @@ func (rp Reporter) Show(records []metadata.Record, usnjrnlRecords UsnJrnl.Record
 			vals = append(vals, fmt.Sprintf("%d:%d", startVCN, lastVCN))
 		}
 
-		if rp.ShowRunList || rp.ShowFull {
-			runlists := record.GetRunLists()
-			for _, runlist := range runlists {
-				vals = append(vals, fmt.Sprintf("%d:%d", runlist[0], runlist[1]))
-			}
-
-		}
-
 		if rp.ShowFileSize || rp.ShowFull {
 			logicalsize, physicalsize := record.GetFileSize()
 			vals = append(vals, fmt.Sprintf("%1.0f", float64(logicalsize)/1024))
