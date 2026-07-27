@@ -2,6 +2,7 @@ package attributes
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/aarsakian/FileSystemForensics/utils"
 )
@@ -35,5 +36,10 @@ func (objectId ObjectID) IsNoNResident() bool {
 }
 
 func (objectId ObjectID) GetInfo() string {
-	return fmt.Sprintf("type %s\n", objectId.FindType())
+	var txt strings.Builder
+
+	fmt.Fprintf(&txt, "%s", objectId.Header.GetInfo())
+
+	fmt.Fprintf(&txt, "type %s\n", objectId.FindType())
+	return txt.String()
 }

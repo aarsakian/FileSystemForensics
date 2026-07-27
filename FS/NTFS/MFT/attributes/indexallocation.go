@@ -72,13 +72,12 @@ func (idxAllocationRecs IndexAllocationRecords) GetEntries() IndexEntries {
 
 func (idxAllocationRecs IndexAllocationRecords) GetInfo() string {
 	var txt strings.Builder
-
+	txt.WriteString(idxAllocationRecs.Header.GetInfo())
 	for _, record := range idxAllocationRecs.Records {
 		for _, idxEntry := range record.IndexEntries {
 			txt.WriteString(fmt.Sprintf(" %s", idxEntry.GetInfo()))
 		}
 	}
-	return txt.String()
 	return txt.String()
 
 }

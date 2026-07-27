@@ -32,7 +32,8 @@ func (bitmap BitMap) IsNoNResident() bool {
 
 func (bitmap BitMap) GetInfo() string {
 	var txt strings.Builder
-	txt.WriteString(fmt.Sprintf("type %s \n", bitmap.FindType()))
+	fmt.Fprintf(&txt, "%s", bitmap.Header.GetInfo())
+	fmt.Fprintf(&txt, "type %s \n", bitmap.FindType())
 	pos := 1
 	for _, byteval := range bitmap.AllocationStatus {
 		bitmask := uint8(0x01)

@@ -1,6 +1,11 @@
 package attributes
 
-import "github.com/aarsakian/FileSystemForensics/utils"
+import (
+	"fmt"
+	"strings"
+
+	"github.com/aarsakian/FileSystemForensics/utils"
+)
 
 type VolumeName struct {
 	Name   string
@@ -37,7 +42,10 @@ func (volInfo VolumeInfo) FindType() string {
 }
 
 func (volinfo VolumeInfo) GetInfo() string {
-	return ""
+	var txt strings.Builder
+	fmt.Fprintf(&txt, "%s", volinfo.Header.GetInfo())
+
+	return txt.String()
 }
 
 func (volName *VolumeName) SetHeader(header *AttributeHeader) {
@@ -62,5 +70,8 @@ func (volName VolumeName) IsNoNResident() bool {
 }
 
 func (volName VolumeName) GetInfo() string {
-	return volName.Name
+	var txt strings.Builder
+	fmt.Fprintf(&txt, "%s", volName.Header.GetInfo())
+	fmt.Fprintf(&txt, "%s", volName.Name)
+	return txt.String()
 }

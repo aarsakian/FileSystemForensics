@@ -1,6 +1,11 @@
 package attributes
 
-import "github.com/aarsakian/FileSystemForensics/utils"
+import (
+	"fmt"
+	"strings"
+
+	"github.com/aarsakian/FileSystemForensics/utils"
+)
 
 type LoggedUtilityStream struct {
 	Kind    string
@@ -46,5 +51,9 @@ func (loggedUtility *LoggedUtilityStream) Parse(data []byte) {
 }
 
 func (loggedUtiltiy LoggedUtilityStream) GetInfo() string {
-	return ""
+	var txt strings.Builder
+	fmt.Fprintf(&txt, "%s", loggedUtiltiy.Header.GetInfo())
+	fmt.Fprintf(&txt, "%d ", loggedUtiltiy.TXFDATA.LSN_NTFS_Metadata)
+	return txt.String()
+
 }

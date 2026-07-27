@@ -42,7 +42,7 @@ func (ea_info *EA_INFORMATION) Parse(data []byte) {
 }
 
 func (ea_info *EA_INFORMATION) GetInfo() string {
-	return ""
+	return ea_info.Header.GetInfo()
 }
 
 func (ea ExtendedAttribute) FindType() string {

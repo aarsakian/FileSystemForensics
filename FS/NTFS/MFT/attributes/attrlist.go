@@ -87,9 +87,11 @@ func (attrListEntries AttributeListEntries) IsNoNResident() bool {
 
 func (attrListEntries AttributeListEntries) GetInfo() string {
 	var txt strings.Builder
+	fmt.Fprintf(&txt, "%s", attrListEntries.Header.GetInfo())
+
 	for _, attrList := range attrListEntries.Entries {
-		txt.WriteString(fmt.Sprintf("Attr List Type %s MFT Ref %d startVCN %d name %s \n",
-			attrList.GetType(), attrList.ParRef, attrList.StartVcn, attrList.Name))
+		fmt.Fprintf(&txt, "Attr List Type %s MFT Ref %d startVCN %d name %s \n",
+			attrList.GetType(), attrList.ParRef, attrList.StartVcn, attrList.Name)
 	}
 	return txt.String()
 }

@@ -2,6 +2,7 @@ package attributes
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/aarsakian/FileSystemForensics/utils"
 )
@@ -58,10 +59,14 @@ func (fnattr FNAttribute) FindType() string {
 }
 
 func (fnattr FNAttribute) GetInfo() string {
+	var txt strings.Builder
+
+	fmt.Fprintf(&txt, "%s", fnattr.Header.GetInfo())
 	times := fnattr.GetTimestamps()
 
-	return fmt.Sprintf("Par Ref %d name %s atime %s ctime %s mtime %s mfttime %s\n",
+	fmt.Fprintf(&txt, "Par Ref %d name %s atime %s ctime %s mtime %s mfttime %s\n",
 		fnattr.ParRef, fnattr.Fname, times[0], times[1], times[2], times[3])
+	return txt.String()
 }
 
 func (fnAttr FNAttribute) GetType() string {

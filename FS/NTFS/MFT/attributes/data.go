@@ -1,6 +1,9 @@
 package attributes
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 var dataFlags = map[uint16]string{
 	0x0000: "None",
@@ -34,7 +37,11 @@ func (data DATA) IsNoNResident() bool {
 }
 
 func (data DATA) GetInfo() string {
-	return fmt.Sprintf("type %s %t %s \n", data.FindType(), data.IsNoNResident(), data.GetType())
+	var txt strings.Builder
+	fmt.Fprintf(&txt, "%s", data.Header.GetInfo())
+	fmt.Fprintf(&txt, "type %s %t %s \n", data.FindType(), data.IsNoNResident(),
+		data.GetType())
+	return txt.String()
 }
 
 func (data DATA) GetType() string {

@@ -3,6 +3,7 @@ package attributes
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/aarsakian/FileSystemForensics/logger"
 	"github.com/aarsakian/FileSystemForensics/readers"
@@ -95,22 +96,70 @@ func (atrRecordNoNResident ATRrecordNoNResident) GetContent(hD readers.DiskReade
 	}
 
 	runlist := atrRecordNoNResident.RunList
-
-	offset := int64(runlist.Offset)
 	dataRead := 0
-	for runlist != nil {
+	currentOffset := int64(runlist.Offset)
+	pendingOffset := int64(0)
+	pendingSize := 0
 
-		data, _ := hD.ReadFile(partitionOffsetB+offset*int64(clusterSizeB),
-			int(runlist.Length)*clusterSizeB)
-		copy(dataToRead[dataRead:], data)
+	flushPending := func() error {
+		if pendingSize == 0 {
+			return nil
+		}
+
+		readData, err := hD.ReadFile(partitionOffsetB+pendingOffset*int64(clusterSizeB), pendingSize)
+		if err != nil {
+			return err
+		}
+		copy(dataToRead[dataRead:dataRead+pendingSize], readData)
+		dataRead += pendingSize
+		pendingSize = 0
+		return nil
+	}
+
+	for runlist != nil {
+		runSize := int(runlist.Length) * clusterSizeB
+		if runSize < 0 || dataRead+runSize > len(dataToRead) {
+			msg := "runlist length exceeds destination buffer"
+			logger.FSLogger.Warning(msg)
+			return errors.New(msg)
+		}
+
+		if runlist.Offset == 0 {
+			if err := flushPending(); err != nil {
+				return err
+			}
+			for i := 0; i < runSize; i++ {
+				dataToRead[dataRead+i] = 0
+			}
+			dataRead += runSize
+		} else {
+			if pendingSize == 0 {
+				pendingOffset = currentOffset
+				pendingSize = runSize
+			} else {
+				expectedNext := pendingOffset + int64(pendingSize)/int64(clusterSizeB)
+				if currentOffset == expectedNext {
+					pendingSize += runSize
+				} else {
+					if err := flushPending(); err != nil {
+						return err
+					}
+					pendingOffset = currentOffset
+					pendingSize = runSize
+				}
+			}
+		}
 
 		if runlist.Next == nil {
 			break
 		}
 
-		dataRead += int(runlist.Length) * clusterSizeB
 		runlist = runlist.Next
-		offset += int64(runlist.Offset)
+		currentOffset += int64(runlist.Offset)
+	}
+
+	if err := flushPending(); err != nil {
+		return err
 	}
 
 	return nil
@@ -235,4 +284,18 @@ func (prevRunlist *RunList) Process(runlists []byte) uint64 {
 		}
 	}
 	return length
+}
+
+func (attributeHeader AttributeHeader) GetInfo() string {
+	vcns := ""
+	var runlists strings.Builder
+	if attributeHeader.ATRrecordNoNResident != nil {
+		vcns = fmt.Sprintf("%d:%d", attributeHeader.ATRrecordNoNResident.StartVcn, attributeHeader.ATRrecordNoNResident.LastVcn)
+		runlist := attributeHeader.ATRrecordNoNResident.RunList
+		for runlist != nil {
+			runlists.WriteString(fmt.Sprintf("%d:%d", runlist.Length, runlist.Offset))
+			runlist = runlist.Next
+		}
+	}
+	return fmt.Sprintf("resident %d name %s vcn:%s runlists %s", attributeHeader.NoNResident, attributeHeader.GetName(), vcns, runlists.String())
 }

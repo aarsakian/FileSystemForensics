@@ -2,6 +2,7 @@ package attributes
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/aarsakian/FileSystemForensics/utils"
 )
@@ -75,11 +76,15 @@ func (siattr SIAttribute) GetTimestamps() []string {
 }
 
 func (siattr SIAttribute) GetInfo() string {
+	var txt strings.Builder
+
+	fmt.Fprintf(&txt, "%s", siattr.Header.GetInfo())
 	times := siattr.GetTimestamps()
 
-	return fmt.Sprintf(" %s usn  %d atime %s ctime %s mtime %s mfttime %s file attr %s\n",
+	fmt.Fprintf(&txt, " %s usn  %d atime %s ctime %s mtime %s mfttime %s file attr %s\n",
 		siattr.FindType(), siattr.USN, times[0], times[1], times[2], times[3],
 		siattr.GetFileAttributes())
+	return txt.String()
 }
 
 func (siattr SIAttribute) GetFileAttributes() string {

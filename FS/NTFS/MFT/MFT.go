@@ -687,43 +687,6 @@ func (record Record) GetResidentData() []byte {
 
 }
 
-func (record Record) GetRunLists() [][2]int {
-	var runlists [][2]int
-
-	for _, linkedRecord := range record.LinkedRecords {
-		innerRunlists := linkedRecord.GetRunLists()
-		runlists = append(runlists, innerRunlists...)
-
-	}
-
-	for _, nonResidentAttr := range record.FindNonResidentAttributes() {
-
-		if nonResidentAttr.GetHeader().ATRrecordNoNResident.RunList == nil {
-			continue
-		}
-		runlist := *nonResidentAttr.GetHeader().ATRrecordNoNResident.RunList
-		logicalOffset := runlist.Offset
-		nofFragments := 0
-		totalClusters := 0
-		for (MFTAttributes.RunList{}) != runlist {
-
-			runlists = append(runlists, [2]int{int(logicalOffset), int(runlist.Length)})
-
-			logicalOffset += runlist.Offset
-			totalClusters += int(runlist.Length)
-			nofFragments += 1
-			if runlist.Next == nil {
-				break
-			}
-			runlist = *runlist.Next
-		}
-		//fmt.Printf("Total Clusters %d Total Fragments %d\n", totalClusters, nofFragments)
-
-	}
-
-	return runlists
-}
-
 func (record Record) HasFilenameExtension(extension string) bool {
 	if record.HasAttr("FileName") {
 		fnattr := record.FindAttribute("FileName").(*MFTAttributes.FNAttribute)

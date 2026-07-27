@@ -92,7 +92,9 @@ func (reparse Reparse) GetFlagInfo() string {
 
 func (reparse Reparse) GetInfo() string {
 	var txt strings.Builder
-	txt.WriteString(fmt.Sprintf("Type %s flag %s\n", reparse.FindType(), reparse.GetFlagInfo()))
+	fmt.Fprintf(&txt, "%s", reparse.Header.GetInfo())
+
+	fmt.Fprintf(&txt, "Type %s flag %s\n", reparse.FindType(), reparse.GetFlagInfo())
 
 	if reparse.Symbolink != nil {
 		txt.WriteString(reparse.Symbolink.GetInfo())
