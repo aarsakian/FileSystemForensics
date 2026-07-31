@@ -148,6 +148,13 @@ func (idxAllocation *IndexAllocation) Parse(data []byte) error {
 }
 
 func (idxAllocation *IndexAllocation) ProcessFixUpArrays(data []byte) error {
+
+	if idxAllocation.NumFixupEntries == 0 || idxAllocation.NumFixupEntries > 128 {
+		msg := fmt.Sprintf("corrupt NumFixupEntries=%d", idxAllocation.NumFixupEntries)
+		logger.FSLogger.Warning(msg)
+		return errors.New(msg)
+	}
+
 	if len(data) < int(idxAllocation.FixupArrayOffset) ||
 		len(data) < int(idxAllocation.FixupArrayOffset+2*idxAllocation.NumFixupEntries) {
 
@@ -162,17 +169,21 @@ func (idxAllocation *IndexAllocation) ProcessFixUpArrays(data []byte) error {
 
 	fixuparray := data[idxAllocation.FixupArrayOffset : idxAllocation.FixupArrayOffset+2*idxAllocation.NumFixupEntries]
 
+	sig := make([]byte, 2)
+	copy(sig, fixuparray[:2])
 	//an 2-d array consisting of numfixupentries each 2 bytes first entry is the fixup
 	fixupvals := make([][]byte, idxAllocation.NumFixupEntries-1)
 	pos := 0
 	for val := 2; val < len(fixuparray); val = val + 2 {
-
-		fixupvals[pos] = fixuparray[val : val+2]
+		//copy
+		b := make([]byte, 2)
+		copy(b, fixuparray[val:val+2])
+		fixupvals[pos] = b
 		pos++
 	}
 
 	//2 byte USN 8 byte USA
-	idxAllocation.FixUp = &FixUp{Signature: fixuparray[:2], OriginalValues: fixupvals}
+	idxAllocation.FixUp = &FixUp{Signature: sig, OriginalValues: fixupvals}
 	return nil
 }
 
