@@ -1,7 +1,6 @@
 package volume
 
 import (
-	"errors"
 	"fmt"
 	"math"
 	"runtime"
@@ -77,9 +76,12 @@ func (ntfs *NTFS) Process(hD readers.DiskReader, partitionOffsetB int64, MFTSele
 	ntfs.ProcessMFT(MFTAreaBuf, MFTSelectedEntries, fromMFTEntry, toMFTEntry)
 	fmt.Printf("completed at %0.2f secs\n", time.Since(start).Seconds())
 
-	if !ntfs.MFT.IsOK() {
-
-		return errors.New("corrupt $MFT")
+	nonvalidRecords := ntfs.MFT.GetNoNValidRecords()
+	if nonvalidRecords > 0.01 {
+		msg := fmt.Sprintf("$MFT has  non valid records %.2f",
+			nonvalidRecords)
+		logger.FSLogger.Warning(msg)
+		fmt.Printf("%s\n", msg)
 	}
 
 	start = time.Now()
