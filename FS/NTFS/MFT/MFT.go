@@ -114,11 +114,11 @@ func (mfttable MFTTable) GetParent(record Record) (Record, error) {
 
 }
 
-func (mfttable MFTTable) IsOK() bool {
+func (mfttable MFTTable) GetNoNValidRecords() float64 {
 	// after more than 20 non valid recors $MFT is corrupt
 	// check table if
-	logger.FSLogger.Info("$MFT has more than 1% non valid records")
-	return float64(mfttable.NonValidRecords)/float64(len(mfttable.Records)) < 0.01
+
+	return float64(mfttable.NonValidRecords) / float64(len(mfttable.Records))
 }
 
 func (record Record) IsFolder() bool {
@@ -249,6 +249,9 @@ func ProcessNoNResidentAttributesWorker(records chan *Record, hD readers.DiskRea
 			if runLength == 0 { // no runlists found
 
 				logger.FSLogger.Warning("non resident attribute has zero length runlist")
+				continue
+			} else if runLength > 128*1024*1024 {
+				logger.FSLogger.Warning(fmt.Sprintf("non resident attribute has large runlist %d", runLength))
 				continue
 			}
 			//ensure scratch buffer length is appropriate
