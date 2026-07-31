@@ -78,8 +78,8 @@ func (ntfs *NTFS) Process(hD readers.DiskReader, partitionOffsetB int64, MFTSele
 
 	nonvalidRecords := ntfs.MFT.GetNoNValidRecords()
 	if nonvalidRecords > 0.01 {
-		msg := fmt.Sprintf("$MFT has  non valid records %.2f",
-			nonvalidRecords)
+		msg := fmt.Sprintf("$MFT has  non valid records %0.2f%%",
+			nonvalidRecords*100)
 		logger.FSLogger.Warning(msg)
 		fmt.Printf("%s\n", msg)
 	}
