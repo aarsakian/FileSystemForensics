@@ -51,12 +51,24 @@ func (attrListEntries *AttributeListEntries) Parse(data []byte) {
 		var attrList AttributeList
 		utils.Unmarshal(data[attrLen:attrLen+24], &attrList)
 
-		attrList.Name = utils.RemoveNulls(data[attrLen+
-			uint16(attrList.Nameoffset) : attrLen+uint16(attrList.Nameoffset)+2*uint16(attrList.Namelen)])
+		start := attrLen + uint16(attrList.Nameoffset)
+		end := start + 2*uint16(attrList.Namelen)
+
+		if end > uint16(len(data)) {
+			logger.FSLogger.Warning(fmt.Sprintf("AttributeListEntries: Parse: end index %d exceeds data length %d", end, len(data)))
+			break
+		}
+		//reduce memory footprint by copying only the relevant portion of the data slice
+		raw := make([]byte, end-start)
+		copy(raw, data[start:end])
+		attrList.Name = utils.RemoveNulls(raw)
 
 		attrListEntries.Entries = append(attrListEntries.Entries, attrList)
 		attrLen += attrList.Len
 		if attrLen == 0 || attrList.Len == 0 {
+			break
+		}
+		if attrList.Len < 24 || attrList.Len > 4096 {
 			break
 		}
 
