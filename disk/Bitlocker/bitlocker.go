@@ -447,6 +447,18 @@ func (volume Volume) GetEncryptionMethod() string {
 	return datums.GetEncryptionMethod(volume.MetadataBlocks[0].MetadataV1.EncryptionMethod[:])
 }
 
+func (volume Volume) RequiresCredentials() bool {
+	for _, metadataBlock := range volume.MetadataBlocks {
+		for _, datum := range metadataBlock.Datums {
+			vmk, ok := datum.(*datums.FVEVolumeMasterKey)
+			if ok {
+				return vmk.GetProtectionType() != "Clear Key"
+			}
+		}
+	}
+	return true
+}
+
 func (volume Volume) GetVolumeOffset() int64 {
 	return int64(volume.MetadataBlocks[0].Header.VolumeHeaderOffset)
 }

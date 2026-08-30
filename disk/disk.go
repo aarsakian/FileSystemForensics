@@ -447,23 +447,27 @@ func (disk *Disk) ProcessPartitions(partitionNum int, entries []int, fromEntry, 
 			idx+1, partitionOffsetB)
 		vol.Process(disk.Handler, partitionOffsetB, entries, fromEntry, toEntry)
 
-		if password != "" || recoveryKey != "" {
-			dec, ok := vol.(*volume.Bitlocker)
-			if ok {
+		if dec, ok := vol.(*volume.Bitlocker); ok {
+			if dec.BL != nil && !dec.BL.RequiresCredentials() {
+				err := dec.Decrypt("", "")
+				if err == nil {
+					disk.Handler = dec.GetHandler()
+				}
+			} else if password != "" || recoveryKey != "" {
 				err := dec.Decrypt(password, recoveryKey)
 				if err == nil {
-					//reasssign
 					disk.Handler = dec.GetHandler()
 				}
 			}
-
 		}
 
 		msg := "Partition %d  %s at sector %d "
 		fmt.Printf(msg+"\n", idx+1, vol.GetSignature(), partitionOffsetB)
 		logger.FSLogger.Info(fmt.Sprintf(msg, idx+1, vol.GetSignature(), partitionOffsetB))
 		if vol.GetSignature() == "BitLocker" && password == "" && recoveryKey == "" {
-			fmt.Printf("Bitlocker found. Please provide password or recovery key\n")
+			if dec, ok := vol.(*volume.Bitlocker); ok && dec.BL != nil && dec.BL.RequiresCredentials() {
+				fmt.Printf("Bitlocker found. Please provide password or recovery key\n")
+			}
 		}
 
 	}
