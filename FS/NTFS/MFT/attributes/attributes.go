@@ -105,8 +105,21 @@ func (atrRecordNoNResident ATRrecordNoNResident) GetContent(hD readers.DiskReade
 		if pendingSize == 0 {
 			return nil
 		}
+		if pendingOffset < 0 {
+			msg := fmt.Sprintf("pending physical offset is negative: %d", pendingOffset)
+			logger.FSLogger.Warning(msg)
+			return errors.New(msg)
+		}
 
-		readData, err := hD.ReadFile(partitionOffsetB+pendingOffset*int64(clusterSizeB), pendingSize)
+		physicalOffset := partitionOffsetB + pendingOffset*int64(clusterSizeB)
+		if physicalOffset < 0 {
+			msg := fmt.Sprintf("physical offset becomes negative: partition=%d pending=%d cluster=%d",
+				partitionOffsetB, pendingOffset, clusterSizeB)
+			logger.FSLogger.Warning(msg)
+			return errors.New(msg)
+		}
+
+		readData, err := hD.ReadFile(physicalOffset, pendingSize)
 		if err != nil {
 			return err
 		}
@@ -138,7 +151,13 @@ func (atrRecordNoNResident ATRrecordNoNResident) GetContent(hD readers.DiskReade
 				pendingSize = runSize
 			} else {
 				expectedNext := pendingOffset + int64(pendingSize)/int64(clusterSizeB)
-				if currentOffset == expectedNext {
+				if currentOffset < 0 || currentOffset > expectedNext {
+					if err := flushPending(); err != nil {
+						return err
+					}
+					pendingOffset = currentOffset
+					pendingSize = runSize
+				} else if currentOffset == expectedNext {
 					pendingSize += runSize
 				} else {
 					if err := flushPending(); err != nil {
@@ -156,6 +175,11 @@ func (atrRecordNoNResident ATRrecordNoNResident) GetContent(hD readers.DiskReade
 
 		runlist = runlist.Next
 		currentOffset += int64(runlist.Offset)
+		if currentOffset < 0 {
+			msg := fmt.Sprintf("runlist produces negative physical cluster offset: %d", currentOffset)
+			logger.FSLogger.Warning(msg)
+			return errors.New(msg)
+		}
 	}
 
 	if err := flushPending(); err != nil {
