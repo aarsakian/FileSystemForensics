@@ -850,10 +850,23 @@ func (record *Record) Process(bs []byte) error {
 			var atrRecordResident *MFTAttributes.ATRrecordResident = new(MFTAttributes.ATRrecordResident)
 
 			atrRecordResident.Parse(bs[ReadPtr+16:])
+			if int(attrHeader.NameOff)+2*int(attrHeader.Nlen) > int(attrHeader.AttrLen) {
+				msg = fmt.Sprintf("resident attribute %s at record %d has invalid name offset/length: nameOff=%d nlen=%d attrLen=%d",
+					attrHeader.GetType(), record.Entry, attrHeader.NameOff, attrHeader.Nlen, attrHeader.AttrLen)
+				logger.FSLogger.Warning(msg)
+				break
+			}
 			atrRecordResident.Name = utils.DecodeUTF16(bs[ReadPtr+attrHeader.NameOff : ReadPtr+attrHeader.NameOff+2*uint16(attrHeader.Nlen)])
 			attrHeader.ATRrecordResident = atrRecordResident
 			attrStartOffset := ReadPtr + atrRecordResident.OffsetContent
 			attrEndOffset := uint32(attrStartOffset) + atrRecordResident.ContentSize
+
+			if int(attrEndOffset) > len(bs) {
+				msg = fmt.Sprintf("Resident attribute %s at record %d exceeds buffer: end offset %d > buffer size %d",
+					attrHeader.GetType(), record.Entry, attrEndOffset, len(bs))
+				logger.FSLogger.Warning(msg)
+				break
+			}
 
 			if atrRecordResident.ContentSize > uint32(attrHeader.AttrLen)-16 {
 				logger.FSLogger.Warning("Resident record content size exceeds available attribute size")
@@ -915,9 +928,10 @@ func (record *Record) Process(bs []byte) error {
 				attr = &MFTAttributes.EA_INFORMATION{}
 				attr.Parse(bs[attrStartOffset:attrEndOffset])
 			} else {
-				msg := fmt.Sprintf("uknown resident attribute %s at record %d",
+				msg := fmt.Sprintf("unknown resident attribute %s at record %d, stopping attribute parse",
 					attrHeader.GetType(), record.Entry)
 				logger.FSLogger.Warning(msg)
+				break
 
 			}
 			if attr != nil {
@@ -943,6 +957,12 @@ func (record *Record) Process(bs []byte) error {
 				msg = fmt.Sprintf("attribute %s at record %d has RunOff %d less than NameOff+2*Nlen %d",
 					attrHeader.GetType(), record.Entry, atrNoNRecordResident.RunOff,
 					attrHeader.NameOff+uint16(2*attrHeader.Nlen))
+				logger.FSLogger.Warning(msg)
+				break
+			}
+			if int(ReadPtr+atrNoNRecordResident.RunOff) > len(bs) {
+				msg = fmt.Sprintf("non resident attribute %s at record %d has RunOff %d beyond buffer size %d",
+					attrHeader.GetType(), record.Entry, atrNoNRecordResident.RunOff, len(bs))
 				logger.FSLogger.Warning(msg)
 				break
 			}
