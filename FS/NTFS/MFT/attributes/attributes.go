@@ -259,6 +259,10 @@ func (attrHeader AttributeHeader) IsExtendedInformationAttribute() bool {
 	return attrHeader.GetType() == "Extended Attribute Information"
 }
 
+func (attrHeader AttributeHeader) IsSecurityDescriptor() bool {
+	return attrHeader.GetType() == "Security Descriptor"
+}
+
 func (attrHeader AttributeHeader) IsNoNResident() bool {
 	return attrHeader.NoNResident == 1
 }

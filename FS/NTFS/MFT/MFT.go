@@ -859,6 +859,7 @@ func (record *Record) Process(bs []byte) error {
 			atrRecordResident.Name = utils.DecodeUTF16(bs[ReadPtr+attrHeader.NameOff : ReadPtr+attrHeader.NameOff+2*uint16(attrHeader.Nlen)])
 			attrHeader.ATRrecordResident = atrRecordResident
 			attrStartOffset := ReadPtr + atrRecordResident.OffsetContent
+
 			attrEndOffset := uint32(attrStartOffset) + atrRecordResident.ContentSize
 
 			if int(attrEndOffset) > len(bs) {
@@ -927,11 +928,13 @@ func (record *Record) Process(bs []byte) error {
 			} else if attrHeader.IsExtendedInformationAttribute() {
 				attr = &MFTAttributes.EA_INFORMATION{}
 				attr.Parse(bs[attrStartOffset:attrEndOffset])
+			} else if attrHeader.IsSecurityDescriptor() {
+				attr = &MFTAttributes.Security{}
+				attr.Parse(bs[attrStartOffset:attrEndOffset])
 			} else {
 				msg := fmt.Sprintf("unknown resident attribute %s at record %d, stopping attribute parse",
 					attrHeader.GetType(), record.Entry)
 				logger.FSLogger.Warning(msg)
-				break
 
 			}
 			if attr != nil {
@@ -1010,6 +1013,10 @@ func (record *Record) Process(bs []byte) error {
 				var reparse *MFTAttributes.Reparse = new(MFTAttributes.Reparse)
 				reparse.SetHeader(&attrHeader)
 				attributes = append(attributes, reparse)
+			} else if attrHeader.IsExtendedAttribute() {
+				ea := &MFTAttributes.ExtendedAttribute{}
+				ea.SetHeader(&attrHeader)
+				attributes = append(attributes, ea)
 			} else {
 				msg := fmt.Sprintf("unknown non resident attr %s", attrHeader.GetType())
 				logger.FSLogger.Warning(msg)
