@@ -2,9 +2,15 @@ github.com/aarsakian/EWF_Reader v0.0.0-20260306182323-6ede308af4dd h1:6pmZCRHFF3
 github.com/aarsakian/EWF_Reader v0.0.0-20260306182323-6ede308af4dd/go.mod h1:d6erJYcE1G79EhLFO1lTgteghLoEYyn3B4MEsTR2Hpo=
 github.com/aarsakian/VHD_Reader v0.0.0-20260623095742-34fa1b9fa562 h1:cpFSIpYTNzxvrTF39x4E5W9RqeZ2nrcecTdt+HlNqdc=
 github.com/aarsakian/VHD_Reader v0.0.0-20260623095742-34fa1b9fa562/go.mod h1:+xUCzmV5Vt4FfMyGwIHnDqdBJeVgFqmA3K2pDhE8nbY=
+github.com/aarsakian/VHD_Reader v0.0.0-20260902064702-e73668c40cdd h1:tjS0npTvOekp2iMQo+5VC0l2ZCFUEDr+IBlRUvYKatc=
+github.com/aarsakian/VHD_Reader v0.0.0-20260902064702-e73668c40cdd/go.mod h1:+xUCzmV5Vt4FfMyGwIHnDqdBJeVgFqmA3K2pDhE8nbY=
 github.com/aarsakian/VMDK_Reader v0.0.0-20240910071554-9d72aac7f6b9 h1:TxwSHpf0ff0ilqnrYx6L+qP3Cd+Z0jCLORbIKcPFo4Y=
 github.com/aarsakian/VMDK_Reader v0.0.0-20240910071554-9d72aac7f6b9/go.mod h1:a+SYNiPvKba0NMg3g9BXlLVZflohz06h4veLf0gyySY=
 golang.org/x/sys v0.45.0 h1:dO4czNzziLiiXplLQgBCEpCvXQ3dnkn0SdaZSYdQ+FY=
 golang.org/x/sys v0.45.0/go.mod h1:4GL1E5IUh+htKOUEOaiffhrAeqysfVGipDYzABqnCmw=
+golang.org/x/sys v0.47.0 h1:o7XGOvZQCADBQQ4Y7VNq2dRWQR7JmOUW8Kxx4ZsNgWs=
+golang.org/x/sys v0.47.0/go.mod h1:4GL1E5IUh+htKOUEOaiffhrAeqysfVGipDYzABqnCmw=
 golang.org/x/text v0.37.0 h1:Cqjiwd9eSg8e0QAkyCaQTNHFIIzWtidPahFWR83rTrc=
 golang.org/x/text v0.37.0/go.mod h1:a5sjxXGs9hsn/AJVwuElvCAo9v8QYLzvavO5z2PiM38=
+golang.org/x/text v0.41.0 h1:vz/seA0lnX87Othu2f/0L24RcgrXD9/YFTSuGjj3rH8=
+golang.org/x/text v0.41.0/go.mod h1:jvf1O8ajNzZqhSrQBPbutR/EB83Cc0CFrezNQIwbb5M=
