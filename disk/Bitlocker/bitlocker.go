@@ -249,7 +249,11 @@ func (volume *Volume) Process(hD readers.DiskReader, volumeStartOffset int64) er
 				return err
 			}
 			metadataBlockHeader := new(FVEMetadataBlockHeaderV2)
-			metadataBlockHeader.Process(metadataBlockHeaderData)
+			err = metadataBlockHeader.Process(metadataBlockHeaderData)
+			if err != nil {
+				return err
+			}
+
 			if metadataBlockHeader.Version == 2 {
 				size = int64(metadataBlockHeader.Size << 4) // Size is in 16-sector units (512 bytes per sector)
 			} else {
@@ -260,7 +264,6 @@ func (volume *Volume) Process(hD readers.DiskReader, volumeStartOffset int64) er
 			utils.Unmarshal(data, bv)
 
 			data, _ = hD.ReadFile(int64(fveMetadataOffset)+volumeStartOffset, int(size))
-			fmt.Println(size, utils.CalcCRC32IEEE(data))
 
 			metadataBlock := MetadataBlock{Header: *metadataBlockHeader}
 			if err := metadataBlock.ParseEntries(data); err != nil {

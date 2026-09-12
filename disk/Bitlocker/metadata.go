@@ -97,15 +97,25 @@ type MetadataBlock struct {
 }
 
 // ====
-func (metadataBlockHeader *FVEMetadataBlockHeaderV2) Process(data []byte) {
+func (metadataBlockHeader *FVEMetadataBlockHeaderV2) Process(data []byte) error {
 	utils.Unmarshal(data, metadataBlockHeader)
-
+	if metadataBlockHeader.Signature != [8]byte{'-', 'F', 'V', 'E', '-', 'F', 'S', '-'} {
+		return fmt.Errorf("invalid signature")
+	}
+	return nil
 }
 
 func (dataset FVEMetadataHeaderV1) GetInfo() {
 	fmt.Printf("V1 Creation Time: %s GUID %s Encryption Method: %s\n",
 		dataset.CreationTime.ConvertToIsoTime(), utils.StringifyGUID(dataset.VolumeIdentifier[:]),
 		datums.GetEncryptionMethod(dataset.EncryptionMethod[:]))
+}
+
+func (metadataBlockHeader FVEMetadataBlockHeaderV2) GetInfo() {
+	fmt.Printf("Version %d, Encrypted Volume Size: %d, Number of Header Sectors: %d, FVE Metadata Offsets: %v, Volume Header Offset: %d\n",
+		metadataBlockHeader.Version, metadataBlockHeader.EncryptedVolumeSize,
+		metadataBlockHeader.NumberOfHeaderSectors, metadataBlockHeader.FVEMetadataOffsets,
+		metadataBlockHeader.VolumeHeaderOffset)
 }
 
 func (dataset FVEMetadataHeaderV3) GetInfo() {
