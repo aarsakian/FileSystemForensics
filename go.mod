@@ -6,7 +6,7 @@ require golang.org/x/sys v0.47.0
 
 require (
 	github.com/aarsakian/EWF_Reader v0.0.0-20260306182323-6ede308af4dd
-	github.com/aarsakian/VHD_Reader v0.0.0-20260902064702-e73668c40cdd
+	github.com/aarsakian/VHD_Reader v0.0.0-20260913092507-15d34d837e50
 	github.com/aarsakian/VMDK_Reader v0.0.0-20240910071554-9d72aac7f6b9
 	golang.org/x/text v0.41.0
 )
