@@ -232,8 +232,12 @@ func (volume *Volume) ProcessHeader(data []byte) {
 }
 
 func (volume Volume) GetInfo() {
-	fmt.Printf("Volume INFO %s\n", utils.StringifyGUID(volume.Header.BitLockerID[:]))
-	for _, metadataBlock := range volume.MetadataBlocks {
+	fmt.Printf("BitLocker Volume\n"+
+		"  Identifier: %s\n"+
+		"  Metadata blocks: %d\n",
+		utils.StringifyGUID(volume.Header.BitLockerID[:]), len(volume.MetadataBlocks))
+	for i, metadataBlock := range volume.MetadataBlocks {
+		fmt.Printf("\nMetadata Block %d\n", i+1)
 		metadataBlock.GetInfo()
 	}
 

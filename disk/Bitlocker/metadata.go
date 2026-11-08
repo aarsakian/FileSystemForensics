@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/aarsakian/FileSystemForensics/disk/Bitlocker/datums"
-	datum "github.com/aarsakian/FileSystemForensics/disk/Bitlocker/datums"
 	"github.com/aarsakian/FileSystemForensics/utils"
 )
 
@@ -92,7 +91,7 @@ type MetadataBlock struct {
 	Header       FVEMetadataBlockHeaderV2 // Works for Windows 7+ (V2 = Windows 7, V2 for Windows 8/10)
 	MetadataV1   *FVEMetadataHeaderV1     // For Windows 7 and early Windows 8
 	MetadataV3   *FVEMetadataHeaderV3     // For Windows 8+ (if version 3 is detected)
-	Datums       []datum.Datum            //entries of datums
+	Datums       []datums.Datum            //entries of datums
 	PaddingBytes []byte                   // Padding (seen in Windows 8 metadata blocks)
 }
 
@@ -106,22 +105,46 @@ func (metadataBlockHeader *FVEMetadataBlockHeaderV2) Process(data []byte) error 
 }
 
 func (dataset FVEMetadataHeaderV1) GetInfo() {
-	fmt.Printf("V1 Creation Time: %s GUID %s Encryption Method: %s\n",
-		dataset.CreationTime.ConvertToIsoTime(), utils.StringifyGUID(dataset.VolumeIdentifier[:]),
-		datums.GetEncryptionMethod(dataset.EncryptionMethod[:]))
+	fmt.Printf("Metadata Header (version 1)\n"+
+		"  Volume identifier: %s\n"+
+		"  Encryption method: %s\n"+
+		"  Created: %s\n"+
+		"  Metadata size: %d bytes\n"+
+		"  Header size: %d bytes\n"+
+		"  Next nonce counter: %d\n",
+		utils.StringifyGUID(dataset.VolumeIdentifier[:]),
+		datums.GetEncryptionMethod(dataset.EncryptionMethod[:]),
+		dataset.CreationTime.ConvertToIsoTime(),
+		dataset.MetadataSize, dataset.MetadataHeaderSize, dataset.NextNonceCounter)
 }
 
 func (metadataBlockHeader FVEMetadataBlockHeaderV2) GetInfo() {
-	fmt.Printf("Version %d, Encrypted Volume Size: %d, Number of Header Sectors: %d, FVE Metadata Offsets: %v, Volume Header Offset: %d\n",
-		metadataBlockHeader.Version, metadataBlockHeader.EncryptedVolumeSize,
+	fmt.Printf("Metadata Block Header\n"+
+		"  Signature: %s\n"+
+		"  Version: %d\n"+
+		"  Block size: %d bytes\n"+
+		"  Encrypted volume size: %d bytes\n"+
+		"  Header sectors: %d\n"+
+		"  Metadata offsets: %v\n"+
+		"  Volume header offset: %d\n",
+		string(metadataBlockHeader.Signature[:]), metadataBlockHeader.Version,
+		metadataBlockHeader.Size, metadataBlockHeader.EncryptedVolumeSize,
 		metadataBlockHeader.NumberOfHeaderSectors, metadataBlockHeader.FVEMetadataOffsets,
 		metadataBlockHeader.VolumeHeaderOffset)
 }
 
 func (dataset FVEMetadataHeaderV3) GetInfo() {
-	fmt.Printf("V3 Creation Time: %s GUID %s Encryption Method: %s\n",
-		dataset.CreationTime.ConvertToIsoTime(), utils.StringifyGUID(dataset.VolumeIdentifier[:]),
-		datums.GetEncryptionMethod(dataset.EncryptionMethod[:]))
+	fmt.Printf("Metadata Header (version 3)\n"+
+		"  Volume identifier: %s\n"+
+		"  Encryption method: %s\n"+
+		"  Created: %s\n"+
+		"  Metadata size: %d bytes\n"+
+		"  Header size: %d bytes\n"+
+		"  Next nonce counter: %d\n",
+		utils.StringifyGUID(dataset.VolumeIdentifier[:]),
+		datums.GetEncryptionMethod(dataset.EncryptionMethod[:]),
+		dataset.CreationTime.ConvertToIsoTime(),
+		dataset.MetadataSize, dataset.MetadataHeaderSize, dataset.NextNonceCounter)
 }
 
 func (metadataBlock *MetadataBlock) ParseEntries(raw []byte) error {
@@ -141,11 +164,17 @@ func (metadataBlock *MetadataBlock) ParseEntries(raw []byte) error {
 		if _, err := utils.Unmarshal(raw[offset:], metadataBlock.MetadataV1); err != nil {
 			return err
 		}
+		if metadataBlock.MetadataV1.MetadataHeaderSize < 48 {
+			return fmt.Errorf("invalid metadata header size %d", metadataBlock.MetadataV1.MetadataHeaderSize)
+		}
 		offset += int(metadataBlock.MetadataV1.MetadataHeaderSize)
 	case 3:
 		metadataBlock.MetadataV3 = new(FVEMetadataHeaderV3)
 		if _, err := utils.Unmarshal(raw[offset:], metadataBlock.MetadataV3); err != nil {
 			return err
+		}
+		if metadataBlock.MetadataV3.MetadataHeaderSize < 48 {
+			return fmt.Errorf("invalid metadata header size %d", metadataBlock.MetadataV3.MetadataHeaderSize)
 		}
 		offset += int(metadataBlock.MetadataV3.MetadataHeaderSize)
 	default:
@@ -155,22 +184,36 @@ func (metadataBlock *MetadataBlock) ParseEntries(raw []byte) error {
 			offset += int(fallback.MetadataHeaderSize)
 		}
 	}
+	if offset > len(raw) {
+		return errors.New("metadata header extends beyond metadata block")
+	}
 
 	for offset < len(raw) {
-		datumHeader := new(datum.DatumHeader)
+		if len(raw)-offset < 2 {
+			if raw[offset] == 0 {
+				break
+			}
+			return fmt.Errorf("incomplete metadata datum header at offset %d", offset)
+		}
+		if raw[offset] == 0 && raw[offset+1] == 0 {
+			break
+		}
+		datumHeader := new(datums.DatumHeader)
 		err := datumHeader.Process(raw[offset:])
 		if err != nil {
-			break
+			return fmt.Errorf("parse metadata datum at offset %d: %w", offset, err)
 		}
 		if datumHeader.EntrySize == 0 {
 			break
 		}
-		datum, err := datum.CreateDatum(*datumHeader, raw[offset+8:offset+int(datumHeader.EntrySize)])
+		datum, err := datums.CreateDatum(*datumHeader, raw[offset+8:offset+int(datumHeader.EntrySize)])
 		if err != nil {
-			break
+			return fmt.Errorf("parse metadata datum at offset %d: %w", offset, err)
+		}
+		if datum != nil {
+			metadataBlock.Datums = append(metadataBlock.Datums, datum)
 		}
 
-		metadataBlock.Datums = append(metadataBlock.Datums, datum)
 		offset += int(datumHeader.EntrySize)
 	}
 
@@ -178,13 +221,18 @@ func (metadataBlock *MetadataBlock) ParseEntries(raw []byte) error {
 }
 
 func (metadataBlock MetadataBlock) GetInfo() {
+	fmt.Println("FVE Metadata Block")
+	metadataBlock.Header.GetInfo()
 	if metadataBlock.MetadataV1 != nil {
 		metadataBlock.MetadataV1.GetInfo()
-
 	} else if metadataBlock.MetadataV3 != nil {
 		metadataBlock.MetadataV3.GetInfo()
+	} else {
+		fmt.Println("Metadata Header: unavailable")
 	}
-	for _, datum := range metadataBlock.Datums {
-		fmt.Printf("Datum Info: %s\n", datum.GetInfo())
+
+	fmt.Printf("Datums: %d\n", len(metadataBlock.Datums))
+	for i, datum := range metadataBlock.Datums {
+		fmt.Printf("  [%d] %s\n", i+1, datum.GetInfo())
 	}
 }

@@ -14,6 +14,29 @@ type Datum interface {
 	GetHeader() *DatumHeader
 }
 
+type FVEOpaqueDatum struct {
+	Header *DatumHeader
+	Data   []byte
+}
+
+func (opaque *FVEOpaqueDatum) Process(raw []byte) error {
+	opaque.Data = append([]byte(nil), raw...)
+	return nil
+}
+
+func (opaque *FVEOpaqueDatum) SetHeader(header *DatumHeader) {
+	opaque.Header = header
+}
+
+func (opaque *FVEOpaqueDatum) GetHeader() *DatumHeader {
+	return opaque.Header
+}
+
+func (opaque *FVEOpaqueDatum) GetInfo() string {
+	return fmt.Sprintf("Header info %s Opaque datum: %d bytes",
+		opaque.Header.GetInfo(), len(opaque.Data))
+}
+
 // FVEMetadataEntry represents a single metadata entry.
 // Entries are variable-sized and contain different types of data.
 type DatumHeader struct {
@@ -301,12 +324,17 @@ func CreateDatum(dh DatumHeader, raw []byte) (Datum, error) {
 	case MetadataValueTypeOffsetSize:
 		datum = new(FVEVolumeHeaderBlock)
 
+	default:
+		datum = new(FVEOpaqueDatum)
+
 	}
 	if datum == nil {
 		return nil, fmt.Errorf("unsupported value type: 0x%04X", dh.ValueType)
 	}
 	datum.SetHeader(&dh)
-	datum.Process(raw)
+	if err := datum.Process(raw); err != nil {
+		return nil, fmt.Errorf("process value type 0x%04X: %w", dh.ValueType, err)
+	}
 	return datum, nil
 }
 

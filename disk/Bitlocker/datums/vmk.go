@@ -26,33 +26,32 @@ type FVEVolumeMasterKey struct {
 }
 
 func (vmk *FVEVolumeMasterKey) Process(raw []byte) error {
+	const vmkHeaderSize = 28
+	if len(raw) < vmkHeaderSize {
+		return fmt.Errorf("VMK buffer too small: got %d bytes, need at least %d", len(raw), vmkHeaderSize)
+	}
 	if _, err := utils.Unmarshal(raw, vmk); err != nil {
 		return err
 	}
-	offset := 0
 
-	vmkDatumSize := 28
-
-	for offset < len(raw[vmkDatumSize:]) {
+	for offset := vmkHeaderSize; offset < len(raw); {
 		datumHeader := new(DatumHeader)
-		err := datumHeader.Process(raw[vmkDatumSize+offset:])
+		err := datumHeader.Process(raw[offset:])
 		if err != nil {
-			break
+			return fmt.Errorf("parse nested VMK datum at offset %d: %w", offset, err)
 		}
 		if datumHeader.EntrySize == 0 {
 			break
 		}
 
-		if offset+int(datumHeader.EntrySize) > len(raw) {
-			break
-		}
-
-		datum, err := CreateDatum(*datumHeader, raw[vmkDatumSize+offset+8:vmkDatumSize+offset+int(datumHeader.EntrySize)])
+		datum, err := CreateDatum(*datumHeader, raw[offset+8:offset+int(datumHeader.EntrySize)])
 		if err != nil {
-			break
+			return fmt.Errorf("parse nested VMK datum at offset %d: %w", offset, err)
+		}
+		if datum != nil {
+			vmk.Datums = append(vmk.Datums, datum)
 		}
 
-		vmk.Datums = append(vmk.Datums, datum)
 		offset += int(datumHeader.EntrySize)
 	}
 
