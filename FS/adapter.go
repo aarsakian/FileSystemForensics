@@ -54,12 +54,33 @@ func (record BTRFSRecord) FindAttributes(attrNames []string) []Attribute {
 	return attributes
 }
 
+func (record BTRFSRecord) GetRunListInfo() string {
+	var runs []string
+	for _, run := range record.GetRunLists() {
+		runs = append(runs, fmt.Sprintf("%d:%d", run[0], run[1]))
+	}
+	return strings.Join(runs, ", ")
+}
+
 func (ntfsRecord NTFSRecord) GetLinkedRecords() []Record {
 	linkedRecords := make([]Record, 0, len(ntfsRecord.Record.LinkedRecords))
 	for _, linkedRecord := range ntfsRecord.Record.LinkedRecords {
 		linkedRecords = append(linkedRecords, NTFSRecord{linkedRecord})
 	}
 	return linkedRecords
+}
+
+func (record NTFSRecord) GetRunListInfo() string {
+	run, err := record.Record.GetRunList("DATA")
+	if err != nil {
+		return fmt.Sprintf("unavailable: %v", err)
+	}
+
+	var runs []string
+	for ; run != nil; run = run.Next {
+		runs = append(runs, fmt.Sprintf("%d:%d", run.Offset, run.Length))
+	}
+	return strings.Join(runs, ", ")
 }
 
 func (ntfsRecord NTFSRecord) FindAttributes(attrNames []string) []Attribute {

@@ -38,6 +38,7 @@ type Record interface {
 	GetFileSize() (int64, int64)
 	GetVCNs() (uint64, uint64)
 	GetIndex() string
+	GetRunListInfo() string
 	GetType() string
 	GetDeletionInfo(map[int]bool) map[int]string
 	GetParentRecordInfo() string
