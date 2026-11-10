@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
 	"strings"
 	"time"
 
@@ -47,7 +48,7 @@ func (rp Reporter) Show(records []metadata.Record, usnjrnlRecords UsnJrnl.Record
 		_ = rp.renderSummary(records, partitionId, "FileSystemForensics")
 	}
 
-	tm := TableManager{W: os.Stdout}
+	tm := TableManager{W: rp.Writer}
 	tm.DetermineColumnWidths(rp.ShowFull, rp.ShowFileSize, rp.ShowPath, rp.ShowClusters,
 		rp.ShowVCNs, rp.ShowIndex, rp.ShowParent, rp.ShowDeletion,
 		rp.ShowTimestamps, rp.ShowRunList, rp.ShowFileName, rp.IsResident, rp.ShowUSNJRNL, rp.ShowAttributes)
@@ -60,14 +61,12 @@ func (rp Reporter) Show(records []metadata.Record, usnjrnlRecords UsnJrnl.Record
 		}
 
 		if rp.ShowFull || rp.ShowFileName || rp.ShowTimestamps || rp.ShowVCNs ||
-			rp.ShowFileSize || len(rp.ShowAttributes) != 0 {
+			rp.ShowFileSize || len(rp.ShowAttributes) != 0 || rp.IsResident ||
+			rp.ShowIndex || rp.ShowParent || rp.ShowPath || rp.ShowClusters ||
+			rp.ShowRunList || rp.ShowDeletion {
 
 			vals = append(vals, fmt.Sprintf("%d", record.GetID()))
 			vals = append(vals, record.GetType())
-		}
-
-		if rp.ShowFileName || rp.ShowFull {
-			vals = append(vals, record.GetFname())
 		}
 
 		if len(rp.ShowAttributes) != 0 || rp.ShowFull {
@@ -83,9 +82,15 @@ func (rp Reporter) Show(records []metadata.Record, usnjrnlRecords UsnJrnl.Record
 
 			}
 		}
-
+		if rp.ShowFileName || rp.ShowFull {
+			vals = append(vals, record.GetFname())
+		}
 		if rp.ShowTimestamps || rp.ShowFull {
-			vals = append(vals, record.GetTimestamps()...)
+			timestamps := record.GetTimestamps()
+			if len(timestamps) < 12 {
+				timestamps = append(timestamps, make([]string, 12-len(timestamps))...)
+			}
+			vals = append(vals, timestamps...)
 		}
 
 		if rp.IsResident || rp.ShowFull {
@@ -96,19 +101,10 @@ func (rp Reporter) Show(records []metadata.Record, usnjrnlRecords UsnJrnl.Record
 			}
 		}
 
-		if rp.ShowVCNs || rp.ShowFull {
-			startVCN, lastVCN := record.GetVCNs()
-			vals = append(vals, fmt.Sprintf("%d:%d", startVCN, lastVCN))
-		}
-
 		if rp.ShowFileSize || rp.ShowFull {
 			logicalsize, physicalsize := record.GetFileSize()
 			vals = append(vals, fmt.Sprintf("%1.0f", float64(logicalsize)/1024))
 			vals = append(vals, fmt.Sprintf("%1.0f", float64(physicalsize)/1024))
-		}
-
-		if rp.ShowIndex || rp.ShowFull {
-			vals = append(vals, record.GetIndex())
 		}
 
 		if rp.ShowParent || rp.ShowFull {
@@ -121,6 +117,19 @@ func (rp Reporter) Show(records []metadata.Record, usnjrnlRecords UsnJrnl.Record
 
 		if rp.ShowClusters || rp.ShowFull {
 			vals = append(vals, utils.ToString(record.GetAllocatedClusters()))
+		}
+
+		if rp.ShowVCNs || rp.ShowFull {
+			startVCN, lastVCN := record.GetVCNs()
+			vals = append(vals, fmt.Sprintf("%d:%d", startVCN, lastVCN))
+		}
+
+		if rp.ShowIndex || rp.ShowFull {
+			vals = append(vals, record.GetIndex())
+		}
+
+		if rp.ShowRunList || rp.ShowFull {
+			vals = append(vals, record.GetRunListInfo())
 		}
 
 		if rp.ShowVSSClusters {
@@ -138,13 +147,17 @@ func (rp Reporter) Show(records []metadata.Record, usnjrnlRecords UsnJrnl.Record
 		if rp.ShowDeletion || rp.ShowFull {
 
 			recordClustersMap := record.GetDeletionInfo(clustersBitMap)
-			if len(recordClustersMap) == 0 {
-				vals = append(vals, "")
+			offsets := make([]int, 0, len(recordClustersMap))
+			for offset := range recordClustersMap {
+				offsets = append(offsets, offset)
 			}
-			for offset, allocStatus := range recordClustersMap {
-				vals = append(vals, fmt.Sprintf("%d:%s", offset, allocStatus))
+			sort.Ints(offsets)
+			deletionInfo := make([]string, 0, len(offsets))
+			for _, offset := range offsets {
+				deletionInfo = append(deletionInfo,
+					fmt.Sprintf("%d:%s", offset, recordClustersMap[offset]))
 			}
-
+			vals = append(vals, strings.Join(deletionInfo, ", "))
 		}
 		if len(vals) > 1 {
 			tm.PrintRow(vals)

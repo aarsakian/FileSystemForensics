@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/aarsakian/FileSystemForensics/utils"
 )
@@ -36,7 +37,9 @@ func (tm *TableManager) DetermineColumnWidths(showFull, showFileSize, showPath, 
 
 	activeColumns := 0
 
-	if showFull || showFilename || showTimestamps || showVCNs || showFileSize || len(showAttributes) > 0 {
+	if showFull || showFilename || showTimestamps || showVCNs || showFileSize ||
+		len(showAttributes) > 0 || showClusters || showIndex || showParent ||
+		showPath || showDeletion || showRunLists || IsResident {
 		tm.Columns = append(tm.Columns, Column{Name: "ID"})
 		tm.Columns = append(tm.Columns, Column{Name: "Type"})
 		activeColumns += 2
@@ -129,21 +132,33 @@ func (tm *TableManager) DetermineColumnWidths(showFull, showFileSize, showPath, 
 
 	totalWidth := utils.TerminalWidth() - 5
 	if activeColumns > 0 {
-
+		minimumWidths := make([]int, len(tm.Columns))
+		minimumTotalWidth := 0
 		for i := range tm.Columns {
 			switch tm.Columns[i].Name {
 			case "ID":
-				tm.Columns[i].Width = 8
-				totalWidth -= 8
+				minimumWidths[i] = 8
 			case "Type":
-				tm.Columns[i].Width = 25
-				totalWidth -= 25
-
+				minimumWidths[i] = 25
 			default:
-				tm.Columns[i].Width = totalWidth / (activeColumns - i)
+				minimumWidths[i] = 3
+				if strings.Contains(tm.Columns[i].Name, "Time") {
+					minimumWidths[i] = 23
+				}
 			}
+			minimumTotalWidth += minimumWidths[i]
+		}
 
-			totalWidth -= tm.Columns[i].Width
+		if totalWidth < minimumTotalWidth {
+			totalWidth = minimumTotalWidth
+		}
+		extraWidth := totalWidth - minimumTotalWidth
+		remainingColumns := len(tm.Columns)
+		for i := range tm.Columns {
+			extra := extraWidth / remainingColumns
+			tm.Columns[i].Width = minimumWidths[i] + extra
+			extraWidth -= extra
+			remainingColumns--
 		}
 	}
 
@@ -228,15 +243,18 @@ func (tm TableManager) PrintRow(row []string) error {
 	var line bytes.Buffer
 	line.WriteString("│")
 	for colidx, col := range tm.Columns {
-
-		if len(row[colidx]) > col.Width-2 {
-			row[colidx] = row[colidx][:col.Width-2] + "..."
+		value := ""
+		if colidx < len(row) {
+			value = row[colidx]
 		}
-		if col.Name == "Type" && (row[colidx] == "Folder Unallocated" ||
-			row[colidx] == "File Unallocated") {
-			fmt.Fprintf(&line, "%s%-*s%s", Red, col.Width, row[colidx], Reset)
+		if len(value) > col.Width-2 {
+			value = value[:col.Width-2] + "..."
+		}
+		if col.Name == "Type" && (value == "Folder Unallocated" ||
+			value == "File Unallocated") {
+			fmt.Fprintf(&line, "%s%-*s%s", Red, col.Width, value, Reset)
 		} else {
-			fmt.Fprintf(&line, "%s%-*s%s", White, col.Width, row[colidx], Reset)
+			fmt.Fprintf(&line, "%s%-*s%s", White, col.Width, value, Reset)
 		}
 
 		line.WriteString("│")
