@@ -33,13 +33,13 @@ The current CLI flags can be reviewed with:
 
 Flags are grouped by purpose:
 
-- Input and target selection: -evidence, -physicaldrive, -partition, -volume, -physicaloffset, and -mftoffset
+- Input and target selection: -evidence, -physicaldrive, -partition, -volume, -physicaloffset, -mftoffset, -searchfs, and -searchoffset
 - Record selection and filtering: -entries, -fromentry, -toentry, -orphans, -deleted, -extensions, -filenames, -path, and -verifysignatures
-- Display and reporting: -showfilename, -showfull, -showtree, -showpath, -showtimestamps, -showrunlist, -showvcns, -showvssclusters, -showclusters, -showbitlocker, -showparent, -showattributes, -showfilesize, -showindex, -volinfo, -tree, -usnjrnl, and -logfile
+- Display and reporting: -showfilename, -showfull, -showtree, -showpath, -showtimestamps, -showrunlist, -showvcns, -showvssclusters, -showclusters, -showbitlocker, -showparent, -showattributes, -showfilesize, -showindex, -showusn, -volinfo, -tree, -usnjrnl, and -logfile
 - Export and hashing: -export, -recreatepath, -strategy, -hash, -unallocated, -listunallocated, -listpartitions, and -resident
 - BitLocker, VSS, and diagnostics: -password, -recoverykey, -vss, -listvss, -log, -benchmark, and -profile
 
-Current options include:
+Current options:
 
   -benchmark
         test HD speed
@@ -93,13 +93,15 @@ Current options include:
         show information only for orphan records
 
   -partition int
-        select partition number
+        select partition number (1-based)
 
   -password string
-        password for Bitlocker volumes
 
   -path string
         base path of files to exported must be absolute e.g. C:\MYFILES\ABC translates to MYFILES\ABC
+
+  -password string
+        password for BitLocker volumes
 
   -physicaldrive int
         select disk drive number (default -1)
@@ -111,7 +113,7 @@ Current options include:
         profile memory usage
 
   -recoverykey string
-        recovery key for Bitlocker volumes
+        recovery key for BitLocker volumes
 
   -recreatepath
         recreate file path
